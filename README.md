@@ -166,14 +166,17 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
 ```
 packages/kdcheck/src/kdcheck/
   schemas/                   формат отчёта (контракт)
+  ingest/                    чтение файлов: формат, текстовый слой, адаптер PdfBackend
+  ocr/                       распознавание сканов (Tesseract)
+  render.py                  растеризация страниц для просмотра
 packages/kdcheck/tests/      pytest
 backend/arm_web/
   main.py, jobs.py           API и фоновая обработка заданий
   models.py                  модель задания; реэкспорт контракта на время переноса
   pipeline/                  интерфейс конвейера, внешний конвейер
-  pipeline/baseline/         базовый конвейер: document, ocr, title_block, spec_parser,
-                             requirements, completeness, critical, pipeline
-  exports.py, render.py      Excel/HTML и растеризация страниц
+  pipeline/baseline/         базовый конвейер: title_block, spec_parser, requirements,
+                             completeness, critical, pipeline
+  exports.py                 Excel и HTML
   evaluate.py                метрики по эталону
   demo_kit.py, build_demo.py генератор демо-комплекта и демо-данных интерфейса
 backend/tests/               pytest
