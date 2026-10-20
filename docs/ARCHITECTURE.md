@@ -4,7 +4,7 @@
 
 Ядро — Python-библиотека `kdcheck` с CLI. Веб-приложение — оболочка над тем же ядром: API принимает комплект и запускает ядро отдельным процессом, фронтенд показывает отчёт. CLI и веб дают одинаковый результат, а команды Блоков 1, 2 и веба работают независимо через общие схемы данных.
 
-Сейчас код — прототип в `backend/` и `frontend/`. Переход к этой схеме идёт по шагам из [сверки прототипа](reviews/2026-10-20-prototype.md#7-план-миграции).
+Сейчас в ядре `packages/kdcheck` только контракт отчёта, остальной код — прототип в `backend/` и `frontend/`. Переход к этой схеме идёт по шагам из [сверки прототипа](reviews/2026-10-20-prototype.md#7-план-миграции).
 
 ## Компоненты
 
@@ -123,7 +123,7 @@ data/jobs/<job_id>/
 
 ## Отчёт: контракт
 
-Контракт — формат прототипа ([ADR-0009](adr/0009-report-contract.md)). Поля описаны в [report-format.md](report-format.md), схема — [report.schema.json](report.schema.json), модели — `backend/arm_web/models.py`, после переноса — `kdcheck.schemas`.
+Контракт — формат прототипа ([ADR-0009](adr/0009-report-contract.md)). Поля описаны в [report-format.md](report-format.md), схема — [report.schema.json](report.schema.json), модели — `kdcheck.schemas`. Схема генерируется из моделей, типы TypeScript — из схемы; тесты сверяют и то и другое.
 
 `Report` версии 1.0: `schema_version`, `kit`, `summary`, `documents`, `specifications`, `tree`, `discrepancies`, `parts`, `critical_parameters`, `quality`, `log`.
 

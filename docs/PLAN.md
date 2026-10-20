@@ -71,9 +71,9 @@ gantt
 
 Цель: Блоки 1 и 2 и веб работают независимо, договорившись о форматах.
 
-- [ ] Перенести контракт прототипа в `kdcheck.schemas`, `arm_web.models` реэкспортирует его ([ADR-0009](adr/0009-report-contract.md), шаг 3 плана миграции)
+- [x] Перенести контракт прототипа в `kdcheck.schemas`, `arm_web.models` реэкспортирует его ([ADR-0009](adr/0009-report-contract.md), шаг 3 плана миграции)
 - [ ] Контракт 1.1: `rule_id`, движки и версии, статус значения, статусы `encrypted` и `duplicate_file`, `extensions` (ARCHITECTURE.md, «Отчёт: контракт»)
-- [ ] JSON Schema из моделей и типы TypeScript из схемы; CI сверяет их с моделями
+- [x] JSON Schema из моделей и типы TypeScript из схемы; CI сверяет их с моделями — `scripts/export_schema.sh`, тесты в `packages/kdcheck/tests` и `frontend/scripts`
 - [ ] Фикстуры: `samples/` и `frontend/public/demo/report.json` обновляются при смене версии
 - [ ] Каталог типов расхождений и категорий проблемных файлов: коды, уровни важности, тексты
 

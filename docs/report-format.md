@@ -4,9 +4,11 @@
 блоков 1 и 2 (OCR, VLM, LLM, правила), которая пишет `report.json` в этом формате,
 отображается в интерфейсе без изменений фронтенда.
 
-* Модели: [`backend/arm_web/models.py`](../backend/arm_web/models.py) (Pydantic)
-* JSON Schema: [`report.schema.json`](report.schema.json) — `python -m arm_web schema`
-* Типы TypeScript: [`frontend/src/api/types.ts`](../frontend/src/api/types.ts)
+* Модели: [`kdcheck.schemas`](../packages/kdcheck/src/kdcheck/schemas/report.py) (Pydantic)
+* JSON Schema: [`report.schema.json`](report.schema.json) — генерируется из моделей
+* Типы TypeScript: [`frontend/src/api/report.generated.ts`](../frontend/src/api/report.generated.ts) — генерируются из схемы
+
+Схема и типы обновляются одной командой `sh scripts/export_schema.sh`. Тесты падают, если схема отстала от моделей или типы — от схемы.
 * Пример: [`frontend/public/demo/report.json`](../frontend/public/demo/report.json)
 
 Версия формата — поле `schema_version` (сейчас `1.0`). Необязательные поля можно
