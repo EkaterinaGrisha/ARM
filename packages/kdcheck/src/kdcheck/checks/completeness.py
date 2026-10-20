@@ -1,8 +1,10 @@
-"""Блок 1: дерево изделия и проверка комплектности.
+"""Block 1: product tree and completeness check.
 
-На входе — разобранные спецификации и чертежи, на выходе — дерево изделия
-(сборочные единицы раскрываются рекурсивно по своим спецификациям) и перечень
-расхождений с классификацией по типу.
+Input: parsed specifications and drawings. Output: the product tree, with assemblies expanded recursively through
+their own specifications, and the list of discrepancies classified by type.
+
+Tree building and checks share one pass for now; they split into ``tree`` and ``checks`` with the rule registry
+(step 8 of the migration plan).
 """
 
 from __future__ import annotations
@@ -17,10 +19,21 @@ from kdcheck.normalize.designations import (
     normalize_designation,
     normalize_name,
 )
+from kdcheck.schemas import (
+    Discrepancy,
+    DiscrepancyType,
+    DocumentInfo,
+    Extracted,
+    NodeKind,
+    PartRecord,
+    Severity,
+    SourceRef,
+    Specification,
+    SpecRow,
+    TreeNode,
+)
 
-from ...models import Discrepancy, DocumentInfo, PartRecord, SourceRef, Specification, SpecRow, TreeNode
-
-SECTION_KIND = {
+SECTION_KIND: dict[str, NodeKind] = {
     "Документация": "document",
     "Комплексы": "assembly",
     "Сборочные единицы": "assembly",
@@ -42,7 +55,7 @@ class DrawingRef:
     def designation(self) -> str | None:
         return self.doc.designation
 
-    def tb_value(self, key: str):
+    def tb_value(self, key: str) -> str | float | int | None:
         if self.part is None:
             return None
         ex = getattr(self.part.title_block, key, None)
@@ -64,12 +77,12 @@ class Result:
     log: list[str] = field(default_factory=list)
 
 
-def _value(ex) -> str | None:
+def _value(ex: Extracted | None) -> str | None:
     return str(ex.value) if ex is not None and ex.value not in (None, "") else None
 
 
 class Checker:
-    def __init__(self, specs: list[tuple[DocumentInfo, Specification]], drawings: list[DrawingRef]):
+    def __init__(self, specs: list[tuple[DocumentInfo, Specification]], drawings: list[DrawingRef]) -> None:
         self.specs = specs
         self.drawings = drawings
         self.result = Result()
@@ -98,8 +111,8 @@ class Checker:
 
     def add(
         self,
-        type_: str,
-        severity: str,
+        type_: DiscrepancyType,
+        severity: Severity,
         designation: str | None,
         title: str,
         message: str,
@@ -288,7 +301,7 @@ class Checker:
                 continue
             sheets = [ref.tb_value("sheet") for ref in refs]
             if all(s is not None for s in sheets) and len(set(sheets)) == len(sheets):
-                continue  # многолистовой документ, разбитый на файлы
+                continue  # a multi-sheet document split into files
             files = ", ".join(r.doc.path for r in refs)
             self.add(
                 "duplicate_designation",
@@ -362,7 +375,7 @@ class Checker:
                     candidates = list(self.drawings_by_des.get(f"{des} СБ", []))
                 for ref in candidates:
                     actual = ref.tb_value("name") or ref.doc.name
-                    if not actual or normalize_name(actual) == normalize_name(expected):
+                    if not actual or normalize_name(str(actual)) == normalize_name(expected):
                         continue
                     self.add(
                         "name_mismatch",
@@ -394,8 +407,8 @@ class Checker:
                             )
 
     def _check_litera(self) -> None:
-        """Литера спецификации и её сборочного чертежа должны совпадать; литера составной части
-        не может быть ниже литеры сборочной единицы (ГОСТ 2.103)."""
+        """The specification and its assembly drawing share one litera; a component's litera is not lower than
+        the assembly's (GOST 2.103)."""
         for des, items in self.spec_by_des.items():
             doc, spec = items[0]
             spec_lit = _value(spec.litera)
@@ -421,7 +434,7 @@ class Checker:
                 child = normalize_designation(_value(row.designation))
                 if not child or doc_code(child):
                     continue
-                child_docs: list[tuple[str | None, str, SourceRef | None]] = []
+                child_docs: list[tuple[str | float | int | None, str, SourceRef | None]] = []
                 for ref in self.drawings_by_des.get(child, []):
                     child_docs.append((ref.tb_value("litera"), ref.doc.id, ref.tb_source("litera")))
                 for cdoc, cspec in self.spec_by_des.get(child, []):
