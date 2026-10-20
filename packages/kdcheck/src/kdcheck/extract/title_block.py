@@ -1,8 +1,8 @@
-"""Разбор основной надписи (ГОСТ 2.104): форма 1 — чертежи, форма 2 — спецификации.
+"""Title block parsing (GOST 2.104): form 1 for drawings, form 2 for specifications.
 
-Положение надписи определяется по подписям граф («Лит.», «Масса», «Масштаб», «Листов»),
-масштаб — по расстоянию между ними. Дальше значения берутся из ячеек по геометрии формы,
-поэтому разбор одинаково работает для векторных PDF и распознанных сканов.
+The block is located by the column labels («Лит.», «Масса», «Масштаб», «Листов») and scaled by the distance
+between them. Values are then read from cells by the form geometry, so parsing works the same way for vector PDFs
+and recognized scans.
 """
 
 from __future__ import annotations
@@ -11,12 +11,13 @@ import re
 from dataclasses import dataclass
 
 from kdcheck.ingest.document import LoadedDocument, Page
-from kdcheck.ingest.text import Line, lines_confidence
+from kdcheck.ingest.text import BBox, Line, lines_confidence
+from kdcheck.normalize.designations import find_designations, normalize_litera
+from kdcheck.schemas import Extracted, TitleBlock
 
-from ...models import Extracted, TitleBlock
-from .designations import find_designations, normalize_litera
+Point = tuple[float, float]
 
-# центры подписей граф относительно левого верхнего угла надписи, мм
+# Column label centres from the top left corner of the title block, mm
 FORM1_ANCHORS = {"лит": (142.5, 17.5), "масса": (158.5, 17.5), "масштаб": (176.0, 17.5)}
 FORM2_ANCHORS = {"лит": (142.5, 17.5), "лист": (157.5, 17.5), "листов": (175.0, 17.5)}
 
@@ -41,17 +42,17 @@ FORM2_CELLS = {
 
 @dataclass
 class Geometry:
-    form: int  # 1 — чертёж, 2 — спецификация
+    form: int  # 1: drawing, 2: specification
     x0: float
     y0: float
-    s: float  # единиц страницы на мм
+    s: float  # page units per mm
     anchored: bool
 
     @property
     def height(self) -> float:
         return 55 if self.form == 1 else 40
 
-    def rect(self, cell: tuple[float, float, float, float], pad: float = 0.8):
+    def rect(self, cell: BBox, pad: float = 0.8) -> BBox:
         x0, y0, x1, y1 = cell
         return (
             self.x0 + (x0 - pad) * self.s,
@@ -61,7 +62,7 @@ class Geometry:
         )
 
     @property
-    def bbox(self):
+    def bbox(self) -> BBox:
         return self.rect((0, 0, 185, self.height), pad=0)
 
 
@@ -70,8 +71,8 @@ def _key(word: str) -> str:
 
 
 def locate(page: Page) -> Geometry | None:
-    """Находит основную надпись на странице; None, если подписей граф нет."""
-    found: dict[str, list[tuple[float, float]]] = {}
+    """Locate the title block on the page; None if there are no column labels."""
+    found: dict[str, list[Point]] = {}
     for line in page.lines:
         if line.vertical:
             continue
@@ -90,9 +91,9 @@ def locate(page: Page) -> Geometry | None:
     return None
 
 
-def _best_row(found, anchors, tol: float) -> dict[str, tuple[float, float]]:
-    """Подписи, лежащие на одной строке (берём строку с наибольшим числом совпадений)."""
-    best: dict[str, tuple[float, float]] = {}
+def _best_row(found: dict[str, list[Point]], anchors: dict[str, Point], tol: float) -> dict[str, Point]:
+    """Labels on one row; the row with the most matches wins."""
+    best: dict[str, Point] = {}
     for key in anchors:
         for cx, cy in found.get(key, []):
             row = {key: (cx, cy)}
@@ -108,7 +109,7 @@ def _best_row(found, anchors, tol: float) -> dict[str, tuple[float, float]]:
     return best
 
 
-def _geometry(page: Page, form: int, anchors, hits) -> Geometry:
+def _geometry(page: Page, form: int, anchors: dict[str, Point], hits: dict[str, Point]) -> Geometry:
     s = page.mm
     keys = sorted(hits, key=lambda k: anchors[k][0])
     if len(keys) >= 2:
@@ -128,13 +129,13 @@ def default_geometry(page: Page, form: int = 1) -> Geometry:
     return Geometry(form=form, x0=page.width - (5 + 185) * s, y0=page.height - (5 + height) * s, s=s, anchored=False)
 
 
-def lines_in(page: Page, rect, *, vertical: bool = False) -> list[Line]:
+def lines_in(page: Page, rect: BBox, *, vertical: bool = False) -> list[Line]:
     x0, y0, x1, y1 = rect
     picked = [ln for ln in page.lines if ln.vertical == vertical and x0 <= ln.cx <= x1 and y0 <= ln.cy <= y1]
     return sorted(picked, key=lambda ln: (round(ln.cy / 4), ln.bbox[0]))
 
 
-def _union(lines: list[Line]):
+def _union(lines: list[Line]) -> BBox:
     return (
         min(ln.bbox[0] for ln in lines),
         min(ln.bbox[1] for ln in lines),
@@ -143,7 +144,9 @@ def _union(lines: list[Line]):
     )
 
 
-def _extracted(doc: LoadedDocument, page: Page, lines: list[Line], value, confidence: float | None = None):
+def _extracted(
+    doc: LoadedDocument, page: Page, lines: list[Line], value: str | int | None, confidence: float | None = None
+) -> Extracted | None:
     if not lines or value in (None, ""):
         return None
     raw = " ".join(ln.text for ln in lines)
@@ -166,10 +169,10 @@ def parse(doc: LoadedDocument, page: Page, geom: Geometry) -> TitleBlock:
     tb = TitleBlock()
     got: dict[str, list[Line]] = {name: lines_in(page, geom.rect(cell)) for name, cell in cells.items()}
 
-    # обозначение: самая крупная строка с обозначением ЕСКД в графе 2
+    # Designation: the largest line with an ESKD designation in column 2
     des_lines = got["designation"]
     candidates = [(ln, d) for ln in des_lines for d, _, _ in find_designations(ln.text)]
-    if not candidates:  # бывает, что обозначение чуть выходит за ячейку
+    if not candidates:  # the designation sometimes sticks out of its cell
         wide = lines_in(page, geom.rect((40, -6, 185, 18)))
         candidates = [(ln, d) for ln in wide for d, _, _ in find_designations(ln.text)]
     if candidates:
@@ -206,7 +209,7 @@ def parse(doc: LoadedDocument, page: Page, geom: Geometry) -> TitleBlock:
 
 
 def _revision(doc: LoadedDocument, page: Page, geom: Geometry) -> Extracted | None:
-    """Номер последнего изменения — наибольший номер в графе «Изм.» над строкой заголовков."""
+    """Last change number: the largest number in the «Изм.» column above the header row."""
     header_y = geom.y0 + 22.5 * geom.s
     col = (geom.x0 - 1 * geom.s, geom.x0 + 7.5 * geom.s)
     for ln in lines_in(page, geom.rect((0, 0, 65, 30))):
@@ -235,7 +238,7 @@ def _revision(doc: LoadedDocument, page: Page, geom: Geometry) -> Extracted | No
 
 
 def _margin_value(doc: LoadedDocument, page: Page, label_keys: tuple[str, ...]) -> Extracted | None:
-    """Значение вертикальной графы на левом поле (архивный номер, первое применение)."""
+    """Value of a vertical column in the left margin (archive number, first use)."""
     labels = [ln for ln in page.lines if ln.vertical and all(k in ln.text.lower() for k in label_keys[:1])]
     for label in labels:
         lx0, ly0, lx1, ly1 = label.bbox

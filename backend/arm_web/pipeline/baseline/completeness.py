@@ -10,8 +10,15 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from kdcheck.normalize.designations import (
+    base_designation,
+    doc_code,
+    litera_rank,
+    normalize_designation,
+    normalize_name,
+)
+
 from ...models import Discrepancy, DocumentInfo, PartRecord, SourceRef, Specification, SpecRow, TreeNode
-from .designations import base_designation, doc_code, litera_rank, normalize_designation, normalize_name
 
 SECTION_KIND = {
     "Документация": "document",

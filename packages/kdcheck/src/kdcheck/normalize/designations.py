@@ -1,10 +1,10 @@
-"""Обозначения ЕСКД: поиск в тексте и нормализация."""
+"""ESKD designations: search in text and normalization."""
 
 from __future__ import annotations
 
 import re
 
-# Латинские буквы, внешне совпадающие с кириллическими (частая ошибка OCR и набора)
+# Latin letters that look like Cyrillic ones: a frequent OCR and typing error
 _LAT_TO_CYR = str.maketrans("ABCEHKMOPTXYabcekmoptxy", "АВСЕНКМОРТХУавсекмортху")
 _CYR_DIGITS = str.maketrans({"О": "0", "о": "0", "З": "3", "б": "6"})
 
@@ -22,7 +22,7 @@ DESIGNATION_RE = re.compile(
 
 
 def normalize_designation(text: str | None) -> str | None:
-    """Приводит обозначение к виду ``АБВГ.123456.789-01 СБ``; None, если обозначения нет."""
+    """Bring a designation to the ``АБВГ.123456.789-01 СБ`` form; None if the text has none."""
     if not text:
         return None
     m = DESIGNATION_RE.search(text.upper().translate(_LAT_TO_CYR))
@@ -44,13 +44,13 @@ def _format(m: re.Match[str]) -> str:
 
 
 def find_designations(text: str) -> list[tuple[str, int, int]]:
-    """Все обозначения в строке: (нормализованное, начало, конец)."""
+    """All designations in a string: (normalized, start, end)."""
     upper = text.upper().translate(_LAT_TO_CYR)
     return [(_format(m), m.start(), m.end()) for m in DESIGNATION_RE.finditer(upper)]
 
 
 def base_designation(designation: str) -> str:
-    """Обозначение изделия без кода документа: ``АРМ.303411.000 СБ`` → ``АРМ.303411.000``."""
+    """Item designation without the document code: ``АРМ.303411.000 СБ`` → ``АРМ.303411.000``."""
     return designation.split(" ")[0]
 
 
@@ -64,7 +64,7 @@ _PUNCT = re.compile(r"[\"'«»“”.,;:()\-–—_]+")
 
 
 def normalize_name(name: str | None) -> str:
-    """Наименование для сравнения: регистр, ё/е, пунктуация и пробелы не учитываются."""
+    """Name for comparison: ignores case, ё/е, punctuation and spaces."""
     if not name:
         return ""
     s = name.lower().replace("ё", "е").translate(_LAT_TO_CYR)
@@ -86,7 +86,7 @@ def normalize_litera(text: str | None) -> str | None:
 
 
 def litera_rank(litera: str | None) -> int | None:
-    """Порядок литеры по ГОСТ 2.103 (больше — более поздняя стадия); None — литера вне шкалы."""
+    """Litera order by GOST 2.103, higher is a later stage; None for a litera outside the scale."""
     lit = normalize_litera(litera)
     if lit in LITERA_ORDER:
         return LITERA_ORDER.index(lit)

@@ -1,9 +1,8 @@
-"""Разбор спецификации (ГОСТ 2.106, форма 1).
+"""Specification parsing (GOST 2.106, form 1).
 
-Графы таблицы восстанавливаются по положению заголовков «Обозначение» и «Наименование»
-с учётом стандартной ширины граф. Строки собираются по вертикальной координате;
-переносы наименования присоединяются к предыдущей позиции, заголовки разделов
-(«Детали», «Стандартные изделия»…) задают раздел для последующих строк.
+Table columns are restored from the positions of the «Обозначение» and «Наименование» headers and the standard
+column widths. Rows are grouped by the vertical coordinate; wrapped names join the previous position, and section
+headers («Детали», «Стандартные изделия»…) set the section for the rows below.
 """
 
 from __future__ import annotations
@@ -11,12 +10,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from kdcheck.extract import title_block
 from kdcheck.ingest.document import LoadedDocument, Page
-from kdcheck.ingest.text import Word
-
-from ...models import Extracted, Specification, SpecRow
-from . import title_block
-from .designations import find_designations, normalize_designation
+from kdcheck.ingest.text import BBox, Word
+from kdcheck.normalize.designations import find_designations, normalize_designation
+from kdcheck.schemas import Extracted, Specification, SpecRow
 
 SECTIONS = [
     "Документация",
@@ -30,7 +28,7 @@ SECTIONS = [
 ]
 _SECTION_KEYS = {re.sub(r"[^а-я]", "", s.lower()): s for s in SECTIONS}
 
-# графы спецификации: (поле, левая граница, правая граница), мм от левого края таблицы
+# Specification columns: (field, left edge, right edge), mm from the left edge of the table
 COLUMNS = [
     ("format", 0, 6),
     ("zone", 6, 12),
@@ -87,7 +85,7 @@ def _table(page: Page, header: tuple[Word, Word] | None, prev: Table | None) -> 
     if geom is not None and geom.form == 2:
         bottom = geom.y0 - 0.5 * s
     else:
-        bottom = page.height - 21 * s  # форма 2а: надпись высотой 15 мм
+        bottom = page.height - 21 * s  # form 2a: a 15 mm title block
     return Table(x0, s, top, bottom)
 
 
@@ -120,7 +118,7 @@ def parse(doc: LoadedDocument) -> Specification:
 
 
 def _designation_fallback(doc: LoadedDocument) -> Extracted | None:
-    """Обозначение спецификации из крупного текста внизу первого листа или из имени файла."""
+    """Specification designation from large text at the bottom of the first sheet."""
     for page in doc.pages[:1]:
         candidates = [
             (ln, d) for ln in page.lines if ln.cy > page.height * 0.8 for d, _, _ in find_designations(ln.text)
@@ -141,7 +139,7 @@ def _cluster_rows(words: list[Word], tol: float) -> list[list[Word]]:
     return rows
 
 
-def _parse_page(doc: LoadedDocument, page: Page, table: Table, rows: list[SpecRow], section: str | None):
+def _parse_page(doc: LoadedDocument, page: Page, table: Table, rows: list[SpecRow], section: str | None) -> str | None:
     words = [
         w
         for ln in page.lines
@@ -171,7 +169,7 @@ def _parse_page(doc: LoadedDocument, page: Page, table: Table, rows: list[SpecRo
     return section
 
 
-def _bbox(words: list[Word]):
+def _bbox(words: list[Word]) -> BBox:
     return (
         min(w.bbox[0] for w in words),
         min(w.bbox[1] for w in words),

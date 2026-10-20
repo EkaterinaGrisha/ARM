@@ -13,7 +13,9 @@ from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
+from kdcheck.extract import specification, title_block
 from kdcheck.ingest.document import LoadedDocument, Page, is_unreadable, load_document
+from kdcheck.normalize.designations import doc_code, find_designations, normalize_designation
 
 from ...models import (
     Extracted,
@@ -27,9 +29,8 @@ from ...models import (
     TitleBlock,
 )
 from ..base import ProgressCallback, no_progress
-from . import critical, requirements, spec_parser, title_block
+from . import critical, requirements
 from .completeness import DrawingRef, check
-from .designations import doc_code, find_designations, normalize_designation
 
 log = logging.getLogger(__name__)
 
@@ -137,8 +138,8 @@ class BaselinePipeline:
         if not text_pages:
             self._scan_without_text(doc, parts)
             return
-        if any(spec_parser.is_specification(p) for p in text_pages[:2]):
-            spec = spec_parser.parse(doc)
+        if any(specification.is_specification(p) for p in text_pages[:2]):
+            spec = specification.parse(doc)
             info.kind = "specification"
             info.designation = _str(spec.designation) or _filename_designation(info.file_name)
             info.name = _str(spec.name)
@@ -150,7 +151,7 @@ class BaselinePipeline:
         page = text_pages[0]
         geom = title_block.locate(page)
         if geom is not None and geom.form == 2:
-            spec = spec_parser.parse(doc)
+            spec = specification.parse(doc)
             info.kind = "specification"
             info.designation = _str(spec.designation)
             info.name = _str(spec.name)
