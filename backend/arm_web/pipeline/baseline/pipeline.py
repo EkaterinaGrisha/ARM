@@ -13,6 +13,8 @@ from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
+from kdcheck.ingest.document import LoadedDocument, Page, is_unreadable, load_document
+
 from ...models import (
     Extracted,
     KitInfo,
@@ -28,7 +30,6 @@ from ..base import ProgressCallback, no_progress
 from . import critical, requirements, spec_parser, title_block
 from .completeness import DrawingRef, check
 from .designations import doc_code, find_designations, normalize_designation
-from .document import LoadedDocument, Page, is_unreadable, load_document
 
 log = logging.getLogger(__name__)
 

@@ -47,6 +47,7 @@ packaging==26.3
 pillow==13.0.0
     # via
     #   arm-web
+    #   kdcheck
     #   pytesseract
 protobuf==7.36.2
     # via onnxruntime
@@ -60,13 +61,15 @@ pydantic==2.14.1
 pydantic-core==2.50.1
     # via pydantic
 pymupdf==2.0
-    # via arm-web
+    # via
+    #   arm-web
+    #   kdcheck
 pymupdf-layout==2.0
     # via pymupdf
 pymupdf4llm==2.0
     # via pymupdf
 pytesseract==0.3.13
-    # via arm-web
+    # via kdcheck
 python-dotenv==1.2.4
     # via uvicorn
 python-multipart==0.0.32

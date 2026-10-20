@@ -11,7 +11,7 @@ dependencies = [
   "fastapi>=0.110",
   "uvicorn[standard]>=0.29",
   "python-multipart>=0.0.9",
-  "kdcheck",
+  "kdcheck[pymupdf]",
   "pydantic>=2.6",
   "pymupdf>=1.24",
   "pillow>=10.0",
@@ -22,7 +22,7 @@ dependencies = [
 kdcheck = { workspace = true }
 
 [project.optional-dependencies]
-ocr = ["pytesseract>=0.3.10"]
+ocr = ["kdcheck[ocr]"]
 
 [tool.setuptools.packages.find]
 include = ["arm_web*"]

@@ -1,35 +1,32 @@
-"""Растеризация страниц документов для просмотра в веб-интерфейсе."""
+"""Page rasters for the document viewer in the web UI."""
 
 from __future__ import annotations
 
 import io
 from pathlib import Path
 
-import pymupdf
 from PIL import Image
 
-from .pipeline.baseline.document import sniff_media_type
-
-pymupdf.TOOLS.mupdf_display_errors(False)
+from kdcheck.ingest.document import sniff_media_type
+from kdcheck.ingest.pdf import PdfBackend, default_backend
 
 
 class RenderError(Exception):
     pass
 
 
-def render_page(path: Path, page: int, max_px: int = 2000) -> bytes:
-    """PNG страницы ``page`` (с 1); длинная сторона — не больше ``max_px``."""
+def render_page(path: Path, page: int, max_px: int = 2000, *, pdf_backend: PdfBackend | None = None) -> bytes:
+    """PNG of page ``page`` (from 1) with the long side at most ``max_px``."""
     data = path.read_bytes()
     media = sniff_media_type(data[:2048])
+    backend = (pdf_backend or default_backend()) if media == "application/pdf" else None
     try:
-        if media == "application/pdf":
-            doc = pymupdf.open(stream=data, filetype="pdf")
+        if backend is not None:
+            doc = backend.open(data)
             if not 1 <= page <= doc.page_count:
                 raise RenderError(f"В документе нет страницы {page}")
-            pg = doc[page - 1]
-            zoom = max_px / max(pg.rect.width, pg.rect.height)
-            pix = pg.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), colorspace=pymupdf.csGRAY, alpha=False)
-            img: Image.Image = Image.open(io.BytesIO(pix.tobytes("png")))
+            pg = doc.page(page - 1)
+            img = pg.render(max_px / max(pg.width, pg.height))
         elif media and media.startswith("image/"):
             img = Image.open(io.BytesIO(data))
             if page > getattr(img, "n_frames", 1):
@@ -45,6 +42,6 @@ def render_page(path: Path, page: int, max_px: int = 2000) -> bytes:
     except Exception as exc:
         raise RenderError(f"Не удалось отрисовать страницу: {exc}") from exc
     out = io.BytesIO()
-    # чертежи почти монохромны: 16 оттенков серого сильно уменьшают размер без потери читаемости
+    # Drawings are nearly monochrome: 16 gray levels shrink the file a lot and stay readable.
     img.convert("L").quantize(colors=16).save(out, "PNG", optimize=True)
     return out.getvalue()

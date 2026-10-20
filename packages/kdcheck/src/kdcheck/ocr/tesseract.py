@@ -1,7 +1,7 @@
-"""Необязательное распознавание сканов через Tesseract (``pip install pytesseract`` и
-``tesseract-ocr`` с языком ``rus``). Без них сканы обрабатываются без текста:
-обозначение берётся из имени файла, документ помечается предупреждением.
-Отключить: ``ARM_OCR=0``.
+"""Optional scan recognition with Tesseract: ``kdcheck[ocr]`` plus ``tesseract-ocr`` with the ``rus`` language.
+
+Without them scans are processed without text: the designation comes from the file name and the document gets
+a warning. ``ARM_OCR=0`` turns OCR off.
 """
 
 from __future__ import annotations
@@ -11,6 +11,8 @@ import logging
 import os
 
 from PIL import Image
+
+from kdcheck.ingest.text import Line, Word, split_wide_lines
 
 log = logging.getLogger(__name__)
 
@@ -31,11 +33,9 @@ def available() -> bool:
     return True
 
 
-def recognize(image: Image.Image, scale: float = 1.0):
-    """Распознаёт страницу; координаты умножаются на ``scale`` (пиксели → единицы страницы)."""
+def recognize(image: Image.Image, scale: float = 1.0) -> list[Line]:
+    """Recognize a page; coordinates are multiplied by ``scale`` (pixels to page units)."""
     import pytesseract
-
-    from .document import Line, Word
 
     gray = image.convert("L")
     data = pytesseract.image_to_data(gray, lang="rus+eng", config="--psm 11", output_type=pytesseract.Output.DICT)
@@ -67,6 +67,4 @@ def recognize(image: Image.Image, scale: float = 1.0):
                 confidence=confidence,
             )
         )
-    from .document import _split_wide_lines
-
-    return _split_wide_lines(lines)
+    return split_wide_lines(lines)

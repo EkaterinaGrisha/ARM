@@ -11,10 +11,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from kdcheck.ingest.document import LoadedDocument, Page
+from kdcheck.ingest.text import Word
+
 from ...models import Extracted, Specification, SpecRow
 from . import title_block
 from .designations import find_designations, normalize_designation
-from .document import LoadedDocument, Page, Word
 
 SECTIONS = [
     "Документация",

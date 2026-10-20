@@ -60,7 +60,7 @@ version = "0.1.0"
 source = { editable = "backend" }
 dependencies = [
     { name = "fastapi" },
-    { name = "kdcheck" },
+    { name = "kdcheck", extra = ["pymupdf"] },
     { name = "openpyxl" },
     { name = "pillow" },
     { name = "pydantic" },
@@ -71,18 +71,18 @@ dependencies = [
 
 [package.optional-dependencies]
 ocr = [
-    { name = "pytesseract" },
+    { name = "kdcheck", extra = ["ocr"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.110" },
-    { name = "kdcheck", editable = "packages/kdcheck" },
+    { name = "kdcheck", extras = ["ocr"], marker = "extra == 'ocr'", editable = "packages/kdcheck" },
+    { name = "kdcheck", extras = ["pymupdf"], editable = "packages/kdcheck" },
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "pillow", specifier = ">=10.0" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "pymupdf", specifier = ">=1.24" },
-    { name = "pytesseract", marker = "extra == 'ocr'", specifier = ">=0.3.10" },
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
 ]
@@ -408,11 +408,26 @@ name = "kdcheck"
 version = "0.1.0"
 source = { editable = "packages/kdcheck" }
 dependencies = [
+    { name = "pillow" },
     { name = "pydantic" },
 ]
 
+[package.optional-dependencies]
+ocr = [
+    { name = "pytesseract" },
+]
+pymupdf = [
+    { name = "pymupdf" },
+]
+
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.6" }]
+requires-dist = [
+    { name = "pillow", specifier = ">=10.0" },
+    { name = "pydantic", specifier = ">=2.6" },
+    { name = "pymupdf", marker = "extra == 'pymupdf'", specifier = ">=1.24" },
+    { name = "pytesseract", marker = "extra == 'ocr'", specifier = ">=0.3.10" },
+]
+provides-extras = ["pymupdf", "ocr"]
 
 [[package]]
 name = "librt"

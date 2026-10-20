@@ -10,9 +10,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from kdcheck.ingest.document import LoadedDocument, Page
+from kdcheck.ingest.text import Line, lines_confidence
+
 from ...models import Extracted, TitleBlock
 from .designations import find_designations, normalize_litera
-from .document import Line, LoadedDocument, Page, lines_confidence
 
 # центры подписей граф относительно левого верхнего угла надписи, мм
 FORM1_ANCHORS = {"лит": (142.5, 17.5), "масса": (158.5, 17.5), "масштаб": (176.0, 17.5)}
