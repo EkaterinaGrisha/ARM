@@ -43,7 +43,12 @@ def test_specification_rows(path):
     assert (_text(spec.designation), _text(spec.name)) == (TRUTH[path]["designation"], TRUTH[path]["name"])
     got = [(r.section, _text(r.designation), _text(r.name), _quantity(r.quantity)) for r in spec.rows]
     want = [
-        (r["section"], r["designation"] or None, r["name"] or None, float(r["qty"].replace(",", ".")) if r["qty"] else None)
+        (
+            r["section"],
+            r["designation"] or None,
+            r["name"] or None,
+            float(r["qty"].replace(",", ".")) if r["qty"] else None,
+        )
         for r in TRUTH[path]["rows"]
     ]
     assert got == want
