@@ -40,6 +40,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
+      - run: uv run lint-imports
       - run: uv run pytest -ra
       - name: backend/requirements.txt matches uv.lock
         run: sh scripts/export_requirements.sh && git diff --exit-code backend/requirements.txt

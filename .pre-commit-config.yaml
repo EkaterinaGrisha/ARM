@@ -12,6 +12,12 @@ repos:
         entry: uv run ruff format
         language: system
         types_or: [python, pyi]
+      - id: import-linter
+        name: import boundaries of the core (ADR-0011)
+        entry: uv run lint-imports
+        language: system
+        types_or: [python, toml]
+        pass_filenames: false
       - id: uv-lock
         name: uv.lock is up to date
         entry: uv lock --check

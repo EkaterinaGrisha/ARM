@@ -4,6 +4,7 @@ members = ["backend", "packages/kdcheck"]
 [dependency-groups]
 dev = [
   "httpx>=0.27",
+  "import-linter>=2.15",
   "mypy>=1.13",
   "pre-commit>=4",
   "pytest>=8",
@@ -57,3 +58,46 @@ disallow_untyped_calls = false
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests", "packages/kdcheck/tests"]
+
+# Import boundaries of the core (ADR-0010, ADR-0011). Run: uv run lint-imports
+[tool.importlinter]
+root_packages = ["kdcheck", "arm_web"]
+
+[[tool.importlinter.contracts]]
+name = "The API imports only the public core modules: schemas, run, render, report"
+type = "forbidden"
+source_modules = ["arm_web"]
+forbidden_modules = [
+  "kdcheck.ingest",
+  "kdcheck.ocr",
+  "kdcheck.extract",
+  "kdcheck.normalize",
+  "kdcheck.checks",
+  "kdcheck.params",
+  "kdcheck.pipeline",
+]
+# The public modules use the internals; only direct imports from the API are forbidden.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Block 1 (checks) and Block 2 (params) do not import each other"
+type = "independence"
+modules = ["kdcheck.checks", "kdcheck.params"]
+
+[[tool.importlinter.contracts]]
+name = "The report contract depends on no other core module"
+type = "forbidden"
+source_modules = ["kdcheck.schemas"]
+forbidden_modules = [
+  "kdcheck.ingest",
+  "kdcheck.ocr",
+  "kdcheck.extract",
+  "kdcheck.normalize",
+  "kdcheck.checks",
+  "kdcheck.params",
+  "kdcheck.pipeline",
+  "kdcheck.report",
+  "kdcheck.render",
+  "kdcheck.run",
+  "kdcheck.cli",
+]
