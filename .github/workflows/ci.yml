@@ -58,3 +58,18 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t arm-kd .
+      - name: The image serves the API and the web UI
+        run: |
+          docker run -d --name arm-kd -p 8000:8000 arm-kd
+          for _ in $(seq 60); do curl -fsS http://127.0.0.1:8000/api/health && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8000/api/health
+          curl -fsS http://127.0.0.1:8000/ | grep -q '<div id="root">'
+      - if: failure()
+        run: docker logs arm-kd
