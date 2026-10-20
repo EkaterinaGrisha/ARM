@@ -20,9 +20,9 @@ from urllib.parse import quote
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
-from kdcheck.ocr import tesseract
 from kdcheck.render import RenderError, render_page
 from kdcheck.report import to_html, to_xlsx
+from kdcheck.run import ocr_available
 
 from . import __version__
 from .jobs import JobNotFound, JobStore
@@ -66,7 +66,7 @@ def health() -> dict:
         "version": __version__,
         "pipeline": pipeline.name,
         "pipeline_version": pipeline.version,
-        "ocr": tesseract.available(),
+        "ocr": ocr_available(),
     }
 
 

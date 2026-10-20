@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol
 
-from kdcheck.pipeline import ProgressCallback, no_progress
+from kdcheck.run import ProgressCallback, no_progress
 
 from ..models import Report
 

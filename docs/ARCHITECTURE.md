@@ -244,7 +244,7 @@ ARM/
 
 Фикстуры контракта — `samples/` и `frontend/public/demo/report.json`.
 
-Границы проверяет import-linter в CI. `backend` импортирует из ядра только `kdcheck.schemas`, `kdcheck.run` и `kdcheck.render`. Блок 1 (`tree`, `checks`) и Блок 2 (`params`) не импортируют друг друга.
+Границы проверяет import-linter в CI ([ADR-0011](adr/0011-core-public-api.md)). `backend` импортирует из ядра только `kdcheck.schemas`, `kdcheck.run`, `kdcheck.render` и `kdcheck.report`. Блок 1 (`tree`, `checks`) и Блок 2 (`params`) не импортируют друг друга. `kdcheck.schemas` не зависит от остального ядра.
 
 ## Решения
 
@@ -260,5 +260,6 @@ ARM/
 | 8 | Стек фронтенда: React, TypeScript, Vite, как в прототипе ([ADR-0010](adr/0010-repo-layout.md)) | Веб уже работает на этом стеке | Принято |
 | 9 | Контракт отчёта — формат прототипа 1.0, дополнения в 1.1 ([ADR-0009](adr/0009-report-contract.md)) | Реализован, на нём работают веб и внешние конвейеры | Принято |
 | 10 | Ядро в `packages/kdcheck`; `backend/` и `frontend/` остаются; перенос по шагам ([ADR-0010](adr/0010-repo-layout.md)) | Небольшие PR, приложение работает после каждого шага | Принято |
+| 11 | Публичный API ядра: `schemas`, `run`, `render`, `report`; границы проверяет import-linter ([ADR-0011](adr/0011-core-public-api.md)) | Выгрузки на лету покрывают внешние конвейеры и старые задания; Excel — 0,4 с на 330 документах | Принято |
 
 Номер строки совпадает с номером ADR в `docs/adr/`. Основание для решений 6–10 — [сверка прототипа](reviews/2026-10-20-prototype.md).

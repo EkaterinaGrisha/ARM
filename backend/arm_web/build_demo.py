@@ -13,10 +13,9 @@ import json
 import shutil
 from pathlib import Path
 
-from kdcheck.ocr import tesseract
-from kdcheck.pipeline import BaselinePipeline
 from kdcheck.render import RenderError, render_page
 from kdcheck.report import to_html, to_xlsx
+from kdcheck.run import BaselinePipeline, ocr_available
 
 from . import demo_kit
 from .evaluate import evaluate
@@ -52,7 +51,7 @@ def build(samples: Path, public_demo: Path, regenerate: bool = False) -> None:
             f"{_files(len(truth['documents']) + len(truth['problem_files']))} — "
             f"{n_specs} спецификации, {n_draw} чертежей (из них {n_scan} скана), "
             f"{len(truth['problem_files'])} проблемных файла; заложено {len(truth['discrepancies'])} расхождений. "
-            f"OCR: {'Tesseract' if tesseract.available() else 'не используется'}."
+            f"OCR: {'Tesseract' if ocr_available() else 'не используется'}."
         ),
     )
 

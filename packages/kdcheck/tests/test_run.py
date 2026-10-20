@@ -1,6 +1,7 @@
 """The baseline pipeline and the ``kdcheck run`` command on the demo kit and on broken input."""
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +30,11 @@ def test_run_writes_three_report_forms(tmp_path, capsys):
 def test_run_rejects_a_missing_folder(tmp_path):
     assert main(["run", str(tmp_path / "nope"), "-o", str(tmp_path / "out")]) == 2
     assert not (tmp_path / "out").exists()
+
+
+def test_ocr_can_be_turned_off():
+    code = "from kdcheck.run import ocr_available; assert ocr_available() is False"
+    subprocess.run([sys.executable, "-c", code], env={**os.environ, "ARM_OCR": "0"}, check=True)
 
 
 def test_module_entry_point():
