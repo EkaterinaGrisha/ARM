@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# данные заданий веб-сервиса
+backend/data/
+data/
+
+# результаты пакетной обработки из командной строки
+*_report/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+.DS_Store
