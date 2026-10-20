@@ -14,9 +14,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from kdcheck.checks.completeness import DrawingRef, check
-from kdcheck.extract import specification, title_block
+from kdcheck.extract import specification, tech_requirements, title_block
 from kdcheck.ingest.document import LoadedDocument, Page, is_unreadable, load_document
 from kdcheck.normalize.designations import doc_code, find_designations, normalize_designation
+from kdcheck.params import critical, parameters
 
 from ...models import (
     Extracted,
@@ -30,7 +31,6 @@ from ...models import (
     TitleBlock,
 )
 from ..base import ProgressCallback, no_progress
-from . import critical, requirements
 
 log = logging.getLogger(__name__)
 
@@ -209,10 +209,10 @@ class BaselinePipeline:
         def next_id() -> str:
             return f"{doc.id}-p{next(counter)}"
 
-        tt_lines = requirement_lines(page, geom)
-        part.requirements = requirements.requirement_items(doc, page, tt_lines)
+        tt_lines = tech_requirements.requirement_lines(page, geom)
+        part.requirements = tech_requirements.requirement_items(doc, page, tt_lines)
         for item in part.requirements:
-            part.parameters += requirements.parse_requirement(item, next_id)
+            part.parameters += parameters.parse_requirement(item, next_id)
         skip = {id(ln) for ln in tt_lines}
         tb_x0, tb_y0 = geom.x0 - 1 * geom.s, geom.y0 - 1 * geom.s
         for pg in doc.pages:
@@ -224,7 +224,7 @@ class BaselinePipeline:
                 if ln.bbox[0] < 21 * pg.mm:
                     continue  # поле подшивки
                 general_zone = ln.cy < 30 * pg.mm and ln.cx > pg.width - 90 * pg.mm
-                part.parameters += requirements.parse_annotation(doc, pg, ln, next_id, general_zone=general_zone)
+                part.parameters += parameters.parse_annotation(doc, pg, ln, next_id, general_zone=general_zone)
         return part
 
     def _scan_without_text(self, doc: LoadedDocument, parts: list[PartRecord]) -> None:
@@ -259,10 +259,6 @@ class BaselinePipeline:
             doc.info.notes.append(
                 f"Обозначение в имени файла ({fname}) отличается от основной надписи ({doc.info.designation})"
             )
-
-
-def requirement_lines(page: Page, geom: title_block.Geometry):
-    return requirements.requirement_lines(page, geom)
 
 
 def _str(ex: Extracted | None) -> str | None:

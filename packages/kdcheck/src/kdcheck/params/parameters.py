@@ -1,19 +1,20 @@
-"""Извлечение параметров технических требований и обозначений на поле чертежа.
+"""Parameters from technical requirements and drawing field annotations.
 
-Результат приводится к единой структуре :class:`Parameter` (категория, имя,
-числовые значения, единицы, исходный текст и источник), пригодной для сравнения
-деталей между собой и загрузки в учётные системы.
+Results share one :class:`Parameter` structure (category, name, numeric values, units, source text and location)
+that compares across parts and loads into accounting systems.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
+from typing import Any
 
-from kdcheck.extract.title_block import Geometry
 from kdcheck.ingest.document import LoadedDocument, Page
-from kdcheck.ingest.text import Line, lines_confidence
+from kdcheck.ingest.text import Line
+from kdcheck.schemas import Extracted, Parameter, SourceRef
 
-from ...models import Extracted, Parameter
+NextId = Callable[[], str]
 
 NUM = r"\d+(?:[.,]\d+)?"
 
@@ -25,69 +26,6 @@ def _f(s: str | None) -> float | None:
         return float(s.replace(",", "."))
     except ValueError:
         return None
-
-
-# ---------------------------------------------------------------- технические требования (текст)
-
-
-def requirement_lines(page: Page, geom: Geometry) -> list[Line]:
-    """Строки ТТ: блок текста непосредственно над основной надписью."""
-    s = geom.s
-    left, right = geom.x0 - 10 * s, geom.x0 + 186 * s
-    candidates = [
-        ln
-        for ln in page.lines
-        if not ln.vertical
-        and ln.bbox[3] <= geom.y0 + 1 * s
-        and ln.bbox[0] >= left - 60 * s
-        and ln.cx <= right
-        and ln.bbox[2] > left
-    ]
-    candidates.sort(key=lambda ln: -ln.bbox[3])
-    picked: list[Line] = []
-    edge = geom.y0
-    for ln in candidates:
-        gap = edge - ln.bbox[3]
-        limit = 25 * s if not picked else max(2.5 * (ln.bbox[3] - ln.bbox[1]), 4 * s)
-        if gap > limit:
-            if picked:
-                break
-            continue
-        picked.append(ln)
-        edge = min(edge, ln.bbox[1])
-    picked.sort(key=lambda ln: (ln.bbox[1], ln.bbox[0]))
-    if not any(re.match(r"^\s*\S{0,2}\d{1,2}\s?[.)]\s", ln.text) for ln in picked):
-        return []
-    return picked
-
-
-_ITEM_START = re.compile(r"^\s*(?:[il|]?\s?)?(\d{1,2})\s?[.)]\s*")
-
-
-def requirement_items(doc: LoadedDocument, page: Page, lines: list[Line]) -> list[Extracted]:
-    items: list[tuple[str, list[Line]]] = []
-    for ln in lines:
-        text = ln.text.strip()
-        if re.fullmatch(r"(?i)технические требования", text):
-            continue
-        m = _ITEM_START.match(text)
-        if m or not items:
-            items.append((text[m.end() :] if m else re.sub(r"^\S{1,3}\.\s", "", text), [ln]))
-        else:
-            prev_text, prev_lines = items[-1]
-            items[-1] = (f"{prev_text} {text}", prev_lines + [ln])
-    result = []
-    for text, lns in items:
-        bbox = (
-            min(ln.bbox[0] for ln in lns),
-            min(ln.bbox[1] for ln in lns),
-            max(ln.bbox[2] for ln in lns),
-            max(ln.bbox[3] for ln in lns),
-        )
-        raw = " ".join(ln.text for ln in lns)
-        conf = lines_confidence(lns)
-        result.append(Extracted(value=text.strip(), raw=raw, confidence=conf, source=doc.source(page, bbox, raw, conf)))
-    return result
 
 
 HEAT_TREATMENTS = [
@@ -127,13 +65,13 @@ GEOMETRIC_TEXT = [
 ROUGHNESS = re.compile(rf"(?<![A-Za-zА-Яа-я])(?P<p>[RРВК][aаzг])\s?(?P<v>{NUM})")
 
 
-def parse_requirement(item: Extracted, next_id) -> list[Parameter]:
+def parse_requirement(item: Extracted, next_id: NextId) -> list[Parameter]:
     text = str(item.value or "")
     low = text.lower()
     params: list[Parameter] = []
     src = item.source
 
-    def add(**kw):
+    def add(**kw: Any) -> None:
         params.append(Parameter(id=next_id(), text=text, source=src, confidence=src.confidence if src else None, **kw))
 
     if GENERAL_TOL.search(text):
@@ -178,7 +116,7 @@ def parse_requirement(item: Extracted, next_id) -> list[Parameter]:
     return params
 
 
-# ---------------------------------------------------------------- обозначения на поле чертежа
+# ---------------------------------------------------------------- drawing field annotations
 
 FIT = re.compile(
     rf"(?P<prefix>Ø|⌀|R|M|М|□)?\s?(?P<nom>{NUM})\s?(?P<fit>(?:[A-HJ-NP-Za-hj-np-z]|J[Ss]|j[s])\d{{1,2}})(?![\w])"
@@ -208,7 +146,7 @@ GDT = re.compile(
 GENERAL_ROUGHNESS = re.compile(r"\(\s?[√VУ]\s?\)")
 
 
-def _roughness(m: re.Match, text: str, src, next_id, general: bool) -> Parameter:
+def _roughness(m: re.Match[str], text: str, src: SourceRef | None, next_id: NextId, general: bool) -> Parameter:
     letter = m["p"][1].lower()
     param = "Rz" if letter in ("z", "г") else "Ra"
     value = _f(m["v"])
@@ -231,13 +169,15 @@ def it_grade(fit: str) -> int | None:
     return int(m.group(0)) if m else None
 
 
-def parse_annotation(doc: LoadedDocument, page: Page, line: Line, next_id, *, general_zone: bool) -> list[Parameter]:
+def parse_annotation(
+    doc: LoadedDocument, page: Page, line: Line, next_id: NextId, *, general_zone: bool
+) -> list[Parameter]:
     text = line.text.strip()
     src = doc.source(page, line.bbox, text, line.confidence)
     params: list[Parameter] = []
     taken: list[tuple[int, int]] = []
 
-    def free(m: re.Match) -> bool:
+    def free(m: re.Match[str]) -> bool:
         return all(m.end() <= a or m.start() >= b for a, b in taken)
 
     for m in THREAD.finditer(text):
