@@ -1,7 +1,7 @@
-"""Блок 1 на синтетических структурах — без PDF, только логика проверки."""
+"""Block 1 on synthetic structures: no PDFs, only the check logic."""
 
-from arm_web.models import DocumentInfo, Extracted, PartRecord, Specification, SpecRow, TitleBlock
-from arm_web.pipeline.baseline.completeness import DrawingRef, check
+from kdcheck.checks.completeness import DrawingRef, check
+from kdcheck.schemas import DocumentInfo, Extracted, PartRecord, Specification, SpecRow, TitleBlock
 
 
 def row(i: int, section: str, des: str = "", name: str = "", qty: float | None = 1, note: str = "") -> SpecRow:
@@ -81,7 +81,7 @@ def test_tree_recursion_and_quantities():
     assert root.designation == "АБВГ.100000.000"
     unit = next(n for n in root.children if n.designation == "АБВГ.100000.100")
     axle = next(n for n in unit.children if n.designation == "АБВГ.100000.101")
-    assert axle.total_quantity == 6  # 2 узла × 3 оси
+    assert axle.total_quantity == 6  # 2 units × 3 axles
     assert axle.drawing_document_ids == ["d2"]
     bolt = next(n for n in root.children if n.kind == "standard")
     assert bolt.status == "not_required"
@@ -98,17 +98,17 @@ def test_all_discrepancy_types():
                 row(2, "Сборочные единицы", "АБВГ.100000.200", "Узел без спецификации"),
                 row(3, "Детали", "АБВГ.100000.001", "Вал"),
                 row(4, "Детали", "АБВГ.100000.002", "Втулка"),
-                row(5, "Детали", "АБВГ.100000.003", "Шайба", note="БЧ"),  # без чертежа — допустимо
+                row(5, "Детали", "АБВГ.100000.003", "Шайба", note="БЧ"),  # no drawing needed (БЧ)
             ],
         ),
         spec("s1", "АБВГ.100000.100", "Узел", [row(1, "Детали", "АБВГ.100000.101", "Ось")]),
     ]
     drawings = [
-        drawing("d1", "АБВГ.100000.001", "Вал ступенчатый"),  # наименование расходится
-        drawing("d2", "АБВГ.100000.101", "Ось", litera="О"),  # литера ниже литеры узла
-        drawing("d3", "АБВГ.999999.001", "Чужая деталь"),  # не входит в спецификации
+        drawing("d1", "АБВГ.100000.001", "Вал ступенчатый"),  # name differs
+        drawing("d2", "АБВГ.100000.101", "Ось", litera="О"),  # litera below the assembly litera
+        drawing("d3", "АБВГ.999999.001", "Чужая деталь"),  # not in any specification
         drawing("d4", "АБВГ.100000.002", "Втулка", revision=1),
-        drawing("d5", "АБВГ.100000.002", "Втулка", revision=2),  # дубль с другим изменением
+        drawing("d5", "АБВГ.100000.002", "Втулка", revision=2),  # duplicate with another change number
     ]
     result = check(specs, drawings)
     assert types(result) == {
