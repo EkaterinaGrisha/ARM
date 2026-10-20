@@ -1,0 +1,26 @@
+# Hooks run the tools pinned in uv.lock, so local checks match CI.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: uv-lock
+        name: uv.lock is up to date
+        entry: uv lock --check
+        language: system
+        files: ^(pyproject\.toml|backend/pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+      - id: requirements
+        name: backend/requirements.txt matches uv.lock
+        entry: sh scripts/export_requirements.sh
+        language: system
+        files: ^(uv\.lock|backend/requirements\.txt)$
+        pass_filenames: false

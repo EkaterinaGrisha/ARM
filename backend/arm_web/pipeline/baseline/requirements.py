@@ -35,7 +35,10 @@ def requirement_lines(page: Page, geom: Geometry) -> list[Line]:
     candidates = [
         ln
         for ln in page.lines
-        if not ln.vertical and ln.bbox[3] <= geom.y0 + 1 * s and ln.bbox[0] >= left - 60 * s and ln.cx <= right
+        if not ln.vertical
+        and ln.bbox[3] <= geom.y0 + 1 * s
+        and ln.bbox[0] >= left - 60 * s
+        and ln.cx <= right
         and ln.bbox[2] > left
     ]
     candidates.sort(key=lambda ln: -ln.bbox[3])
@@ -67,7 +70,7 @@ def requirement_items(doc: LoadedDocument, page: Page, lines: list[Line]) -> lis
             continue
         m = _ITEM_START.match(text)
         if m or not items:
-            items.append((text[m.end():] if m else re.sub(r"^\S{1,3}\.\s", "", text), [ln]))
+            items.append((text[m.end() :] if m else re.sub(r"^\S{1,3}\.\s", "", text), [ln]))
         else:
             prev_text, prev_lines = items[-1]
             items[-1] = (f"{prev_text} {text}", prev_lines + [ln])
@@ -135,14 +138,25 @@ def parse_requirement(item: Extracted, next_id) -> list[Parameter]:
         m = IT.search(text)
         grade = int(m.group(1)) if m else None
         fits = re.findall(r"\b[HhJjs]{1,2}\d{1,2}\b", text)
-        add(category="general_tolerance", name=f"IT{grade}" if grade else "Неуказанные отклонения",
-            it_grade=grade, qualifier=", ".join(fits) or None, general=True)
+        add(
+            category="general_tolerance",
+            name=f"IT{grade}" if grade else "Неуказанные отклонения",
+            it_grade=grade,
+            qualifier=", ".join(fits) or None,
+            general=True,
+        )
         return params
     for pattern, name in HEAT_TREATMENTS:
         if re.search(pattern, text, re.IGNORECASE):
             d = DEPTH.search(text)
-            add(category="heat_treatment", name=name, value_min=_f(d["a"]) if d else None,
-                value_max=_f(d["b"]) if d else None, unit="мм" if d else None, qualifier=name)
+            add(
+                category="heat_treatment",
+                name=name,
+                value_min=_f(d["a"]) if d else None,
+                value_max=_f(d["b"]) if d else None,
+                unit="мм" if d else None,
+                qualifier=name,
+            )
             break
     for m in HARDNESS.finditer(text):
         unit = (m["u"] or m["u2"]).replace("НВ", "HB").replace("НRС", "HRC")
@@ -197,8 +211,16 @@ def _roughness(m: re.Match, text: str, src, next_id, general: bool) -> Parameter
     param = "Rz" if letter in ("z", "г") else "Ra"
     value = _f(m["v"])
     return Parameter(
-        id=next_id(), category="roughness", name=f"{param} {m['v'].replace('.', ',')}", text=text, value=value,
-        unit="мкм", qualifier=param, general=general, source=src, confidence=src.confidence if src else None,
+        id=next_id(),
+        category="roughness",
+        name=f"{param} {m['v'].replace('.', ',')}",
+        text=text,
+        value=value,
+        unit="мкм",
+        qualifier=param,
+        general=general,
+        source=src,
+        confidence=src.confidence if src else None,
     )
 
 
@@ -219,18 +241,36 @@ def parse_annotation(doc: LoadedDocument, page: Page, line: Line, next_id, *, ge
     for m in THREAD.finditer(text):
         taken.append(m.span())
         name = m.group(0).replace(" ", "")
-        params.append(Parameter(
-            id=next_id(), category="dimension_tolerance", name=name, text=text, value=_f(m["nom"]), unit="мм",
-            qualifier=m["cls"], source=src, confidence=src.confidence,
-        ))
+        params.append(
+            Parameter(
+                id=next_id(),
+                category="dimension_tolerance",
+                name=name,
+                text=text,
+                value=_f(m["nom"]),
+                unit="мм",
+                qualifier=m["cls"],
+                source=src,
+                confidence=src.confidence,
+            )
+        )
     for m in GDT.finditer(text):
         taken.append(m.span())
         name = GDT_SYMBOLS[m["sym"]]
         datum = (m["datum"] or "").replace(" ", "") or None
-        params.append(Parameter(
-            id=next_id(), category="geometric", name=f"{m['sym']} {name.split(' ', 1)[-1]}", text=text,
-            value=_f(m["v"]), unit="мм", qualifier=datum, source=src, confidence=src.confidence,
-        ))
+        params.append(
+            Parameter(
+                id=next_id(),
+                category="geometric",
+                name=f"{m['sym']} {name.split(' ', 1)[-1]}",
+                text=text,
+                value=_f(m["v"]),
+                unit="мм",
+                qualifier=datum,
+                source=src,
+                confidence=src.confidence,
+            )
+        )
     for m in ROUGHNESS.finditer(text):
         if free(m):
             taken.append(m.span())
@@ -242,19 +282,38 @@ def parse_annotation(doc: LoadedDocument, page: Page, line: Line, next_id, *, ge
         taken.append(m.span())
         prefix = (m["prefix"] or "").replace("⌀", "Ø")
         name = f"{prefix}{m['nom']}{m['fit']}"
-        params.append(Parameter(
-            id=next_id(), category="dimension_tolerance", name=name, text=text, value=_f(m["nom"]), unit="мм",
-            qualifier=m["fit"], it_grade=it_grade(m["fit"]), source=src, confidence=src.confidence,
-        ))
+        params.append(
+            Parameter(
+                id=next_id(),
+                category="dimension_tolerance",
+                name=name,
+                text=text,
+                value=_f(m["nom"]),
+                unit="мм",
+                qualifier=m["fit"],
+                it_grade=it_grade(m["fit"]),
+                source=src,
+                confidence=src.confidence,
+            )
+        )
     for m in PLUS_MINUS.finditer(text):
         if not free(m):
             continue
         taken.append(m.span())
         nom, dev = _f(m["nom"]), _f(m["dev"])
-        params.append(Parameter(
-            id=next_id(), category="dimension_tolerance", name=m.group(0).replace(" ", ""), text=text, value=nom,
-            value_min=(nom - dev) if nom is not None and dev is not None else None,
-            value_max=(nom + dev) if nom is not None and dev is not None else None,
-            unit="мм", qualifier=f"±{m['dev']}", source=src, confidence=src.confidence,
-        ))
+        params.append(
+            Parameter(
+                id=next_id(),
+                category="dimension_tolerance",
+                name=m.group(0).replace(" ", ""),
+                text=text,
+                value=nom,
+                value_min=(nom - dev) if nom is not None and dev is not None else None,
+                value_max=(nom + dev) if nom is not None and dev is not None else None,
+                unit="мм",
+                qualifier=f"±{m['dev']}",
+                source=src,
+                confidence=src.confidence,
+            )
+        )
     return params

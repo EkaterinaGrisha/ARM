@@ -38,9 +38,7 @@ def recognize(image: Image.Image, scale: float = 1.0):
     from .document import Line, Word
 
     gray = image.convert("L")
-    data = pytesseract.image_to_data(
-        gray, lang="rus+eng", config="--psm 11", output_type=pytesseract.Output.DICT
-    )
+    data = pytesseract.image_to_data(gray, lang="rus+eng", config="--psm 11", output_type=pytesseract.Output.DICT)
     grouped: dict[tuple[int, int, int], list[tuple[Word, float]]] = {}
     for i, text in enumerate(data["text"]):
         text = (text or "").strip()
@@ -60,8 +58,15 @@ def recognize(image: Image.Image, scale: float = 1.0):
             max(w.bbox[2] for w in words),
             max(w.bbox[3] for w in words),
         )
-        lines.append(Line(text=" ".join(w.text for w in words), bbox=bbox, size=bbox[3] - bbox[1], words=words,
-                          confidence=confidence))
+        lines.append(
+            Line(
+                text=" ".join(w.text for w in words),
+                bbox=bbox,
+                size=bbox[3] - bbox[1],
+                words=words,
+                confidence=confidence,
+            )
+        )
     from .document import _split_wide_lines
 
     return _split_wide_lines(lines)
