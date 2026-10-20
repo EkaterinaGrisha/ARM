@@ -16,11 +16,15 @@ jobs:
   backend:
     name: backend (${{ matrix.os }}, Python ${{ matrix.python }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python: ["3.11", "3.12"]
+        # One macOS job is enough to catch OS-specific behaviour; macOS runners queue longer.
+        include:
+          - { os: ubuntu-latest, python: "3.11" }
+          - { os: ubuntu-latest, python: "3.12" }
+          - { os: macos-latest, python: "3.11" }
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6

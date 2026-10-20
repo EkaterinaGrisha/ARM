@@ -55,7 +55,7 @@ sh scripts/export_requirements.sh     # after changing dependencies: refresh bac
 cd frontend && npm ci && npm run typecheck && npm test && npm run build
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same checks on Ubuntu and macOS, Python 3.11 and 3.12. Running the prototype: [README.md](README.md).
+CI (`.github/workflows/ci.yml`) runs the same checks on Ubuntu with Python 3.11 and 3.12 and on macOS with Python 3.11. Running the prototype: [README.md](README.md).
 
 ## Glossary (RU → identifier)
 
