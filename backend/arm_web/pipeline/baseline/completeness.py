@@ -89,13 +89,32 @@ class Checker:
         self._node_ids += 1
         return f"n{self._node_ids}"
 
-    def add(self, type_: str, severity: str, designation: str | None, title: str, message: str, *,
-            expected: str | None = None, actual: str | None = None, docs: list[str] | None = None,
-            nodes: list[TreeNode] | None = None, sources: list[SourceRef | None] | None = None) -> Discrepancy:
+    def add(
+        self,
+        type_: str,
+        severity: str,
+        designation: str | None,
+        title: str,
+        message: str,
+        *,
+        expected: str | None = None,
+        actual: str | None = None,
+        docs: list[str] | None = None,
+        nodes: list[TreeNode] | None = None,
+        sources: list[SourceRef | None] | None = None,
+    ) -> Discrepancy:
         disc = Discrepancy(
-            id=self._next_id(), type=type_, severity=severity, designation=designation, title=title, message=message,
-            expected=expected, actual=actual, document_ids=sorted(set(docs or [])),
-            tree_node_ids=[n.id for n in nodes or []], sources=[s for s in sources or [] if s is not None],
+            id=self._next_id(),
+            type=type_,
+            severity=severity,
+            designation=designation,
+            title=title,
+            message=message,
+            expected=expected,
+            actual=actual,
+            document_ids=sorted(set(docs or [])),
+            tree_node_ids=[n.id for n in nodes or []],
+            sources=[s for s in sources or [] if s is not None],
         )
         for n in nodes or []:
             n.discrepancy_ids.append(disc.id)
@@ -107,7 +126,9 @@ class Checker:
     # ---------------------------------------------------------------- tree
     def run(self) -> Result:
         if not self.specs:
-            self.result.log.append("Спецификации не найдены — дерево изделия не построено, проверка комплектности ограничена")
+            self.result.log.append(
+                "Спецификации не найдены — дерево изделия не построено, проверка комплектности ограничена"
+            )
         children_des = {
             normalize_designation(_value(r.designation))
             for _, spec in self.specs
@@ -117,7 +138,9 @@ class Checker:
         roots = [des for des in self.spec_by_des if des not in children_des]
         if not roots and self.spec_by_des:
             roots = [next(iter(self.spec_by_des))]
-            self.result.log.append("Не удалось определить изделие верхнего уровня (циклические ссылки) — выбрана первая спецификация")
+            self.result.log.append(
+                "Не удалось определить изделие верхнего уровня (циклические ссылки) — выбрана первая спецификация"
+            )
         trees = [self._assembly_node(des, None, None, 1.0, path=()) for des in roots]
         if len(trees) == 1:
             self.result.tree = trees
@@ -133,13 +156,19 @@ class Checker:
         self._check_litera()
         return self.result
 
-    def _assembly_node(self, des: str, row: SpecRow | None, section: str | None, total: float, path: tuple[str, ...]) -> TreeNode:
+    def _assembly_node(
+        self, des: str, row: SpecRow | None, section: str | None, total: float, path: tuple[str, ...]
+    ) -> TreeNode:
         specs = self.spec_by_des.get(des, [])
         node = TreeNode(
-            id=self._next_node(), designation=des, kind="assembly", section=section,
+            id=self._next_node(),
+            designation=des,
+            kind="assembly",
+            section=section,
             name=_value(row.name) if row else (_value(specs[0][1].name) if specs else None),
             position=_value(row.position) if row else None,
-            quantity=_qty(row), total_quantity=total if row else None,
+            quantity=_qty(row),
+            total_quantity=total if row else None,
         )
         self.node_index[des].append(node)
         self.referenced.add(des)
@@ -148,10 +177,19 @@ class Checker:
             node.status = "missing"
             has_sb = bool(node.drawing_document_ids)
             self.add(
-                "missing_specification", "high", des, "Нет спецификации сборочной единицы",
+                "missing_specification",
+                "high",
+                des,
+                "Нет спецификации сборочной единицы",
                 f"Сборочная единица {des} указана в спецификации, но её спецификация в комплекте отсутствует"
-                + ("; сборочный чертёж есть, состав раскрыть невозможно" if has_sb else "; сборочного чертежа также нет"),
-                docs=node.drawing_document_ids, nodes=[node], sources=[row.source if row else None],
+                + (
+                    "; сборочный чертёж есть, состав раскрыть невозможно"
+                    if has_sb
+                    else "; сборочного чертежа также нет"
+                ),
+                docs=node.drawing_document_ids,
+                nodes=[node],
+                sources=[row.source if row else None],
             )
             return node
         if des in path:
@@ -177,8 +215,14 @@ class Checker:
         if kind == "unknown" and des and des in self.spec_by_des:
             return self._assembly_node(des, row, row.section, total, path)
         node = TreeNode(
-            id=self._next_node(), designation=des, name=_value(row.name), kind=kind, section=row.section,
-            position=_value(row.position), quantity=qty, total_quantity=total if qty is not None else None,
+            id=self._next_node(),
+            designation=des,
+            name=_value(row.name),
+            kind=kind,
+            section=row.section,
+            position=_value(row.position),
+            quantity=qty,
+            total_quantity=total if qty is not None else None,
         )
         if des:
             self.node_index[des].append(node)
@@ -195,10 +239,15 @@ class Checker:
                     node.status = "missing"
                     what = "Документ" if kind == "document" else "Чертёж детали"
                     self.add(
-                        "missing_drawing", "high", des, f"{what} отсутствует",
+                        "missing_drawing",
+                        "high",
+                        des,
+                        f"{what} отсутствует",
                         f"{what} {des} «{_value(row.name) or '—'}» указан в спецификации {path[-1]}, но в комплекте не найден",
-                        expected=des, docs=[parent.spec_document_id] if parent.spec_document_id else [],
-                        nodes=[node], sources=[row.source],
+                        expected=des,
+                        docs=[parent.spec_document_id] if parent.spec_document_id else [],
+                        nodes=[node],
+                        sources=[row.source],
                     )
         else:
             node.status = "not_required"
@@ -214,10 +263,15 @@ class Checker:
                 continue
             for ref in refs:
                 self.add(
-                    "orphan_drawing", "medium", des, "Чертёж не входит ни в одну спецификацию",
+                    "orphan_drawing",
+                    "medium",
+                    des,
+                    "Чертёж не входит ни в одну спецификацию",
                     f"Документ {des} «{ref.doc.name or '—'}» ({ref.doc.path}) есть в комплекте, "
                     "но не указан ни в одной спецификации",
-                    actual=ref.doc.path, docs=[ref.doc.id], sources=[ref.tb_source("designation")],
+                    actual=ref.doc.path,
+                    docs=[ref.doc.id],
+                    sources=[ref.tb_source("designation")],
                 )
 
     def _check_duplicates(self) -> None:
@@ -229,9 +283,14 @@ class Checker:
                 continue  # многолистовой документ, разбитый на файлы
             files = ", ".join(r.doc.path for r in refs)
             self.add(
-                "duplicate_designation", "high", des, "Обозначение встречается в нескольких документах",
+                "duplicate_designation",
+                "high",
+                des,
+                "Обозначение встречается в нескольких документах",
                 f"Обозначение {des} присвоено {len(refs)} документам: {files}",
-                actual=files, docs=[r.doc.id for r in refs], nodes=self.node_index.get(des, []),
+                actual=files,
+                docs=[r.doc.id for r in refs],
+                nodes=self.node_index.get(des, []),
                 sources=[r.tb_source("designation") for r in refs],
             )
             revisions = {str(r.tb_value("revision") or "—") for r in refs}
@@ -242,9 +301,14 @@ class Checker:
                     for r in refs
                 ]
                 self.add(
-                    "revision_mismatch", "medium", des, "Разные версии одного документа",
+                    "revision_mismatch",
+                    "medium",
+                    des,
+                    "Разные версии одного документа",
                     f"В комплекте несколько версий {des} с разным номером изменения или литерой: " + "; ".join(parts),
-                    actual="; ".join(parts), docs=[r.doc.id for r in refs], nodes=self.node_index.get(des, []),
+                    actual="; ".join(parts),
+                    docs=[r.doc.id for r in refs],
+                    nodes=self.node_index.get(des, []),
                     sources=[r.tb_source("revision") or r.tb_source("litera") for r in refs],
                 )
         names: dict[str, dict[str, list[tuple[DocumentInfo, SpecRow]]]] = defaultdict(lambda: defaultdict(list))
@@ -257,18 +321,26 @@ class Checker:
             if len(by_name) > 1:
                 variants = [f"«{_value(rows[0][1].name)}» ({rows[0][0].path})" for rows in by_name.values()]
                 self.add(
-                    "duplicate_designation", "high", des, "Одно обозначение у разных позиций",
+                    "duplicate_designation",
+                    "high",
+                    des,
+                    "Одно обозначение у разных позиций",
                     f"Обозначение {des} указано в спецификациях с разными наименованиями: " + ", ".join(variants),
-                    docs=[d.id for rows in by_name.values() for d, _ in rows], nodes=self.node_index.get(des, []),
+                    docs=[d.id for rows in by_name.values() for d, _ in rows],
+                    nodes=self.node_index.get(des, []),
                     sources=[r.source for rows in by_name.values() for _, r in rows],
                 )
         for des, items in self.spec_by_des.items():
             if len(items) > 1:
                 files = ", ".join(d.path for d, _ in items)
                 self.add(
-                    "duplicate_designation", "high", des, "Несколько спецификаций с одним обозначением",
+                    "duplicate_designation",
+                    "high",
+                    des,
+                    "Несколько спецификаций с одним обозначением",
                     f"Обозначение {des} присвоено {len(items)} спецификациям: {files}",
-                    docs=[d.id for d, _ in items], sources=[s.designation.source if s.designation else None for _, s in items],
+                    docs=[d.id for d, _ in items],
+                    sources=[s.designation.source if s.designation else None for _, s in items],
                 )
 
     def _check_names(self) -> None:
@@ -285,9 +357,15 @@ class Checker:
                     if not actual or normalize_name(actual) == normalize_name(expected):
                         continue
                     self.add(
-                        "name_mismatch", "medium", des, "Наименование на чертеже не совпадает со спецификацией",
+                        "name_mismatch",
+                        "medium",
+                        des,
+                        "Наименование на чертеже не совпадает со спецификацией",
                         f"{des}: в спецификации «{expected}», на чертеже «{actual}»",
-                        expected=expected, actual=str(actual), docs=[ref.doc.id], nodes=[node],
+                        expected=expected,
+                        actual=str(actual),
+                        docs=[ref.doc.id],
+                        nodes=[node],
                         sources=[ref.tb_source("name")],
                     )
                 if node.kind == "assembly" and node.spec_document_id:
@@ -295,9 +373,15 @@ class Checker:
                         own = _value(spec.name)
                         if own and normalize_name(own) != normalize_name(expected):
                             self.add(
-                                "name_mismatch", "medium", des, "Наименование спецификации не совпадает с позицией",
+                                "name_mismatch",
+                                "medium",
+                                des,
+                                "Наименование спецификации не совпадает с позицией",
                                 f"{des}: в вышестоящей спецификации «{expected}», в собственной спецификации «{own}»",
-                                expected=expected, actual=own, docs=[node.spec_document_id], nodes=[node],
+                                expected=expected,
+                                actual=own,
+                                docs=[node.spec_document_id],
+                                nodes=[node],
                                 sources=[spec.name.source if spec.name else None],
                             )
 
@@ -311,9 +395,14 @@ class Checker:
                 sb_lit = ref.tb_value("litera")
                 if spec_lit and sb_lit and spec_lit != sb_lit:
                     self.add(
-                        "revision_mismatch", "medium", des, "Литера спецификации и сборочного чертежа различается",
+                        "revision_mismatch",
+                        "medium",
+                        des,
+                        "Литера спецификации и сборочного чертежа различается",
                         f"{des}: литера спецификации «{spec_lit}», сборочного чертежа «{sb_lit}»",
-                        expected=spec_lit, actual=str(sb_lit), docs=[doc.id, ref.doc.id],
+                        expected=spec_lit,
+                        actual=str(sb_lit),
+                        docs=[doc.id, ref.doc.id],
                         nodes=self.node_index.get(des, []),
                         sources=[spec.litera.source if spec.litera else None, ref.tb_source("litera")],
                     )
@@ -333,10 +422,16 @@ class Checker:
                     crank = litera_rank(str(lit) if lit else None)
                     if crank is not None and crank < rank:
                         self.add(
-                            "revision_mismatch", "medium", child, "Литера составной части ниже литеры изделия",
+                            "revision_mismatch",
+                            "medium",
+                            child,
+                            "Литера составной части ниже литеры изделия",
                             f"{child}: литера «{lit}» ниже литеры сборочной единицы {des} «{spec_lit}»",
-                            expected=f"не ниже {spec_lit}", actual=str(lit), docs=[doc_id, doc.id],
-                            nodes=self.node_index.get(child, []), sources=[src, row.source],
+                            expected=f"не ниже {spec_lit}",
+                            actual=str(lit),
+                            docs=[doc_id, doc.id],
+                            nodes=self.node_index.get(child, []),
+                            sources=[src, row.source],
                         )
 
 

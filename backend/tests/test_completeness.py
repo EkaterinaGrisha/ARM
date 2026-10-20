@@ -6,7 +6,8 @@ from arm_web.pipeline.baseline.completeness import DrawingRef, check
 
 def row(i: int, section: str, des: str = "", name: str = "", qty: float | None = 1, note: str = "") -> SpecRow:
     return SpecRow(
-        id=f"r{i}", section=section,
+        id=f"r{i}",
+        section=section,
         designation=Extracted(value=des) if des else None,
         name=Extracted(value=name),
         quantity=Extracted(value=qty) if qty is not None else None,
@@ -15,15 +16,31 @@ def row(i: int, section: str, des: str = "", name: str = "", qty: float | None =
 
 
 def spec(doc_id: str, des: str, name: str, rows: list[SpecRow], litera: str = "О1"):
-    info = DocumentInfo(id=doc_id, file_name=f"{doc_id}.pdf", path=f"{doc_id}.pdf", kind="specification", designation=des)
-    return info, Specification(document_id=doc_id, designation=Extracted(value=des), name=Extracted(value=name),
-                               litera=Extracted(value=litera), rows=rows)
+    info = DocumentInfo(
+        id=doc_id, file_name=f"{doc_id}.pdf", path=f"{doc_id}.pdf", kind="specification", designation=des
+    )
+    return info, Specification(
+        document_id=doc_id,
+        designation=Extracted(value=des),
+        name=Extracted(value=name),
+        litera=Extracted(value=litera),
+        rows=rows,
+    )
 
 
-def drawing(doc_id: str, des: str, name: str, litera: str = "О1", revision: int | None = None, sheet: int | None = None):
-    info = DocumentInfo(id=doc_id, file_name=f"{doc_id}.pdf", path=f"{doc_id}.pdf", kind="part_drawing", designation=des, name=name)
-    tb = TitleBlock(designation=Extracted(value=des), name=Extracted(value=name), litera=Extracted(value=litera),
-                    revision=Extracted(value=revision) if revision else None, sheet=Extracted(value=sheet) if sheet else None)
+def drawing(
+    doc_id: str, des: str, name: str, litera: str = "О1", revision: int | None = None, sheet: int | None = None
+):
+    info = DocumentInfo(
+        id=doc_id, file_name=f"{doc_id}.pdf", path=f"{doc_id}.pdf", kind="part_drawing", designation=des, name=name
+    )
+    tb = TitleBlock(
+        designation=Extracted(value=des),
+        name=Extracted(value=name),
+        litera=Extracted(value=litera),
+        revision=Extracted(value=revision) if revision else None,
+        sheet=Extracted(value=sheet) if sheet else None,
+    )
     return DrawingRef(doc=info, part=PartRecord(document_id=doc_id, designation=des, name=name, title_block=tb))
 
 
@@ -33,15 +50,25 @@ def types(result) -> set[tuple[str, str]]:
 
 def test_tree_recursion_and_quantities():
     specs = [
-        spec("s0", "АБВГ.100000.000", "Изделие", [
-            row(1, "Документация", "АБВГ.100000.000 СБ", "Сборочный чертёж", None),
-            row(2, "Сборочные единицы", "АБВГ.100000.100", "Узел", 2),
-            row(3, "Стандартные изделия", "", "Болт М8 ГОСТ 7798-70", 4),
-        ]),
-        spec("s1", "АБВГ.100000.100", "Узел", [
-            row(1, "Документация", "АБВГ.100000.100 СБ", "Сборочный чертёж", None),
-            row(2, "Детали", "АБВГ.100000.101", "Ось", 3),
-        ]),
+        spec(
+            "s0",
+            "АБВГ.100000.000",
+            "Изделие",
+            [
+                row(1, "Документация", "АБВГ.100000.000 СБ", "Сборочный чертёж", None),
+                row(2, "Сборочные единицы", "АБВГ.100000.100", "Узел", 2),
+                row(3, "Стандартные изделия", "", "Болт М8 ГОСТ 7798-70", 4),
+            ],
+        ),
+        spec(
+            "s1",
+            "АБВГ.100000.100",
+            "Узел",
+            [
+                row(1, "Документация", "АБВГ.100000.100 СБ", "Сборочный чертёж", None),
+                row(2, "Детали", "АБВГ.100000.101", "Ось", 3),
+            ],
+        ),
     ]
     drawings = [
         drawing("d0", "АБВГ.100000.000 СБ", "Изделие"),
@@ -62,13 +89,18 @@ def test_tree_recursion_and_quantities():
 
 def test_all_discrepancy_types():
     specs = [
-        spec("s0", "АБВГ.100000.000", "Изделие", [
-            row(1, "Сборочные единицы", "АБВГ.100000.100", "Узел"),
-            row(2, "Сборочные единицы", "АБВГ.100000.200", "Узел без спецификации"),
-            row(3, "Детали", "АБВГ.100000.001", "Вал"),
-            row(4, "Детали", "АБВГ.100000.002", "Втулка"),
-            row(5, "Детали", "АБВГ.100000.003", "Шайба", note="БЧ"),  # без чертежа — допустимо
-        ]),
+        spec(
+            "s0",
+            "АБВГ.100000.000",
+            "Изделие",
+            [
+                row(1, "Сборочные единицы", "АБВГ.100000.100", "Узел"),
+                row(2, "Сборочные единицы", "АБВГ.100000.200", "Узел без спецификации"),
+                row(3, "Детали", "АБВГ.100000.001", "Вал"),
+                row(4, "Детали", "АБВГ.100000.002", "Втулка"),
+                row(5, "Детали", "АБВГ.100000.003", "Шайба", note="БЧ"),  # без чертежа — допустимо
+            ],
+        ),
         spec("s1", "АБВГ.100000.100", "Узел", [row(1, "Детали", "АБВГ.100000.101", "Ось")]),
     ]
     drawings = [
@@ -90,11 +122,21 @@ def test_all_discrepancy_types():
 
 
 def test_missing_drawing_and_multisheet_is_not_duplicate():
-    specs = [spec("s0", "АБВГ.100000.000", "Изделие", [
-        row(1, "Детали", "АБВГ.100000.001", "Вал"),
-        row(2, "Детали", "АБВГ.100000.002", "Корпус"),
-    ])]
-    drawings = [drawing("d1", "АБВГ.100000.002", "Корпус", sheet=1), drawing("d2", "АБВГ.100000.002", "Корпус", sheet=2)]
+    specs = [
+        spec(
+            "s0",
+            "АБВГ.100000.000",
+            "Изделие",
+            [
+                row(1, "Детали", "АБВГ.100000.001", "Вал"),
+                row(2, "Детали", "АБВГ.100000.002", "Корпус"),
+            ],
+        )
+    ]
+    drawings = [
+        drawing("d1", "АБВГ.100000.002", "Корпус", sheet=1),
+        drawing("d2", "АБВГ.100000.002", "Корпус", sheet=2),
+    ]
     result = check(specs, drawings)
     assert types(result) == {("missing_drawing", "АБВГ.100000.001")}
     missing = next(n for n in result.tree[0].children if n.designation == "АБВГ.100000.001")

@@ -88,7 +88,9 @@ class BaselinePipeline:
             if d.status in ("damaged", "unsupported", "unreadable", "foreign"):
                 report_log.append(LogEntry(level="warning", message=d.problem or d.status, document_id=d.id))
         tree_items = _count_nodes(result.tree)
-        need = _count_nodes(result.tree, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document"))
+        need = _count_nodes(
+            result.tree, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document")
+        )
         have = _count_nodes(result.tree, lambda n: n.kind in ("part", "document") and bool(n.drawing_document_ids))
         summary = Summary(
             documents_total=len(infos),
@@ -105,14 +107,26 @@ class BaselinePipeline:
             completeness_ratio=round(have / need, 4) if need else None,
         )
         kit = KitInfo(
-            id=kit_id, name=kit_name, root_designation=result.root_designation, root_name=result.root_name,
-            processed_at=_now(), duration_sec=round(time.monotonic() - started, 2),
-            pipeline_name=self.name, pipeline_version=self.version,
+            id=kit_id,
+            name=kit_name,
+            root_designation=result.root_designation,
+            root_name=result.root_name,
+            processed_at=_now(),
+            duration_sec=round(time.monotonic() - started, 2),
+            pipeline_name=self.name,
+            pipeline_version=self.version,
         )
         progress("Готово", 1.0, None)
         return Report(
-            kit=kit, summary=summary, documents=infos, specifications=[s for _, s in specs], tree=result.tree,
-            discrepancies=result.discrepancies, parts=parts, critical_parameters=criticals, log=report_log,
+            kit=kit,
+            summary=summary,
+            documents=infos,
+            specifications=[s for _, s in specs],
+            tree=result.tree,
+            discrepancies=result.discrepancies,
+            parts=parts,
+            critical_parameters=criticals,
+            log=report_log,
         )
 
     # ------------------------------------------------------------------ classification
@@ -167,12 +181,20 @@ class BaselinePipeline:
         if tb.designation is None:
             fname = _filename_designation(info.file_name)
             if fname:
-                tb.designation = Extracted(value=fname, raw=info.file_name, confidence=0.5,
-                                           source=SourceRef(document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=0.5))
+                tb.designation = Extracted(
+                    value=fname,
+                    raw=info.file_name,
+                    confidence=0.5,
+                    source=SourceRef(
+                        document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=0.5
+                    ),
+                )
                 info.notes.append("Обозначение в основной надписи не распознано — взято из имени файла")
         designation = _str(tb.designation)
         name = _str(tb.name)
-        assembly = bool(designation and doc_code(designation) == "СБ") or "сборочный чертеж" in (name or "").lower().replace("ё", "е")
+        assembly = bool(designation and doc_code(designation) == "СБ") or "сборочный чертеж" in (
+            name or ""
+        ).lower().replace("ё", "е")
         info.kind = "assembly_drawing" if assembly else "part_drawing"
         info.designation = designation
         info.name = name
@@ -226,7 +248,12 @@ class BaselinePipeline:
 
     def _check_filename(self, doc: LoadedDocument) -> None:
         fname = _filename_designation(doc.info.file_name)
-        if fname and doc.info.designation and fname != doc.info.designation and fname != doc.info.designation.split(" ")[0]:
+        if (
+            fname
+            and doc.info.designation
+            and fname != doc.info.designation
+            and fname != doc.info.designation.split(" ")[0]
+        ):
             doc.info.notes.append(
                 f"Обозначение в имени файла ({fname}) отличается от основной надписи ({doc.info.designation})"
             )
@@ -252,7 +279,7 @@ def _filename_name(file_name: str) -> str | None:
     found = find_designations(stem)
     if not found:
         return None
-    rest = stem[found[0][2]:]
+    rest = stem[found[0][2] :]
     rest = re.sub(r"^[\s_\-–.]+", "", rest).replace("_", " ").strip()
     return rest or None
 

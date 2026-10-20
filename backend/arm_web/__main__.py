@@ -1,11 +1,11 @@
 """Командная строка.
 
-    python -m arm_web serve [--host 0.0.0.0] [--port 8000]       веб-интерфейс и API
-    python -m arm_web process ПАПКА [-o ОТЧЁТ] [--truth ЭТАЛОН]   пакетная обработка комплекта
-    python -m arm_web demo-kit ПАПКА                             сгенерировать демо-комплект
-    python -m arm_web evaluate report.json truth.json [--write]  метрики качества по эталону
-    python -m arm_web build-demo                                 демо-данные для фронтенда
-    python -m arm_web schema                                     JSON Schema отчёта
+python -m arm_web serve [--host 0.0.0.0] [--port 8000]       веб-интерфейс и API
+python -m arm_web process ПАПКА [-o ОТЧЁТ] [--truth ЭТАЛОН]   пакетная обработка комплекта
+python -m arm_web demo-kit ПАПКА                             сгенерировать демо-комплект
+python -m arm_web evaluate report.json truth.json [--write]  метрики качества по эталону
+python -m arm_web build-demo                                 демо-данные для фронтенда
+python -m arm_web schema                                     JSON Schema отчёта
 """
 
 from __future__ import annotations
@@ -42,15 +42,21 @@ def cmd_process(args) -> int:
     def progress(stage: str, value: float, message: str | None = None) -> None:
         print(f"\r[{value:4.0%}] {stage}: {(message or '')[:70]:<70}", end="", file=sys.stderr, flush=True)
 
-    report = pipeline.run(input_dir, kit_id=uuid.uuid4().hex[:12], kit_name=args.name or input_dir.name, progress=progress)
+    report = pipeline.run(
+        input_dir, kit_id=uuid.uuid4().hex[:12], kit_name=args.name or input_dir.name, progress=progress
+    )
     print(file=sys.stderr)
     if args.truth:
-        report.quality = evaluate(report, json.loads(Path(args.truth).read_text(encoding="utf-8")), dataset=Path(args.truth).name)
+        report.quality = evaluate(
+            report, json.loads(Path(args.truth).read_text(encoding="utf-8")), dataset=Path(args.truth).name
+        )
     (out / "report.json").write_text(report.model_dump_json(indent=2, exclude_none=True), encoding="utf-8")
     (out / "report.xlsx").write_bytes(to_xlsx(report))
     (out / "report.html").write_text(to_html(report), encoding="utf-8")
     s = report.summary
-    print(f"Документов: {s.documents_total}, расхождений: {s.discrepancies_total}, критичных параметров: {s.critical_parameters}")
+    print(
+        f"Документов: {s.documents_total}, расхождений: {s.discrepancies_total}, критичных параметров: {s.critical_parameters}"
+    )
     print(f"Отчёт: {out / 'report.json'} (+ report.xlsx, report.html)")
     return 0
 

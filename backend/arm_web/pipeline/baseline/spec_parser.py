@@ -101,7 +101,12 @@ def parse(doc: LoadedDocument) -> Specification:
             geom = title_block.locate(page)
             if geom is not None and geom.form == 2:
                 tb = title_block.parse(doc, page, geom)
-                spec.designation, spec.name, spec.litera, spec.revision = tb.designation, tb.name, tb.litera, tb.revision
+                spec.designation, spec.name, spec.litera, spec.revision = (
+                    tb.designation,
+                    tb.name,
+                    tb.litera,
+                    tb.revision,
+                )
         table = _table(page, find_header(page), table)
         if table is None:
             continue
@@ -116,10 +121,7 @@ def _designation_fallback(doc: LoadedDocument) -> Extracted | None:
     """Обозначение спецификации из крупного текста внизу первого листа или из имени файла."""
     for page in doc.pages[:1]:
         candidates = [
-            (ln, d)
-            for ln in page.lines
-            if ln.cy > page.height * 0.8
-            for d, _, _ in find_designations(ln.text)
+            (ln, d) for ln in page.lines if ln.cy > page.height * 0.8 for d, _, _ in find_designations(ln.text)
         ]
         if candidates:
             ln, d = max(candidates, key=lambda c: c[0].size)
@@ -176,7 +178,9 @@ def _bbox(words: list[Word]):
     )
 
 
-def _make_row(doc: LoadedDocument, page: Page, index: int, section: str | None, cells: dict[str, list[Word]]) -> SpecRow:
+def _make_row(
+    doc: LoadedDocument, page: Page, index: int, section: str | None, cells: dict[str, list[Word]]
+) -> SpecRow:
     row = SpecRow(id=f"{doc.id}-r{index}", section=section)
     all_words = [w for ws in cells.values() for w in ws]
     for field, words in cells.items():

@@ -13,7 +13,12 @@ def test_bad_files_get_statuses(tmp_path):
     (tmp_path / "notes.docx").write_bytes(b"PK\x03\x04 zip")
     report = BaselinePipeline(use_ocr=False).run(tmp_path, kit_id="t", kit_name="t")
     statuses = {d.file_name: d.status for d in report.documents}
-    assert statuses == {"empty.pdf": "damaged", "broken.pdf": "damaged", "fake.jpg": "damaged", "notes.docx": "unsupported"}
+    assert statuses == {
+        "empty.pdf": "damaged",
+        "broken.pdf": "damaged",
+        "fake.jpg": "damaged",
+        "notes.docx": "unsupported",
+    }
     assert all(d.problem for d in report.documents)
     assert report.tree == []
 
@@ -31,7 +36,7 @@ def test_empty_kit(tmp_path):
         ("C:\\Users\\x\\a.pdf", "Users/x/a.pdf"),
         ("/abs/path.pdf", "abs/path.pdf"),
         ("..", "file"),
-        ('bad:name?.pdf', "bad_name_.pdf"),
+        ("bad:name?.pdf", "bad_name_.pdf"),
     ],
 )
 def test_safe_relative_path(name, expected):
