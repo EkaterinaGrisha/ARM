@@ -24,3 +24,9 @@ repos:
         language: system
         files: ^(uv\.lock|backend/requirements\.txt)$
         pass_filenames: false
+      - id: report-schema
+        name: report JSON Schema and web types match kdcheck.schemas
+        entry: sh scripts/export_schema.sh
+        language: system
+        files: ^(packages/kdcheck/src/kdcheck/schemas/.*|docs/report\.schema\.json|frontend/scripts/report-types\.mjs|frontend/src/api/report\.generated\.ts)$
+        pass_filenames: false

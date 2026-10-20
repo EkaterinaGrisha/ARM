@@ -15,6 +15,8 @@ RUN apt-get update \
 WORKDIR /app/backend
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+COPY packages/kdcheck /app/packages/kdcheck
+RUN pip install --no-cache-dir --no-deps /app/packages/kdcheck
 COPY backend/ ./
 COPY --from=frontend /app/frontend/dist /app/frontend/dist
 ENV ARM_DATA_DIR=/data \

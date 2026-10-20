@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["backend"]
+members = ["backend", "packages/kdcheck"]
 
 [dependency-groups]
 dev = [
@@ -26,7 +26,7 @@ extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Query", "fast
 [tool.mypy]
 plugins = ["pydantic.mypy"]
 python_version = "3.11"
-files = ["backend/arm_web"]
+files = ["backend/arm_web", "packages/kdcheck/src/kdcheck"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 
@@ -34,3 +34,21 @@ warn_redundant_casts = true
 module = ["pytesseract", "pymupdf", "pymupdf.*"]
 ignore_missing_imports = true
 
+
+[[tool.mypy.overrides]]
+# The core is strict. `strict = true` in an override leaks to every module, so its flags are listed one by one.
+module = ["kdcheck", "kdcheck.*"]
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+warn_return_any = true
+no_implicit_reexport = true
+strict_equality = true
+extra_checks = true
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests", "packages/kdcheck/tests"]

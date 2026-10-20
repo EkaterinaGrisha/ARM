@@ -5,3 +5,5 @@ frontend/dist
 backend/data
 data
 .git
+**/build
+**/*.egg-info

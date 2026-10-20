@@ -83,7 +83,7 @@ python -m arm_web process ПАПКА --truth эталон.json             # + �
 python -m arm_web evaluate out/report.json ../samples/demo_kit_truth.json
 python -m arm_web demo-kit ПАПКА                                 # сгенерировать демо-комплект
 python -m arm_web build-demo                                     # обновить демо-отчёт фронтенда
-python -m arm_web schema > ../docs/report.schema.json
+sh ../scripts/export_schema.sh                                   # JSON Schema отчёта и типы фронтенда
 ```
 
 ## Подключение конвейера команды
@@ -164,9 +164,12 @@ python -m arm_web schema > ../docs/report.schema.json
 ## Структура
 
 ```
+packages/kdcheck/src/kdcheck/
+  schemas/                   формат отчёта (контракт)
+packages/kdcheck/tests/      pytest
 backend/arm_web/
   main.py, jobs.py           API и фоновая обработка заданий
-  models.py                  формат отчёта (контракт)
+  models.py                  модель задания; реэкспорт контракта на время переноса
   pipeline/                  интерфейс конвейера, внешний конвейер
   pipeline/baseline/         базовый конвейер: document, ocr, title_block, spec_parser,
                              requirements, completeness, critical, pipeline
@@ -186,7 +189,7 @@ docs/                        формат отчёта, JSON Schema, иллюс�
 ## Тесты
 
 ```bash
-uv sync --all-packages --all-extras && uv run pytest backend
+uv sync --all-packages --all-extras && uv run pytest
 cd frontend && npm test && npm run typecheck
 ```
 

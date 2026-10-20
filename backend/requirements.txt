@@ -56,6 +56,7 @@ pydantic==2.14.1
     # via
     #   arm-web
     #   fastapi
+    #   kdcheck
 pydantic-core==2.50.1
     # via pydantic
 pymupdf==2.0

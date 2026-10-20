@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit -p . && vite build",
     "typecheck": "tsc --noEmit -p .",
+    "gen:types": "node scripts/report-types.mjs",
     "test": "vitest run",
     "preview": "vite preview"
   },
@@ -21,6 +22,7 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.2.0",
+    "json-schema-to-typescript": "^16.0.0",
     "typescript": "~5.9.3",
     "vite": "^7.3.0",
     "vitest": "^5.0.5"

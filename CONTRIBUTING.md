@@ -23,7 +23,7 @@ Before starting a task, find its stage in docs/PLAN.md. If the task changes the 
 ## Engineering rules
 
 - **Core first.** All logic lives in the `kdcheck` Python package with a CLI. The API and the web only call the core; no business logic in the API or the frontend.
-- **Contracts first.** Stage outputs are pydantic models in `kdcheck.schemas`. A schema change bumps `schema_version` and updates the fixtures (`samples/`, `frontend/public/demo/report.json`).
+- **Contracts first.** Stage outputs are pydantic models in `kdcheck.schemas`. A schema change bumps `schema_version`, regenerates `docs/report.schema.json` and the web types (`scripts/export_schema.sh`) and updates the fixtures (`samples/`, `frontend/public/demo/report.json`).
 - **Traceability.** Every extracted value carries `Evidence`: file, page, bbox, method, model version, confidence. No value without evidence.
 - **Robustness.** One bad file or page never stops a run. Catch per file and per page, record a problem entry with a category, continue.
 - **Rules before models.** Use GOST geometry, the PDF text layer and regexes where they work. Add OCR/VLM/LLM only with a measured gain on the gold set.
@@ -36,7 +36,7 @@ Before starting a task, find its stage in docs/PLAN.md. If the task changes the 
 
 ## Stack
 
-Python ≥ 3.11, uv, ruff (lint + format), mypy (strict for `kdcheck`), pytest. API: FastAPI; each job runs `kdcheck run` in a separate process with limits, no queue server (ADR-0006). Frontend: React, TypeScript, Vite in `frontend/`, owned by the web team; TypeScript types are generated from the report JSON Schema.
+Python ≥ 3.11, uv, ruff (lint + format), mypy (strict for `kdcheck`), pytest. API: FastAPI; each job runs `kdcheck run` in a separate process with limits, no queue server (ADR-0006). Frontend: React, TypeScript, Vite in `frontend/`; report types are generated from the report JSON Schema (json-schema-to-typescript).
 
 ## Git
 
@@ -48,9 +48,10 @@ Python ≥ 3.11, uv, ruff (lint + format), mypy (strict for `kdcheck`), pytest. 
 ```bash
 uv sync --all-packages --all-extras   # Python environment from uv.lock
 uv run pre-commit install             # ruff, lockfile and requirements checks on commit
-uv run pytest backend                 # backend tests
+uv run pytest                         # kdcheck and backend tests
 uv run ruff check . && uv run ruff format --check . && uv run mypy
 sh scripts/export_requirements.sh     # after changing dependencies: refresh backend/requirements.txt
+sh scripts/export_schema.sh           # after changing kdcheck.schemas: refresh docs/report.schema.json and web types
 
 cd frontend && npm ci && npm run typecheck && npm test && npm run build
 ```
