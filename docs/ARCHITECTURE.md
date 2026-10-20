@@ -1,32 +1,31 @@
 # Архитектура
 
-Версия 1 от 20.10.2026.
+Версия 2 от 20.10.2026: приняты решения 6–10 (таблица «Решения»).
 
-Ядро — Python-библиотека `kdcheck` с CLI. Веб-приложение — оболочка над тем же ядром: API принимает комплект, воркер запускает пайплайн, фронтенд показывает отчёт. CLI и веб дают одинаковый результат, а команды Блоков 1, 2 и веба работают независимо через общие схемы данных.
+Ядро — Python-библиотека `kdcheck` с CLI. Веб-приложение — оболочка над тем же ядром: API принимает комплект и запускает ядро отдельным процессом, фронтенд показывает отчёт. CLI и веб дают одинаковый результат, а команды Блоков 1, 2 и веба работают независимо через общие схемы данных.
+
+Сейчас код — прототип в `backend/` и `frontend/`. Переход к этой схеме идёт по шагам из [сверки прототипа](reviews/2026-10-20-prototype.md#7-план-миграции).
 
 ## Компоненты
 
 ```mermaid
 flowchart LR
     T([Технолог]) --> WEB[Web UI]
-    WEB -- REST + SSE --> API[API · FastAPI]
-    API -- задача --> Q[(Redis · очередь)]
-    Q --> WRK[Worker]
-    WRK --> CORE[[Пайплайн kdcheck]]
-    CLI[CLI · kdcheck run] --> CORE
-    CORE --> FS[(Рабочая папка задачи)]
-    API --> FS
-    API --> DB[(SQLite · задачи)]
+    WEB -- REST --> API[API · FastAPI]
+    API -- процесс на задание --> RUN[CLI · kdcheck run]
+    U([Командная строка]) --> RUN
+    RUN --> CORE[[Пайплайн kdcheck]]
+    CORE --> FS[(Папка задания)]
+    API -- job.json, прогресс, отчёт --> FS
     CORE -. опционально .-> MS[Сервер моделей · vLLM]
     CORE -. если разрешено .-> CLOUD[Облачный OCR или LLM]
 ```
 
 | Компонент | Ответственность | Технологии |
 | --- | --- | --- |
-| `kdcheck` (ядро) | Пайплайн, правила, схемы, отчёты, CLI | Python 3.11+, pydantic, OpenCV, pdfplumber, pypdfium2, networkx |
-| API | Приём комплекта, задачи, статусы, выдача отчёта и изображений | FastAPI, SQLite (SQLModel) |
-| Worker | Запуск пайплайна, прогресс по стадиям | RQ + Redis |
-| Web UI | Загрузка, отчёт, просмотр листов с подсветкой | Решает веб-команда; контракт — OpenAPI |
+| `kdcheck` (ядро) | Пайплайн, правила, схемы, отчёты, CLI | Python 3.11+, pydantic, pypdfium2 и pdfplumber за адаптером `PdfBackend`, OpenCV, networkx |
+| API | Приём комплекта, задания в `job.json`, запуск `kdcheck run` отдельным процессом с лимитами, выдача отчёта и изображений | FastAPI |
+| Web UI | Загрузка, отчёт, просмотр листов с подсветкой | React, TypeScript, Vite; типы из JSON Schema отчёта |
 | Сервер моделей | VLM и LLM по OpenAI-совместимому API | vLLM, профиль GPU |
 
 ## Пайплайн
@@ -104,137 +103,119 @@ data/jobs/<job_id>/
 | Разбор техтребований | Regex + словари ГОСТ | Локальная LLM (Qwen, GigaChat 3) со структурированным выводом по JSON-схеме | Длинный хвост формулировок |
 | Сравнение наименований | rapidfuzz + нормализация | LLM-судья для спорных пар | Порог по эталону |
 
-Все движки — за интерфейсами `OcrEngine`, `VlmClient`, `LlmClient`; выбор — в `configs/models.yaml`. Облачные адаптеры выключены по умолчанию.
+Все движки — за интерфейсами `PdfBackend`, `OcrEngine`, `VlmClient`, `LlmClient`; выбор — в `configs/models.yaml`. Облачные адаптеры выключены по умолчанию.
 
 ## Прослеживаемость
 
-Любое извлечённое значение — `Field[T]`:
+Любое извлечённое значение — `Extracted`:
 
 | Поле | Смысл |
 | --- | --- |
 | `value` | Нормализованное значение |
 | `raw` | Как прочитано |
-| `status` | `ok`, `low_confidence`, `missing`, `conflict` |
-| `evidence[]` | Источники |
+| `confidence` | Уверенность, 0–1 |
+| `status` | `ok`, `low_confidence`, `missing`, `conflict` — с версии 1.1 |
+| `source` | Источник, `SourceRef` |
 
-`Evidence`: `file_id`, `sha256`, `page`, `bbox` (pt, система координат листа), `method` (`pdf_text`, `ocr:<движок>`, `vlm:<модель>`, `rule`), `model_version`, `confidence`, `crop` — путь к вырезке.
+`SourceRef` — это `Evidence` из инженерных правил: `document_id`, `page`, `bbox` (доли ширины и высоты листа, начало — левый верхний угол), `text`, `method` (`text_layer`, `ocr`, `vlm`, `llm`, `filename`, `rule`, `manual`), `confidence`, а с версии 1.1 — `engine` и `engine_version`. Хэш файла — в `DocumentInfo.sha256`.
 
 В вебе клик по значению или расхождению открывает лист с подсветкой `bbox`.
 
-## Отчёт: контракт (черновик)
+## Отчёт: контракт
 
-```json
-{
-  "schema_version": "0.1",
-  "run": {"id": "…", "started_at": "…", "pipeline_version": "…", "models": {"ocr": "…", "vlm": null}},
-  "files": [{"file_id": "f001", "path": "…", "sha256": "…", "status": "ok", "pages": 2}],
-  "documents": [{
-    "doc_id": "d001",
-    "doc_type": "part_drawing",
-    "designation": {
-      "value": "АРМ.123456.001", "raw": "АРМ.123456.001", "status": "ok",
-      "evidence": [{"file_id": "f001", "page": 1, "bbox": [400.2, 15.1, 520.8, 29.4],
-                    "method": "pdf_text", "confidence": 1.0}]
-    },
-    "title_block": {"name": {}, "material": {}, "mass": {}, "scale": {}, "litera": {},
-                    "change_number": {}, "archive_number": {}, "first_use": {}},
-    "pages": ["f001:1", "f001:2"]
-  }],
-  "tree": {
-    "roots": ["АРМ.100000.000"],
-    "edges": [{"parent": "АРМ.100000.000", "child": "АРМ.123456.001", "section": "Детали",
-               "position": 3, "qty": 2, "evidence": []}]
-  },
-  "findings": [{
-    "id": "F0001", "type": "NAME_MISMATCH", "rule_id": "B1.NAME.001", "severity": "major",
-    "message": "Наименование на чертеже «Вал ведущий» не совпадает со спецификацией «Вал»",
-    "designations": ["АРМ.123456.001"], "confidence": 0.93, "evidence": []
-  }],
-  "parameters": [{
-    "designation": "АРМ.123456.001",
-    "tolerances": [{"nominal": 40.0, "fit": "k6", "it_grade": 6, "lower": 0.002, "upper": 0.018, "evidence": []}],
-    "roughness": [{"param": "Ra", "value": 0.8, "scope": "surface", "evidence": []}],
-    "gdt": [], "heat_treatment": [], "coatings": [],
-    "critical": [{"param": "tolerances[0]", "reason": "Квалитет IT6 и точнее: нужно шлифование", "basis": "rule"}]
-  }],
-  "problems": [{"file_id": "f007", "category": "damaged", "detail": "PDF не открывается"}],
-  "stats": {"files": 0, "pages": 0, "pages_ocr": 0, "duration_s": 0.0}
-}
-```
+Контракт — формат прототипа ([ADR-0009](adr/0009-report-contract.md)). Поля описаны в [report-format.md](report-format.md), схема — [report.schema.json](report.schema.json), модели — `backend/arm_web/models.py`, после переноса — `kdcheck.schemas`.
 
-Уровни важности расхождений: `critical` (останавливает производство), `major`, `minor`, `info`.
+`Report` версии 1.0: `schema_version`, `kit`, `summary`, `documents`, `specifications`, `tree`, `discrepancies`, `parts`, `critical_parameters`, `quality`, `log`.
 
-## API (черновик)
+Версия 1.1 добавляет необязательные поля, поэтому отчёты 1.0 остаются валидными:
+
+| Что | Зачем |
+| --- | --- |
+| `Discrepancy.rule_id` вида `B1.NAME.001` | У каждого срабатывания есть правило, сообщение и тесты |
+| `SourceRef.engine`, `SourceRef.engine_version`, `KitInfo.engines` | Воспроизводимость: какой движок и какой версии дал значение |
+| `Extracted.status` | `ok`, `low_confidence`, `missing`, `conflict` |
+| `DocumentInfo.status`: `encrypted`, `duplicate_file` | Отдельные категории проблемных файлов (раздел «Устойчивость») |
+| `extensions` на верхнем уровне | Данные внешних конвейеров; модели ядра неизвестные поля запрещают |
+
+Модель задания `Job` — часть API, не контракта. Уровни важности пока `high`, `medium`, `low`; шкалу уточняем с АРМ.
+
+## API
+
+Пути — как в прототипе. При выносе ядра они получают префикс `/api/v1`, старые работают ещё один релиз ([ADR-0009](adr/0009-report-contract.md)).
 
 | Метод | Путь | Назначение |
 | --- | --- | --- |
-| POST | `/api/v1/jobs` | Загрузка комплекта (файлы или zip) → `job_id` |
-| GET | `/api/v1/jobs` | Список задач |
-| GET | `/api/v1/jobs/{id}` | Статус и прогресс по стадиям |
-| GET | `/api/v1/jobs/{id}/events` | Прогресс в реальном времени (SSE) |
-| GET | `/api/v1/jobs/{id}/report` | `report.json` |
-| GET | `/api/v1/jobs/{id}/report.xlsx`, `/report.html` | Выгрузки |
-| GET | `/api/v1/jobs/{id}/pages/{page_id}.png` | Изображение листа |
-| GET | `/api/v1/jobs/{id}/evidence/{evidence_id}.png` | Вырезка-источник |
-| GET | `/api/v1/health` | Проверка живости |
+| GET | `/api/health` | Состояние, активный конвейер, наличие OCR |
+| GET | `/api/jobs` | Список заданий |
+| POST | `/api/jobs` | Загрузка комплекта: файлы и их относительные пути |
+| GET | `/api/jobs/{id}` | Состояние и прогресс |
+| POST | `/api/jobs/{id}/rerun` | Обработать заново |
+| DELETE | `/api/jobs/{id}` | Удалить задание и файлы |
+| GET | `/api/jobs/{id}/report` | `report.json` |
+| GET | `/api/jobs/{id}/report.json`, `.xlsx`, `.html` | Выгрузки |
+| GET | `/api/jobs/{id}/documents/{doc}/pages/{n}.png` | Изображение листа |
+| GET | `/api/jobs/{id}/documents/{doc}/file` | Исходный файл |
+
+Прогресс веб получает опросом `GET /api/jobs/{id}`. SSE и вырезки-источники добавим, если опроса или подсветки на листе не хватит.
 
 ```mermaid
 sequenceDiagram
     actor T as Технолог
     participant W as Web UI
     participant A as API
-    participant R as Redis
-    participant K as Worker
+    participant P as Процесс kdcheck run
     T->>W: Загружает комплект
-    W->>A: POST /api/v1/jobs
-    A->>R: Ставит задачу
-    A-->>W: job_id
-    R->>K: Задача
-    K->>K: Пайплайн kdcheck
-    K->>R: Прогресс по стадиям
-    W->>A: GET /jobs/{id}/events (SSE)
-    A->>R: Читает прогресс
+    W->>A: POST /api/jobs
+    A->>P: Запуск с тайм-аутом и лимитом памяти
+    A-->>W: Задание
+    P->>P: Пайплайн
+    P-->>A: progress.json, затем report.json
+    W->>A: GET /api/jobs/{id} (опрос)
     A-->>W: Стадия, процент
-    W->>A: GET /jobs/{id}/report
+    W->>A: GET /api/jobs/{id}/report
     A-->>W: report.json
     T->>W: Клик по расхождению
-    W->>A: GET /pages/{page_id}.png
+    W->>A: GET /api/jobs/{id}/documents/{doc}/pages/{n}.png
     A-->>W: Лист, подсветка bbox на клиенте
 ```
 
 ## Веб-интерфейс
 
-1. Загрузка комплекта и список задач.
-2. Отчёт по задаче. Вкладки: «Дерево изделия», «Расхождения» с фильтрами по типу и важности, «Параметры» с выделением критичных, «Проблемные файлы», «Качество».
+1. Список заданий и загрузка папки комплекта.
+2. Отчёт по заданию, вкладки: «Сводка», «Дерево изделия», «Расхождения», «Параметры деталей», «Критичные параметры», «Спецификации», «Документы», «Качество».
 3. Просмотр листа: изображение и слой с bbox; переход из любой строки отчёта.
 
-Если стек фронтенда ещё не выбран: React + TypeScript + Vite, TanStack Table, типы из OpenAPI (openapi-typescript), подсветка — SVG поверх PNG.
+Стек — React, TypeScript, Vite в `frontend/` (решение 8). Типы TypeScript генерируются из JSON Schema отчёта (json-schema-to-typescript), подсветка — слой поверх PNG листа.
 
 ## Устойчивость и безопасность
 
 | Ситуация | Поведение |
 | --- | --- |
-| Файл не открывается | `problems: damaged`, обработка продолжается |
-| PDF зашифрован | `problems: encrypted` |
-| Не PDF, JPG, PNG или TIFF | `problems: unsupported` |
-| Нет основной надписи после 4 поворотов и нет сетки спецификации | `problems: foreign` — посторонний документ |
-| Качество ниже порога или низкая уверенность OCR | `problems: unreadable`, значения со статусом `low_confidence` |
-| Побайтовый дубликат | `problems: duplicate_file` |
+| Файл не открывается | статус `damaged`, обработка продолжается |
+| PDF зашифрован | статус `encrypted` (с версии 1.1; до неё — `damaged` с пояснением) |
+| Не PDF, JPG, PNG или TIFF | статус `unsupported` |
+| Нет основной надписи после 4 поворотов и нет сетки спецификации | статус `foreign` — посторонний документ |
+| Качество ниже порога или низкая уверенность OCR | статус `unreadable`, значения со статусом `low_confidence` |
+| Побайтовый дубликат | статус `duplicate_file` (с версии 1.1) |
+| Сбой на одной странице | Страница помечается, остальные страницы файла обрабатываются |
 | Огромный скан, тысячи страниц, zip-бомба | Лимиты размера, числа страниц и времени на лист; распаковка zip с защитой от выхода из папки |
 
-Загруженные файлы — недоверенные данные: разбор в процессе воркера с лимитами памяти и времени.
+Загруженные файлы — недоверенные данные. Ядро разбирает их в отдельном процессе задания с лимитами памяти и времени ([ADR-0006](adr/0006-job-execution.md)), поэтому зависший файл не останавливает API.
 
 ## Развёртывание
 
-- `docker compose up`: web, api, worker, redis. Профиль `gpu` добавляет vLLM.
+- Один Docker-образ: API, веб и ядро. Задания выполняются в том же контейнере отдельными процессами ([ADR-0006](adr/0006-job-execution.md)).
+- Сервер моделей vLLM для профиля GPU — отдельным контейнером через `docker compose`, когда появится VLM.
 - Без интернета: веса моделей загружаются заранее в `models/` (вне git), версии фиксируются в `configs/models.yaml`.
 - По умолчанию все модели локальные. Облачные адаптеры включаются флагом только с разрешения АРМ.
 
 ## Структура репозитория (целевая)
 
+Решение 10, [ADR-0010](adr/0010-repo-layout.md). Каталоги появляются, когда в них появляется код.
+
 ```
 ARM/
-├── docs/                   # кейс, план, архитектура, обзор, оценка
+├── docs/                   # кейс, план, архитектура, ADR, обзоры, оценка
 ├── packages/kdcheck/       # ядро
 │   ├── src/kdcheck/
 │   │   ├── schemas/        # pydantic-модели и JSON Schema
@@ -249,17 +230,21 @@ ARM/
 │   │   ├── report/         # JSON, HTML, XLSX
 │   │   └── cli.py
 │   └── tests/
-├── services/api/           # FastAPI
-├── services/worker/        # воркер RQ
-├── web/                    # фронтенд
+├── backend/                # API: FastAPI, задания, раздача веба
+├── frontend/               # веб: React, TypeScript, Vite
 ├── synth/                  # генераторы документов, комплектов, мутаций
 ├── eval/                   # эталон, метрики, разбор ошибок
-├── configs/                # шаблоны ГОСТ, пороги, словари, модели
+├── configs/                # шаблоны ГОСТ, пороги, словари, лимиты, модели
 ├── prompts/                # промпты VLM и LLM с версиями
-├── fixtures/               # пример report.json для веба и тестов
+├── samples/                # демо-комплект с эталоном, фикстура тестов
 ├── data/                   # вне git
-└── docker-compose.yml
+├── pyproject.toml          # uv workspace: packages/kdcheck, backend
+└── Dockerfile
 ```
+
+Фикстуры контракта — `samples/` и `frontend/public/demo/report.json`.
+
+Границы проверяет import-linter в CI. `backend` импортирует из ядра только `kdcheck.schemas`, `kdcheck.run` и `kdcheck.render`. Блок 1 (`tree`, `checks`) и Блок 2 (`params`) не импортируют друг друга.
 
 ## Решения
 
@@ -270,10 +255,10 @@ ARM/
 | 3 | Шаблоны ГОСТ и правила — основа, нейросети — точечно | Геометрия известна; правила прозрачны и проверяемы | Принято |
 | 4 | Векторный PDF читаем по текстовому слою, OCR — только для растра | Точность и скорость | Принято |
 | 5 | Локальные модели по умолчанию | Конфиденциальность КД | Ждём ответа АРМ |
-| 6 | Очередь RQ + Redis, задачи в SQLite; пересматривается в [ADR-0006](adr/0006-job-execution.md): процесс на задание, без Redis | Простота; масштаб кейса не требует большего | Предложено |
-| 7 | pdfplumber и pypdfium2 вместо PyMuPDF; уточнено в [ADR-0007](adr/0007-pdf-library.md): адаптер и замена по замеру | Разрешительные лицензии; у PyMuPDF — AGPL | Предложено |
-| 8 | Стек фронтенда: React, TypeScript, Vite, как в прототипе ([ADR-0010](adr/0010-repo-layout.md)) | Веб уже работает на этом стеке | Предложено |
-| 9 | Контракт отчёта — формат прототипа 1.0, дополнения в 1.1 ([ADR-0009](adr/0009-report-contract.md)) | Реализован, на нём работают веб и внешние конвейеры | Предложено |
-| 10 | Ядро в `packages/kdcheck`; `backend/` и `frontend/` остаются; перенос по шагам ([ADR-0010](adr/0010-repo-layout.md)) | Небольшие PR, приложение работает после каждого шага | Предложено |
+| 6 | Задание — отдельный процесс `kdcheck run` с лимитами; без Redis, RQ и SQLite ([ADR-0006](adr/0006-job-execution.md)) | Изоляция недоверенных файлов при одном сервисе | Принято |
+| 7 | PDF — через адаптер `PdfBackend`: pypdfium2 и pdfplumber по умолчанию, PyMuPDF — только за флагом по итогам замера ([ADR-0007](adr/0007-pdf-library.md)) | Разрешительные лицензии; у PyMuPDF — AGPL | Принято |
+| 8 | Стек фронтенда: React, TypeScript, Vite, как в прототипе ([ADR-0010](adr/0010-repo-layout.md)) | Веб уже работает на этом стеке | Принято |
+| 9 | Контракт отчёта — формат прототипа 1.0, дополнения в 1.1 ([ADR-0009](adr/0009-report-contract.md)) | Реализован, на нём работают веб и внешние конвейеры | Принято |
+| 10 | Ядро в `packages/kdcheck`; `backend/` и `frontend/` остаются; перенос по шагам ([ADR-0010](adr/0010-repo-layout.md)) | Небольшие PR, приложение работает после каждого шага | Принято |
 
 Номер строки совпадает с номером ADR в `docs/adr/`. Основание для решений 6–10 — [сверка прототипа](reviews/2026-10-20-prototype.md).
