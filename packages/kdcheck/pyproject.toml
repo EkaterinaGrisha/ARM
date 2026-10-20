@@ -13,6 +13,9 @@ dependencies = [
   "pydantic>=2.6",
 ]
 
+[project.scripts]
+kdcheck = "kdcheck.cli:main"
+
 [project.optional-dependencies]
 # AGPL-3.0, only behind kdcheck.ingest.pdf.PdfBackend (ADR-0007)
 pymupdf = ["pymupdf>=1.24"]
