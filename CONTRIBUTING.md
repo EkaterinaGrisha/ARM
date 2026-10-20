@@ -45,7 +45,17 @@ Python ≥ 3.11, uv, ruff (lint + format), mypy (strict for `kdcheck`), pytest. 
 
 ## Commands
 
-To be filled in once the core skeleton exists (stage 3 of the plan). Until then, [README.md](README.md) explains how to run the prototype.
+```bash
+uv sync --all-packages --all-extras   # Python environment from uv.lock
+uv run pre-commit install             # ruff, lockfile and requirements checks on commit
+uv run pytest backend                 # backend tests
+uv run ruff check . && uv run ruff format --check . && uv run mypy
+sh scripts/export_requirements.sh     # after changing dependencies: refresh backend/requirements.txt
+
+cd frontend && npm ci && npm run typecheck && npm test && npm run build
+```
+
+CI (`.github/workflows/ci.yml`) runs the same checks on Ubuntu with Python 3.11 and 3.12 and on macOS with Python 3.11. Running the prototype: [README.md](README.md).
 
 ## Glossary (RU → identifier)
 

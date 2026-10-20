@@ -16,10 +16,11 @@ import shutil
 import threading
 import traceback
 import uuid
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import BinaryIO
 
 from .models import Job, Report
 from .pipeline import Pipeline
@@ -30,7 +31,7 @@ _JOB_ID = re.compile(r"^[a-f0-9]{12}$")
 
 
 def now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def safe_relative_path(name: str) -> Path:
@@ -107,7 +108,7 @@ class JobStore:
         raise JobNotFound(doc_id)
 
     # ------------------------------------------------------------------ lifecycle
-    def create(self, name: str, files: list[tuple[str, BinaryIO]]) -> Job:
+    def create(self, name: str, files: Sequence[tuple[str, BinaryIO]]) -> Job:
         job_id = uuid.uuid4().hex[:12]
         job_dir = self.root / job_id
         input_dir = job_dir / "input"
@@ -124,8 +125,14 @@ class JobStore:
             with target.open("wb") as out:
                 shutil.copyfileobj(stream, out, length=1024 * 1024)
             total += target.stat().st_size
-        job = Job(id=job_id, name=name.strip() or f"Комплект от {datetime.now():%d.%m.%Y %H:%M}", created_at=now(),
-                  files_count=len(files), total_bytes=total, stage="В очереди")
+        job = Job(
+            id=job_id,
+            name=name.strip() or f"Комплект от {datetime.now():%d.%m.%Y %H:%M}",
+            created_at=now(),
+            files_count=len(files),
+            total_bytes=total,
+            stage="В очереди",
+        )
         self._save(job)
         self.executor.submit(self._run, job_id)
         return job
@@ -168,13 +175,22 @@ class JobStore:
             path = self.report_path(job_id)
             path.with_suffix(".tmp").write_text(report.model_dump_json(exclude_none=True), encoding="utf-8")
             path.with_suffix(".tmp").replace(path)
-            self._update(job_id, status="done", progress=1.0, stage="Готово", message=None, finished_at=now(),
-                         summary=report.summary, root_designation=report.kit.root_designation)
+            self._update(
+                job_id,
+                status="done",
+                progress=1.0,
+                stage="Готово",
+                message=None,
+                finished_at=now(),
+                summary=report.summary,
+                root_designation=report.kit.root_designation,
+            )
         except Exception as exc:  # задание падает целиком только при ошибке самого конвейера
             log.error("Задание %s завершилось ошибкой:\n%s", job_id, traceback.format_exc())
             try:
-                self._update(job_id, status="failed", error=str(exc) or exc.__class__.__name__, finished_at=now(),
-                             stage="Ошибка")
+                self._update(
+                    job_id, status="failed", error=str(exc) or exc.__class__.__name__, finished_at=now(), stage="Ошибка"
+                )
             except JobNotFound:
                 pass
 

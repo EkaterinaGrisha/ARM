@@ -29,7 +29,7 @@ def render_page(path: Path, page: int, max_px: int = 2000) -> bytes:
             pg = doc[page - 1]
             zoom = max_px / max(pg.rect.width, pg.rect.height)
             pix = pg.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), colorspace=pymupdf.csGRAY, alpha=False)
-            img = Image.open(io.BytesIO(pix.tobytes("png")))
+            img: Image.Image = Image.open(io.BytesIO(pix.tobytes("png")))
         elif media and media.startswith("image/"):
             img = Image.open(io.BytesIO(data))
             if page > getattr(img, "n_frames", 1):

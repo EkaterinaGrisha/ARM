@@ -75,7 +75,11 @@ def locate(page: Page) -> Geometry | None:
             continue
         for w in line.words:
             k = _key(w.text)
-            if k in ("лит", "масса", "масштаб", "лист", "листов") and w.cx > page.width * 0.4 and w.cy > page.height * 0.5:
+            if (
+                k in ("лит", "масса", "масштаб", "лист", "листов")
+                and w.cx > page.width * 0.4
+                and w.cy > page.height * 0.5
+            ):
                 found.setdefault(k, []).append((w.cx, w.cy))
     for form, anchors in ((1, FORM1_ANCHORS), (2, FORM2_ANCHORS)):
         hits = _best_row(found, anchors, tol=2.5 * page.mm)
@@ -142,8 +146,9 @@ def _extracted(doc: LoadedDocument, page: Page, lines: list[Line], value, confid
         return None
     raw = " ".join(ln.text for ln in lines)
     confidence = confidence if confidence is not None else lines_confidence(lines)
-    return Extracted(value=value, raw=raw, confidence=confidence,
-                     source=doc.source(page, _union(lines), raw, confidence))
+    return Extracted(
+        value=value, raw=raw, confidence=confidence, source=doc.source(page, _union(lines), raw, confidence)
+    )
 
 
 _LABEL_WORDS = {"лит", "масса", "масштаб", "лист", "листов"}
@@ -220,7 +225,9 @@ def _revision(doc: LoadedDocument, page: Page, geom: Geometry) -> Extracted | No
     if best is None:
         return None
     num, ln = best
-    row = [x for x in page.lines if not x.vertical and abs(x.cy - ln.cy) < 2 * geom.s and x.bbox[0] < geom.x0 + 66 * geom.s]
+    row = [
+        x for x in page.lines if not x.vertical and abs(x.cy - ln.cy) < 2 * geom.s and x.bbox[0] < geom.x0 + 66 * geom.s
+    ]
     raw = " ".join(x.text for x in sorted(row, key=lambda x: x.bbox[0]))
     return Extracted(value=num, raw=raw, source=doc.source(page, _union(row), raw, lines_confidence(row)))
 

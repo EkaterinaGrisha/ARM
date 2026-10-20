@@ -61,8 +61,13 @@ def _attachment(name: str) -> dict[str, str]:
 @app.get("/api/health")
 def health() -> dict:
     pipeline = get_pipeline()
-    return {"status": "ok", "version": __version__, "pipeline": pipeline.name, "pipeline_version": pipeline.version,
-            "ocr": ocr.available()}
+    return {
+        "status": "ok",
+        "version": __version__,
+        "pipeline": pipeline.name,
+        "pipeline_version": pipeline.version,
+        "ocr": ocr.available(),
+    }
 
 
 @app.get("/api/jobs")
@@ -114,8 +119,9 @@ def get_report(job_id: str) -> FileResponse:
 @app.get("/api/jobs/{job_id}/report.json")
 def download_report_json(job_id: str) -> FileResponse:
     job = _job_or_404(job_id)
-    return FileResponse(_report_path_or_404(job_id), media_type="application/json",
-                        headers=_attachment(f"Отчёт {job.name}.json"))
+    return FileResponse(
+        _report_path_or_404(job_id), media_type="application/json", headers=_attachment(f"Отчёт {job.name}.json")
+    )
 
 
 @app.get("/api/jobs/{job_id}/report.xlsx")
@@ -123,8 +129,11 @@ def download_report_xlsx(job_id: str) -> Response:
     job = _job_or_404(job_id)
     _report_path_or_404(job_id)
     data = to_xlsx(store.load_report(job_id))
-    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    headers=_attachment(f"Отчёт {job.name}.xlsx"))
+    return Response(
+        data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=_attachment(f"Отчёт {job.name}.xlsx"),
+    )
 
 
 @app.get("/api/jobs/{job_id}/report.html")

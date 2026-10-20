@@ -23,7 +23,7 @@
 
 ## Быстрый старт
 
-Нужны Python ≥ 3.10 и Node.js ≥ 20. Для распознавания сканов — Tesseract с русским
+Нужны Python ≥ 3.11 и Node.js ≥ 20. Для распознавания сканов — Tesseract с русским
 языком (`apt install tesseract-ocr tesseract-ocr-rus`); без него сканы обрабатываются
 по имени файла и помечаются в отчёте.
 
@@ -186,7 +186,7 @@ docs/                        формат отчёта, JSON Schema, иллюс�
 ## Тесты
 
 ```bash
-cd backend && pip install pytest httpx && python -m pytest
+uv sync --all-packages --all-extras && uv run pytest backend
 cd frontend && npm test && npm run typecheck
 ```
 

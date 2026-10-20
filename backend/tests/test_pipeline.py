@@ -1,4 +1,4 @@
-"""Базовый конвейер на сгенерированном демо-комплекте с известным эталоном."""
+"""Baseline pipeline on the committed demo kit with a known ground truth."""
 
 from arm_web.evaluate import evaluate
 from arm_web.models import Report
@@ -29,7 +29,10 @@ def test_tree_root_and_specifications(demo_report):
 def test_vector_documents_are_extracted_exactly(demo_kit, demo_report):
     _, truth = demo_kit
     # сканы в тестах обрабатываются без OCR — оцениваем только векторные документы
-    vector_only = {**truth, "documents": {k: v for k, v in truth["documents"].items() if v.get("origin", "vector") == "vector"}}
+    vector_only = {
+        **truth,
+        "documents": {k: v for k, v in truth["documents"].items() if v.get("origin", "vector") == "vector"},
+    }
     quality = evaluate(demo_report, vector_only)
     title = next(m for m in quality.metrics if m.name == "Основная надпись — векторные PDF")
     assert title.accuracy == 1.0

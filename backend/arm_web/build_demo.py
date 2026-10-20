@@ -44,10 +44,15 @@ def build(samples: Path, public_demo: Path, regenerate: bool = False) -> None:
     n_draw = len(truth["documents"]) - n_specs
     n_scan = sum(1 for d in truth["documents"].values() if d.get("origin") == "scan")
     report.quality = evaluate(
-        report, truth,
-        dataset=(f"Синтетический комплект «Редуктор колёсный»: {_files(len(truth['documents']) + len(truth['problem_files']))} — "
-                 f"{n_specs} спецификации, {n_draw} чертежей (из них {n_scan} скана), {len(truth['problem_files'])} проблемных "
-                 f"файла; заложено {len(truth['discrepancies'])} расхождений. OCR: {'Tesseract' if ocr.available() else 'не используется'}."),
+        report,
+        truth,
+        dataset=(
+            "Синтетический комплект «Редуктор колёсный»: "
+            f"{_files(len(truth['documents']) + len(truth['problem_files']))} — "
+            f"{n_specs} спецификации, {n_draw} чертежей (из них {n_scan} скана), "
+            f"{len(truth['problem_files'])} проблемных файла; заложено {len(truth['discrepancies'])} расхождений. "
+            f"OCR: {'Tesseract' if ocr.available() else 'не используется'}."
+        ),
     )
 
     pages_dir = public_demo / "pages"
@@ -56,12 +61,16 @@ def build(samples: Path, public_demo: Path, regenerate: bool = False) -> None:
     for doc in report.documents:
         for page in doc.pages:
             try:
-                (pages_dir / f"{doc.id}-{page.number}.png").write_bytes(render_page(kit / doc.path, page.number, max_px=1600))
+                (pages_dir / f"{doc.id}-{page.number}.png").write_bytes(
+                    render_page(kit / doc.path, page.number, max_px=1600)
+                )
             except RenderError as exc:
                 print(f"  страница не отрисована: {doc.path} — {exc}")
     (public_demo / "report.json").write_text(report.model_dump_json(exclude_none=True), encoding="utf-8")
     (public_demo / "report.xlsx").write_bytes(to_xlsx(report))
     (public_demo / "report.html").write_text(to_html(report), encoding="utf-8")
     s = report.summary
-    print(f"Демо-отчёт: {public_demo} — документов {s.documents_total}, расхождений {s.discrepancies_total}, "
-          f"критичных параметров {s.critical_parameters}")
+    print(
+        f"Демо-отчёт: {public_demo} — документов {s.documents_total}, расхождений {s.discrepancies_total}, "
+        f"критичных параметров {s.critical_parameters}"
+    )

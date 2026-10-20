@@ -63,7 +63,7 @@ gantt
 - [ ] Согласовать с разработчиком веб-интерфейса структуру репозитория и контракт API
 - [x] Сверить прототип из PR #1 (`frontend/`, `backend/`) с ARCHITECTURE.md: [отчёт сверки](reviews/2026-10-20-prototype.md)
 - [x] Принять решения 6–10 из ARCHITECTURE.md (ADR в `docs/adr/`) — приняты 20.10.2026
-- [ ] Окружение: uv workspace, ruff, mypy, pytest, pre-commit, CI (GitHub Actions); тесты не зависят от шрифтов ОС — шаги 1–2 [плана миграции](reviews/2026-10-20-prototype.md#7-план-миграции)
+- [x] Окружение: uv workspace, ruff, mypy, pytest, pre-commit, CI (GitHub Actions); тесты не зависят от шрифтов ОС — шаги 1–2 [плана миграции](reviews/2026-10-20-prototype.md#7-план-миграции)
 
 Готово, когда: роли назначены, CI проходит на прототипе.
 

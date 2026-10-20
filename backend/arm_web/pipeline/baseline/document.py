@@ -169,7 +169,9 @@ def load_document(path: Path, root: Path, *, use_ocr: bool = True) -> LoadedDocu
     info.media_type = sniff_media_type(data[:2048])
     if info.media_type is None:
         info.status = "unsupported"
-        info.problem = f"Формат файла не поддерживается ({path.suffix or 'без расширения'}): ожидаются PDF или изображения"
+        info.problem = (
+            f"Формат файла не поддерживается ({path.suffix or 'без расширения'}): ожидаются PDF или изображения"
+        )
         return doc
     try:
         if info.media_type == "application/pdf":
@@ -197,7 +199,8 @@ def _load_pdf(doc: LoadedDocument, data: bytes, *, use_ocr: bool) -> None:
     if pdf.page_count == 0:
         raise ValueError("в документе нет страниц")
     text_pages = 0
-    for index, pg in enumerate(pdf):
+    for index in range(pdf.page_count):
+        pg = pdf[index]
         page = Page(number=index + 1, width=pg.rect.width, height=pg.rect.height, unit="pt")
         page.lines = _pdf_lines(pg)
         if page.lines:
@@ -245,8 +248,12 @@ def _flush_word(chars: list, words: list[Word]) -> None:
         return
     text = "".join(c for c, _ in chars)
     boxes = [b for _, b in chars]
-    words.append(Word(text, (min(b[0] for b in boxes), min(b[1] for b in boxes),
-                             max(b[2] for b in boxes), max(b[3] for b in boxes))))
+    words.append(
+        Word(
+            text,
+            (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)),
+        )
+    )
     chars.clear()
 
 
@@ -270,7 +277,9 @@ def _split_wide_lines(lines: list[Line]) -> list[Line]:
             continue
         for g in groups:
             bbox = (g[0].bbox[0], min(w.bbox[1] for w in g), g[-1].bbox[2], max(w.bbox[3] for w in g))
-            result.append(Line(text=" ".join(w.text for w in g), bbox=bbox, size=ln.size, words=g, confidence=ln.confidence))
+            result.append(
+                Line(text=" ".join(w.text for w in g), bbox=bbox, size=ln.size, words=g, confidence=ln.confidence)
+            )
     return result
 
 
@@ -299,7 +308,9 @@ def _load_image(doc: LoadedDocument, data: bytes, *, use_ocr: bool) -> None:
 
 def _fill_page_info(doc: LoadedDocument) -> None:
     doc.info.pages = [
-        PageInfo(number=p.number, width=round(p.width, 2), height=round(p.height, 2), unit=p.unit, has_text=bool(p.lines))
+        PageInfo(
+            number=p.number, width=round(p.width, 2), height=round(p.height, 2), unit=p.unit, has_text=bool(p.lines)
+        )
         for p in doc.pages
     ]
 
