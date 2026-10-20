@@ -16,10 +16,11 @@ import shutil
 import threading
 import traceback
 import uuid
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import BinaryIO
 
 from .models import Job, Report
 from .pipeline import Pipeline
@@ -107,7 +108,7 @@ class JobStore:
         raise JobNotFound(doc_id)
 
     # ------------------------------------------------------------------ lifecycle
-    def create(self, name: str, files: list[tuple[str, BinaryIO]]) -> Job:
+    def create(self, name: str, files: Sequence[tuple[str, BinaryIO]]) -> Job:
         job_id = uuid.uuid4().hex[:12]
         job_dir = self.root / job_id
         input_dir = job_dir / "input"

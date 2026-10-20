@@ -85,10 +85,10 @@ def evaluate(report: Report, truth: dict, dataset: str = "") -> QualityReport:
         q.metrics.append(QualityMetric(block="completeness", name="Классификация проблемных файлов",
                                        accuracy=round(ok / len(problems), 3), support=len(problems)))
         for path, status in problems.items():
-            got = by_path[path].status if path in by_path else "нет в отчёте"
-            if got != status:
+            got_status = by_path[path].status if path in by_path else "нет в отчёте"
+            if got_status != status:
                 q.errors.append(ErrorCase(block="completeness", kind="wrong_value", title=f"Статус файла {path}",
-                                          description=f"ожидалось «{status}», получено «{got}»",
+                                          description=f"ожидалось «{status}», получено «{got_status}»",
                                           document_id=by_path[path].id if path in by_path else None))
 
     # ---------------------------------------------------------------- блок 2: основные надписи
@@ -142,15 +142,15 @@ def evaluate(report: Report, truth: dict, dataset: str = "") -> QualityReport:
                 q.errors.append(ErrorCase(block="extraction", kind="false_positive", title=f"Лишний параметр: {gp.name}",
                                           description=f"{path}: «{gp.text}»", document_id=doc.id if doc else None))
     for key, title in TITLE_FIELDS.items():
-        hit, total = field_stats.get(key, [0, 0])
+        correct, total = field_stats.get(key, [0, 0])
         if total:
             q.metrics.append(QualityMetric(block="extraction", name=f"Основная надпись: {title}",
-                                           accuracy=round(hit / total, 3), support=total))
+                                           accuracy=round(correct / total, 3), support=total))
     for origin, title in (("vector", "векторные PDF"), ("scan", "сканы")):
-        hit, total = origin_stats.get(origin, [0, 0])
+        correct, total = origin_stats.get(origin, [0, 0])
         if total:
             q.metrics.append(QualityMetric(block="extraction", name=f"Основная надпись — {title}",
-                                           accuracy=round(hit / total, 3), support=total))
+                                           accuracy=round(correct / total, 3), support=total))
     p, r, f1 = _prf(param_tp, param_fp, param_fn)
     q.metrics.append(QualityMetric(block="extraction", name="Параметры технических требований", precision=p, recall=r,
                                    f1=f1, support=param_tp + param_fn))

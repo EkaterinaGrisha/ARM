@@ -197,7 +197,8 @@ def _load_pdf(doc: LoadedDocument, data: bytes, *, use_ocr: bool) -> None:
     if pdf.page_count == 0:
         raise ValueError("в документе нет страниц")
     text_pages = 0
-    for index, pg in enumerate(pdf):
+    for index in range(pdf.page_count):
+        pg = pdf[index]
         page = Page(number=index + 1, width=pg.rect.width, height=pg.rect.height, unit="pt")
         page.lines = _pdf_lines(pg)
         if page.lines:

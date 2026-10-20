@@ -250,9 +250,9 @@ class Checker:
         names: dict[str, dict[str, list[tuple[DocumentInfo, SpecRow]]]] = defaultdict(lambda: defaultdict(list))
         for doc, spec in self.specs:
             for r in spec.rows:
-                des = normalize_designation(_value(r.designation))
-                if des:
-                    names[des][normalize_name(_value(r.name))].append((doc, r))
+                row_des = normalize_designation(_value(r.designation))
+                if row_des:
+                    names[row_des][normalize_name(_value(r.name))].append((doc, r))
         for des, by_name in names.items():
             if len(by_name) > 1:
                 variants = [f"«{_value(rows[0][1].name)}» ({rows[0][0].path})" for rows in by_name.values()]

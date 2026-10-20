@@ -549,14 +549,14 @@ def draw_spec(s: Spec, font: bytes) -> bytes:
     doc = pymupdf.open()
     lines: list[tuple[str, Row | None]] = []
     section = None
-    for row in s.rows:
-        if row.section != section:
+    for spec_row in s.rows:
+        if spec_row.section != section:
             if section is not None:
                 lines.append(("blank", None))
-            lines.append(("section", row))
+            lines.append(("section", spec_row))
             lines.append(("blank", None))
-            section = row.section
-        lines.append(("row", row))
+            section = spec_row.section
+        lines.append(("row", spec_row))
     first_capacity, next_capacity = 23, 29
     pages = [lines[:first_capacity]]
     rest = lines[first_capacity:]
@@ -625,7 +625,7 @@ def draw_foreign(font: bytes) -> bytes:
         ("Председатель комиссии ____________ / Кузнецов А. В.", 3.5),
         ("Члены комиссии          ____________ / Петров С. Н.", 3.5),
     ]
-    y = 30
+    y: float = 30
     for line, size in body:
         sh.text(25, y, line, size)
         y += size * 2.2

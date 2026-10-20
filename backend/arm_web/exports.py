@@ -58,7 +58,7 @@ def _sheet(wb: Workbook, title: str, header: list[str], rows: list[list], widths
 
 def to_xlsx(report: Report) -> bytes:
     wb = Workbook()
-    ws = wb.active
+    ws = wb.worksheets[0]  # a new workbook always has one worksheet
     ws.title = "Сводка"
     s, k = report.summary, report.kit
     info = [
@@ -251,8 +251,8 @@ def to_html(report: Report) -> str:
     out.append("<h2>Параметры технических требований</h2>")
     out.append("<table><tr><th>Обозначение</th><th>Категория</th><th>Параметр</th><th>Исходный текст</th></tr>")
     for p in report.parts:
-        for x in p.parameters:
-            out.append(f"<tr><td class='mono'>{_e(p.designation)}</td><td>{_e(L.PARAMETER_CATEGORY.get(x.category))}</td>"
-                       f"<td>{_e(x.name)}</td><td>{_e(x.text)}</td></tr>")
+        for param in p.parameters:
+            out.append(f"<tr><td class='mono'>{_e(p.designation)}</td><td>{_e(L.PARAMETER_CATEGORY.get(param.category))}</td>"
+                       f"<td>{_e(param.name)}</td><td>{_e(param.text)}</td></tr>")
     out.append("</table></body></html>")
     return "\n".join(out)
