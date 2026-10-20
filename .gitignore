@@ -1,20 +1,41 @@
+# Customer and downloaded data, model weights, run outputs: never commit
+data/
+models/
+out/
+# web service job data (uploaded kits)
+backend/data/
+# CLI batch outputs
+*_report/
+
+# Drawings and scans outside the allowed folders (the repo is public)
+*.pdf
+*.tif
+*.tiff
+*.jpg
+*.jpeg
+!**/fixtures/**
+!docs/**/*.pdf
+!web/**/*.jpg
+!web/**/*.jpeg
+
+# Secrets
+.env
+.env.*
+
 # Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-*.egg-info/
 .pytest_cache/
-
-# данные заданий веб-сервиса
-backend/data/
-data/
-
-# результаты пакетной обработки из командной строки
-*_report/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
 
 # Node
 frontend/node_modules/
 frontend/dist/
 
+# OS / IDE
 .DS_Store
+.idea/
