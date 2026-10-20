@@ -1,0 +1,918 @@
+{
+  "root": "АРМ.303411.000",
+  "documents": {
+    "Спецификации/АРМ.303411.000 Редуктор колёсный.pdf": {
+      "kind": "specification",
+      "designation": "АРМ.303411.000",
+      "name": "Редуктор колёсный",
+      "litera": "О1",
+      "revision": "3",
+      "rows": [
+        {
+          "section": "Документация",
+          "fmt": "А3",
+          "pos": "",
+          "designation": "АРМ.303411.000 СБ",
+          "name": "Сборочный чертёж",
+          "qty": "",
+          "note": ""
+        },
+        {
+          "section": "Сборочные единицы",
+          "fmt": "А3",
+          "pos": "1",
+          "designation": "АРМ.303411.100",
+          "name": "Корпус в сборе",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Сборочные единицы",
+          "fmt": "А3",
+          "pos": "2",
+          "designation": "АРМ.303411.200",
+          "name": "Вал ведомый в сборе",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Сборочные единицы",
+          "fmt": "А4",
+          "pos": "3",
+          "designation": "АРМ.303411.300",
+          "name": "Сателлит в сборе",
+          "qty": "3",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А3",
+          "pos": "4",
+          "designation": "АРМ.303411.001",
+          "name": "Шестерня солнечная",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А3",
+          "pos": "5",
+          "designation": "АРМ.303411.002",
+          "name": "Водило",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "6",
+          "designation": "АРМ.303411.003",
+          "name": "Крышка торцевая",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "7",
+          "designation": "АРМ.303411.004",
+          "name": "Прокладка",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "8",
+          "designation": "АРМ.303411.005",
+          "name": "Гайка специальная",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "9",
+          "designation": "",
+          "name": "Болт М12×40 ГОСТ 7798-70",
+          "qty": "12",
+          "note": ""
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "10",
+          "designation": "",
+          "name": "Манжета 1.2-80×105-1 ГОСТ 8752-79",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "11",
+          "designation": "",
+          "name": "Кольцо 050-055-30 ГОСТ 9833-73",
+          "qty": "2",
+          "note": ""
+        },
+        {
+          "section": "Материалы",
+          "fmt": "",
+          "pos": "12",
+          "designation": "",
+          "name": "Масло ТМ-5-18 ГОСТ 17479.2-2015",
+          "qty": "2,5",
+          "note": "л"
+        }
+      ]
+    },
+    "Спецификации/АРМ.303411.100 Корпус в сборе.pdf": {
+      "kind": "specification",
+      "designation": "АРМ.303411.100",
+      "name": "Корпус в сборе",
+      "litera": "О1",
+      "revision": "1",
+      "rows": [
+        {
+          "section": "Документация",
+          "fmt": "А3",
+          "pos": "",
+          "designation": "АРМ.303411.100 СБ",
+          "name": "Сборочный чертёж",
+          "qty": "",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А3",
+          "pos": "1",
+          "designation": "АРМ.303411.101",
+          "name": "Корпус",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А3",
+          "pos": "2",
+          "designation": "АРМ.303411.102",
+          "name": "Крышка",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "3",
+          "designation": "АРМ.303411.103",
+          "name": "Втулка",
+          "qty": "2",
+          "note": ""
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "4",
+          "designation": "",
+          "name": "Болт М10×30 ГОСТ 7798-70",
+          "qty": "8",
+          "note": ""
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "5",
+          "designation": "",
+          "name": "Шайба 10 65Г ГОСТ 6402-70",
+          "qty": "8",
+          "note": ""
+        }
+      ]
+    },
+    "Спецификации/АРМ.303411.200 Вал ведомый в сборе.pdf": {
+      "kind": "specification",
+      "designation": "АРМ.303411.200",
+      "name": "Вал ведомый в сборе",
+      "litera": "О1",
+      "revision": null,
+      "rows": [
+        {
+          "section": "Документация",
+          "fmt": "А3",
+          "pos": "",
+          "designation": "АРМ.303411.200 СБ",
+          "name": "Сборочный чертёж",
+          "qty": "",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А3",
+          "pos": "1",
+          "designation": "АРМ.303411.201",
+          "name": "Вал ведомый",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А3",
+          "pos": "2",
+          "designation": "АРМ.303411.202",
+          "name": "Колесо зубчатое",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "3",
+          "designation": "АРМ.303411.203",
+          "name": "Кольцо распорное",
+          "qty": "1",
+          "note": ""
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "4",
+          "designation": "",
+          "name": "Подшипник 7310 ГОСТ 27365-87",
+          "qty": "2",
+          "note": ""
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "5",
+          "designation": "",
+          "name": "Шпонка 2-16×10×50 ГОСТ 23360-78",
+          "qty": "1",
+          "note": ""
+        }
+      ]
+    },
+    "Чертежи/АРМ.303411.000 СБ.pdf": {
+      "kind": "assembly_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.000 СБ",
+      "name": "Редуктор колёсный",
+      "material": null,
+      "mass": "48",
+      "scale": "1:2",
+      "litera": "О",
+      "revision": "3",
+      "archive_number": "3411-000",
+      "first_use": null,
+      "requirements": [
+        "Размеры для справок.",
+        "Момент затяжки болтов поз. 9 — 80...90 Н·м.",
+        "Заправить маслом поз. 12 в объёме 2,5 л."
+      ],
+      "parameters": []
+    },
+    "Чертежи/АРМ.303411.100 СБ.pdf": {
+      "kind": "assembly_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.100 СБ",
+      "name": "Корпус в сборе",
+      "material": null,
+      "mass": "27",
+      "scale": "1:2",
+      "litera": "О1",
+      "revision": "1",
+      "archive_number": "3411-100",
+      "first_use": "АРМ.303411.000",
+      "requirements": [
+        "Размеры для справок.",
+        "Момент затяжки болтов поз. 4 — 45...50 Н·м."
+      ],
+      "parameters": []
+    },
+    "Чертежи/АРМ.303411.200 СБ.pdf": {
+      "kind": "assembly_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.200 СБ",
+      "name": "Вал ведомый в сборе",
+      "material": null,
+      "mass": "9,6",
+      "scale": "1:1",
+      "litera": "О1",
+      "revision": null,
+      "archive_number": "3411-200",
+      "first_use": "АРМ.303411.000",
+      "requirements": [
+        "Размеры для справок.",
+        "Осевой люфт подшипников 0,05...0,10 мм."
+      ],
+      "parameters": []
+    },
+    "Чертежи/АРМ.303411.300 СБ.pdf": {
+      "kind": "assembly_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.300 СБ",
+      "name": "Сателлит в сборе",
+      "material": null,
+      "mass": "1,9",
+      "scale": "1:1",
+      "litera": "О1",
+      "revision": null,
+      "archive_number": "3411-300",
+      "first_use": "АРМ.303411.000",
+      "requirements": [
+        "Размеры для справок."
+      ],
+      "parameters": []
+    },
+    "Чертежи/АРМ.303411.001 Шестерня солнечная.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.001",
+      "name": "Шестерня солнечная",
+      "material": "Сталь 20ХН3А ГОСТ 4543-2016",
+      "mass": "1,85",
+      "scale": "1:1",
+      "litera": "О1",
+      "revision": "1",
+      "archive_number": "3411-001",
+      "first_use": "АРМ.303411.000",
+      "requirements": [
+        "Цементировать h 0,8...1,2 мм, 58...62 HRC.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2.",
+        "Острые кромки притупить R0,5."
+      ],
+      "parameters": [
+        {
+          "category": "heat_treatment",
+          "name": "Цементация"
+        },
+        {
+          "category": "hardness",
+          "name": "HRC"
+        },
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø40h6"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 0,8"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 1,6"
+        },
+        {
+          "category": "geometric",
+          "name": "⊥"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 6,3"
+        }
+      ]
+    },
+    "Чертежи/АРМ.303411.002 Водило.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.002",
+      "name": "Водило планетарное",
+      "material": "Сталь 45 ГОСТ 1050-2013",
+      "mass": "6,4",
+      "scale": "1:2",
+      "litera": "О1",
+      "revision": null,
+      "archive_number": "3411-002",
+      "first_use": "АРМ.303411.000",
+      "requirements": [
+        "235...262 HB.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2.",
+        "Позиционный допуск осей отверстий под оси сателлитов Ø0,02 мм."
+      ],
+      "parameters": [
+        {
+          "category": "hardness",
+          "name": "HB"
+        },
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "geometric",
+          "name": "Позиционный"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø62H7"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø20H7"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 1,6"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 0,8"
+        },
+        {
+          "category": "geometric",
+          "name": "◎"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 6,3"
+        }
+      ]
+    },
+    "Чертежи/АРМ.303411.003 Крышка торцевая.pdf": {
+      "kind": "part_drawing",
+      "origin": "scan",
+      "designation": "АРМ.303411.003",
+      "name": "Крышка торцевая",
+      "material": "Ст3сп ГОСТ 380-2005",
+      "mass": "1,2",
+      "scale": "1:1",
+      "litera": "О1",
+      "revision": null,
+      "archive_number": "3411-003",
+      "first_use": "АРМ.303411.000",
+      "requirements": [
+        "Покрытие Хим.Окс.прм.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2."
+      ],
+      "parameters": [
+        {
+          "category": "coating",
+          "name": "Хим.Окс.прм"
+        },
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø105h8"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 3,2"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 12,5"
+        }
+      ]
+    },
+    "Чертежи/АРМ.303411.005 Гайка специальная.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.005",
+      "name": "Гайка специальная",
+      "material": "Сталь 45 ГОСТ 1050-2013",
+      "mass": "0,35",
+      "scale": "2:1",
+      "litera": "О1",
+      "revision": null,
+      "archive_number": "3411-005",
+      "first_use": "АРМ.303411.000",
+      "requirements": [
+        "30...35 HRC.",
+        "Покрытие Ц9.хр.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2."
+      ],
+      "parameters": [
+        {
+          "category": "hardness",
+          "name": "HRC"
+        },
+        {
+          "category": "coating",
+          "name": "Ц9.хр"
+        },
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "М48×1,5-6H"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 3,2"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 12,5"
+        }
+      ]
+    },
+    "Чертежи/АРМ.303411.101 Корпус.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.101",
+      "name": "Корпус",
+      "material": "СЧ 20 ГОСТ 1412-85",
+      "mass": "18,4",
+      "scale": "1:2",
+      "litera": "О",
+      "revision": "1",
+      "archive_number": "3411-101",
+      "first_use": "АРМ.303411.100",
+      "requirements": [
+        "Неуказанные литейные радиусы R3...5 мм.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2.",
+        "Покрытие наружных необработанных поверхностей: Грунт ГФ-021, Эмаль ПФ-115 серая."
+      ],
+      "parameters": [
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "coating",
+          "name": "Грунт ГФ-021"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø110H7"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø90H8"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 1,6"
+        },
+        {
+          "category": "geometric",
+          "name": "◎"
+        },
+        {
+          "category": "geometric",
+          "name": "∥"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 12,5"
+        }
+      ]
+    },
+    "Чертежи/АРМ.303411.102 Крышка.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.102",
+      "name": "Крышка",
+      "material": "СЧ 20 ГОСТ 1412-85",
+      "mass": "5,6",
+      "scale": "1:2",
+      "litera": "О1",
+      "revision": null,
+      "archive_number": "3411-102",
+      "first_use": "АРМ.303411.100",
+      "requirements": [
+        "Неуказанные литейные радиусы R3 мм.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2.",
+        "Покрытие наружных необработанных поверхностей: Грунт ГФ-021, Эмаль ПФ-115 серая."
+      ],
+      "parameters": [
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "coating",
+          "name": "Грунт ГФ-021"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø110h8"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 3,2"
+        },
+        {
+          "category": "geometric",
+          "name": "⏥"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 12,5"
+        }
+      ]
+    },
+    "Чертежи/АРМ.303411.201 Вал ведомый.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.201",
+      "name": "Вал ведомый",
+      "material": "Сталь 40Х ГОСТ 4543-2016",
+      "mass": "4,2",
+      "scale": "1:1",
+      "litera": "О1",
+      "revision": "2",
+      "archive_number": "3411-201",
+      "first_use": "АРМ.303411.200",
+      "requirements": [
+        "269...302 HB.",
+        "Поверхности Б закалить ТВЧ h 1,5...2,0 мм, 48...53 HRC.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2.",
+        "Центровые отверстия B4 ГОСТ 14034-74."
+      ],
+      "parameters": [
+        {
+          "category": "hardness",
+          "name": "HB"
+        },
+        {
+          "category": "heat_treatment",
+          "name": "Закалка ТВЧ"
+        },
+        {
+          "category": "hardness",
+          "name": "HRC"
+        },
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø50k6"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø45h6"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "16N9"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 0,8"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 1,6"
+        },
+        {
+          "category": "geometric",
+          "name": "↗"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 6,3"
+        }
+      ]
+    },
+    "Чертежи/Вал_изм3.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.201",
+      "name": "Вал ведомый",
+      "material": "Сталь 40Х ГОСТ 4543-2016",
+      "mass": "4,2",
+      "scale": "1:1",
+      "litera": "О1",
+      "revision": "3",
+      "archive_number": "3411-201",
+      "first_use": "АРМ.303411.200",
+      "requirements": [
+        "269...302 HB.",
+        "Поверхности Б закалить ТВЧ h 1,5...2,0 мм, 48...53 HRC.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2.",
+        "Центровые отверстия B4 ГОСТ 14034-74."
+      ],
+      "parameters": [
+        {
+          "category": "hardness",
+          "name": "HB"
+        },
+        {
+          "category": "heat_treatment",
+          "name": "Закалка ТВЧ"
+        },
+        {
+          "category": "hardness",
+          "name": "HRC"
+        },
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø50k6"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø45h6"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "16N9"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 0,8"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 1,6"
+        },
+        {
+          "category": "geometric",
+          "name": "↗"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 6,3"
+        }
+      ]
+    },
+    "Чертежи/АРМ.303411.202 Колесо зубчатое.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303411.202",
+      "name": "Колесо зубчатое",
+      "material": "Сталь 20ХН3А ГОСТ 4543-2016",
+      "mass": "3,1",
+      "scale": "1:1",
+      "litera": "О1",
+      "revision": null,
+      "archive_number": "3411-202",
+      "first_use": "АРМ.303411.200",
+      "requirements": [
+        "Цементировать h 0,8...1,2 мм, 58...62 HRC.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2."
+      ],
+      "parameters": [
+        {
+          "category": "heat_treatment",
+          "name": "Цементация"
+        },
+        {
+          "category": "hardness",
+          "name": "HRC"
+        },
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø50H7"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "16Js9"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 0,4"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 0,8"
+        },
+        {
+          "category": "geometric",
+          "name": "↗"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 6,3"
+        }
+      ]
+    },
+    "Чертежи/АРМ.303411.203.jpg": {
+      "kind": "part_drawing",
+      "origin": "scan",
+      "designation": "АРМ.303411.203",
+      "name": "Кольцо распорное",
+      "material": "Сталь 45 ГОСТ 1050-2013",
+      "mass": "0,22",
+      "scale": "1:1",
+      "litera": "О1",
+      "revision": null,
+      "archive_number": "3411-203",
+      "first_use": "АРМ.303411.200",
+      "requirements": [
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2."
+      ],
+      "parameters": [
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø50H9"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 3,2"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 12,5"
+        }
+      ]
+    },
+    "Чертежи/АРМ.303412.007 Кронштейн.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "АРМ.303412.007",
+      "name": "Кронштейн",
+      "material": "Сталь 09Г2С ГОСТ 19281-2014",
+      "mass": "2,7",
+      "scale": "1:2",
+      "litera": "О",
+      "revision": null,
+      "archive_number": "3412-007",
+      "first_use": "АРМ.303412.000",
+      "requirements": [
+        "Покрытие: Грунт ГФ-021, Эмаль ПФ-115 серая.",
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2."
+      ],
+      "parameters": [
+        {
+          "category": "coating",
+          "name": "Грунт ГФ-021"
+        },
+        {
+          "category": "general_tolerance",
+          "name": "IT14"
+        },
+        {
+          "category": "dimension_tolerance",
+          "name": "Ø18H12"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 12,5"
+        },
+        {
+          "category": "roughness",
+          "name": "Ra 25"
+        }
+      ]
+    }
+  },
+  "discrepancies": [
+    {
+      "type": "missing_drawing",
+      "designation": "АРМ.303411.004"
+    },
+    {
+      "type": "missing_drawing",
+      "designation": "АРМ.303411.103"
+    },
+    {
+      "type": "missing_specification",
+      "designation": "АРМ.303411.300"
+    },
+    {
+      "type": "orphan_drawing",
+      "designation": "АРМ.303412.007"
+    },
+    {
+      "type": "name_mismatch",
+      "designation": "АРМ.303411.002"
+    },
+    {
+      "type": "duplicate_designation",
+      "designation": "АРМ.303411.201"
+    },
+    {
+      "type": "revision_mismatch",
+      "designation": "АРМ.303411.201"
+    },
+    {
+      "type": "revision_mismatch",
+      "designation": "АРМ.303411.000"
+    },
+    {
+      "type": "revision_mismatch",
+      "designation": "АРМ.303411.101"
+    }
+  ],
+  "problem_files": {
+    "Чертежи_архив.pdf": "damaged",
+    "скан_0034.jpg": "unreadable",
+    "Акт приёмки КД.pdf": "foreign",
+    "Thumbs.db": "unsupported"
+  }
+}
