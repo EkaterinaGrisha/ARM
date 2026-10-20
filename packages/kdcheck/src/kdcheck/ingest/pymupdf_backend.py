@@ -1,0 +1,96 @@
+"""PdfBackend on PyMuPDF (AGPL-3.0), installed with ``kdcheck[pymupdf]``. Only this module imports it."""
+
+from __future__ import annotations
+
+import io
+from typing import Any
+
+import pymupdf
+from PIL import Image
+
+from kdcheck.ingest.pdf import EncryptedPdfError
+from kdcheck.ingest.text import BBox, Line, Word, split_wide_lines
+
+pymupdf.TOOLS.mupdf_display_errors(False)
+
+
+class PyMuPdfPage:
+    def __init__(self, page: Any) -> None:
+        self._page = page
+
+    @property
+    def width(self) -> float:
+        return float(self._page.rect.width)
+
+    @property
+    def height(self) -> float:
+        return float(self._page.rect.height)
+
+    def lines(self) -> list[Line]:
+        lines: list[Line] = []
+        for block in self._page.get_text("rawdict")["blocks"]:
+            for ln in block.get("lines", []):
+                words: list[Word] = []
+                chars: list[tuple[str, BBox]] = []
+                for span in ln["spans"]:
+                    for ch in span["chars"]:
+                        if ch["c"].isspace():
+                            _flush_word(chars, words)
+                        else:
+                            chars.append((ch["c"], _bbox(ch["bbox"])))
+                _flush_word(chars, words)
+                if not words:
+                    continue
+                size = max(span["size"] for span in ln["spans"])
+                vertical = abs(ln["dir"][0]) < 0.5
+                text = " ".join(w.text for w in words)
+                lines.append(Line(text=text, bbox=_bbox(ln["bbox"]), size=size, vertical=vertical, words=words))
+        return split_wide_lines(lines)
+
+    def has_images(self) -> bool:
+        return bool(self._page.get_images())
+
+    def render(self, scale: float) -> Image.Image:
+        pix = self._page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), colorspace=pymupdf.csGRAY, alpha=False)
+        return Image.open(io.BytesIO(pix.tobytes("png")))
+
+
+class PyMuPdfDocument:
+    def __init__(self, doc: Any) -> None:
+        self._doc = doc
+
+    @property
+    def page_count(self) -> int:
+        return int(self._doc.page_count)
+
+    def page(self, index: int) -> PyMuPdfPage:
+        return PyMuPdfPage(self._doc[index])
+
+
+class PyMuPdfBackend:
+    name = "pymupdf"
+
+    def open(self, data: bytes) -> PyMuPdfDocument:
+        doc = pymupdf.open(stream=data, filetype="pdf")
+        if doc.needs_pass:
+            raise EncryptedPdfError("документ защищён паролем")
+        return PyMuPdfDocument(doc)
+
+
+def _bbox(values: Any) -> BBox:
+    x0, y0, x1, y1 = values
+    return (x0, y0, x1, y1)
+
+
+def _flush_word(chars: list[tuple[str, BBox]], words: list[Word]) -> None:
+    if not chars:
+        return
+    text = "".join(c for c, _ in chars)
+    boxes = [b for _, b in chars]
+    words.append(
+        Word(
+            text,
+            (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)),
+        )
+    )
+    chars.clear()

@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import re
 
+from kdcheck.ingest.document import LoadedDocument, Page
+from kdcheck.ingest.text import Line, lines_confidence
+
 from ...models import Extracted, Parameter
-from .document import Line, LoadedDocument, Page, lines_confidence
 from .title_block import Geometry
 
 NUM = r"\d+(?:[.,]\d+)?"

@@ -1,0 +1,62 @@
+import io
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+from kdcheck.ingest.document import load_document, sniff_media_type
+from kdcheck.ingest.text import Line, Word, split_wide_lines
+from kdcheck.render import RenderError, render_page
+from PIL import Image
+
+pymupdf = pytest.importorskip("pymupdf")
+
+
+def _pdf(path: Path, text: str | None = "АРМ.303411.001", password: str | None = None) -> Path:
+    doc = pymupdf.open()
+    page = doc.new_page(width=595, height=842)
+    if text:
+        page.insert_text((72, 72), text, fontname="helv")
+    options = {"encryption": pymupdf.PDF_ENCRYPT_AES_256, "user_pw": password, "owner_pw": password} if password else {}
+    doc.save(path, **options)
+    return path
+
+
+def test_vector_pdf_reads_text_layer(tmp_path):
+    doc = load_document(_pdf(tmp_path / "a.pdf", text="ABC 123"), tmp_path, use_ocr=False)
+    assert doc.info.status == "ok"
+    assert doc.info.origin == "vector"
+    assert doc.pages[0].method == "text_layer"
+    assert [ln.text for ln in doc.pages[0].lines] == ["ABC 123"]
+
+
+def test_encrypted_pdf_is_damaged_with_reason(tmp_path):
+    doc = load_document(_pdf(tmp_path / "secret.pdf", password="x"), tmp_path, use_ocr=False)
+    assert doc.info.status == "damaged"
+    assert doc.info.problem == "Файл повреждён или не открывается: документ защищён паролем"
+
+
+def test_media_type_by_signature_not_extension():
+    assert sniff_media_type(b"%PDF-1.7\n") == "application/pdf"
+    assert sniff_media_type(b"\x89PNG\r\n\x1a\n....") == "image/png"
+    assert sniff_media_type(b"PK\x03\x04") is None
+
+
+def test_wide_gap_splits_line_into_cells():
+    near = Line("a b", (0, 0, 30, 10), size=10, words=[Word("a", (0, 0, 10, 10)), Word("b", (12, 0, 30, 10))])
+    far = Line("a b", (0, 0, 80, 10), size=10, words=[Word("a", (0, 0, 10, 10)), Word("b", (60, 0, 80, 10))])
+    assert [ln.text for ln in split_wide_lines([near])] == ["a b"]
+    assert [ln.text for ln in split_wide_lines([far])] == ["a", "b"]
+
+
+def test_render_page_limits_size_and_checks_page_number(tmp_path):
+    path = _pdf(tmp_path / "a.pdf")
+    image = Image.open(io.BytesIO(render_page(path, 1, max_px=500)))
+    assert max(image.size) == 500
+    with pytest.raises(RenderError):
+        render_page(path, 2)
+
+
+def test_core_imports_pdf_library_only_through_the_adapter():
+    code = "import sys, kdcheck.ingest.document, kdcheck.render; assert 'pymupdf' not in sys.modules"
+    subprocess.run([sys.executable, "-c", code], check=True)

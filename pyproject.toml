@@ -50,5 +50,10 @@ no_implicit_reexport = true
 strict_equality = true
 extra_checks = true
 
+[[tool.mypy.overrides]]
+# The PyMuPDF adapter is the only place that calls the untyped library.
+module = ["kdcheck.ingest.pymupdf_backend"]
+disallow_untyped_calls = false
+
 [tool.pytest.ini_options]
 testpaths = ["backend/tests", "packages/kdcheck/tests"]

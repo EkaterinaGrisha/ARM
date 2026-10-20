@@ -20,14 +20,14 @@ from urllib.parse import quote
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
+from kdcheck.ocr import tesseract
+from kdcheck.render import RenderError, render_page
 
 from . import __version__
 from .exports import to_html, to_xlsx
 from .jobs import JobNotFound, JobStore
 from .models import Job
 from .pipeline import get_pipeline
-from .pipeline.baseline import ocr
-from .render import RenderError, render_page
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -66,7 +66,7 @@ def health() -> dict:
         "version": __version__,
         "pipeline": pipeline.name,
         "pipeline_version": pipeline.version,
-        "ocr": ocr.available(),
+        "ocr": tesseract.available(),
     }
 
 
