@@ -14,12 +14,12 @@ import shutil
 from pathlib import Path
 
 from kdcheck.ocr import tesseract
+from kdcheck.pipeline import BaselinePipeline
 from kdcheck.render import RenderError, render_page
+from kdcheck.report import to_html, to_xlsx
 
 from . import demo_kit
 from .evaluate import evaluate
-from .exports import to_html, to_xlsx
-from .pipeline.baseline.pipeline import BaselinePipeline
 
 
 def _files(n: int) -> str:

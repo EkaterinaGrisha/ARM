@@ -8,9 +8,13 @@ version = "0.1.0"
 description = "Batch completeness check and analysis of design documentation (ESKD): core library and CLI"
 requires-python = ">=3.11"
 dependencies = [
+  "openpyxl>=3.1",
   "pillow>=10.0",
   "pydantic>=2.6",
 ]
+
+[project.scripts]
+kdcheck = "kdcheck.cli:main"
 
 [project.optional-dependencies]
 # AGPL-3.0, only behind kdcheck.ingest.pdf.PdfBackend (ADR-0007)

@@ -1,4 +1,4 @@
-"""Русские подписи для значений перечислений отчёта (используются в экспорте)."""
+"""Russian labels for report enum values, used by the exports."""
 
 DISCREPANCY_TYPES = {
     "missing_drawing": "Чертёж отсутствует",

@@ -9,9 +9,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  # A newer push supersedes a PR run; every commit on main is checked to the end.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # A newer push supersedes an older run of the same PR. Pushes to main get one group per commit:
+  # a shared group would still drop pending runs, so some commits would never be checked.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   backend:
@@ -72,5 +73,7 @@ jobs:
           for _ in $(seq 60); do curl -fsS http://127.0.0.1:8000/api/health && break; sleep 1; done
           curl -fsS http://127.0.0.1:8000/api/health
           curl -fsS http://127.0.0.1:8000/ | grep -q '<div id="root">'
+      - name: The image has the kdcheck command
+        run: docker run --rm arm-kd kdcheck run --help
       - if: failure()
         run: docker logs arm-kd

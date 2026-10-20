@@ -1,20 +1,22 @@
-"""Человекочитаемые формы отчёта: Excel и печатная HTML-страница."""
+"""Human-readable report forms: an Excel workbook and a printable HTML page."""
 
 from __future__ import annotations
 
 import html
 import io
 from collections.abc import Iterator
+from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
-from . import labels as L
-from .models import Extracted, Report, SourceRef, TreeNode
+from kdcheck.report import labels as L
+from kdcheck.schemas import Extracted, Report, SourceRef, TreeNode
 
 
-def _v(ex: Extracted | None):
+def _v(ex: Extracted | None) -> str | float | int | None:
     return None if ex is None else ex.value
 
 
@@ -36,8 +38,10 @@ def _src(report: Report, src: SourceRef | None) -> str:
 HEADER_FILL = PatternFill("solid", fgColor="E8EDF5")
 
 
-def _sheet(wb: Workbook, title: str, header: list[str], rows: list[list], widths: list[int] | None = None):
-    ws = wb.create_sheet(title)
+def _sheet(
+    wb: Workbook, title: str, header: list[str], rows: list[list[Any]], widths: list[int] | None = None
+) -> Worksheet:
+    ws: Worksheet = wb.create_sheet(title)
     ws.append(header)
     for c in ws[1]:
         c.font = Font(bold=True)
@@ -296,7 +300,7 @@ ul.tree li{margin:1px 0}.missing{color:#b42318;font-weight:600}.warning{color:#a
 """
 
 
-def _e(v) -> str:
+def _e(v: object) -> str:
     return "—" if v is None or v == "" else html.escape(str(v))
 
 

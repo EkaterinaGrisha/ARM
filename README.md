@@ -77,8 +77,11 @@ docker build -t arm-kd . && docker run -p 8000:8000 -v arm-data:/data arm-kd
 ## Командная строка
 
 ```bash
+uv run kdcheck run samples/demo_kit -o out                      # out/report.json, report.xlsx, report.html
+uv run kdcheck run ПАПКА --no-ocr                               # без распознавания сканов
+
 cd backend
-python -m arm_web process ../samples/demo_kit -o out            # out/report.json, report.xlsx, report.html
+python -m arm_web process ../samples/demo_kit -o out            # то же, но с внешним конвейером из ARM_PIPELINE_CMD
 python -m arm_web process ПАПКА --truth эталон.json             # + метрики качества в отчёте
 python -m arm_web evaluate out/report.json ../samples/demo_kit_truth.json
 python -m arm_web demo-kit ПАПКА                                 # сгенерировать демо-комплект
@@ -102,7 +105,7 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
    кнопкой «Открыть report.json» (без изображений страниц — области показываются на схеме листа).
 
 Модули базового конвейера заменяются по отдельности: например, OCR на VLM при
-сохранении логики проверки комплектности ([`completeness.py`](backend/arm_web/pipeline/baseline/completeness.py)).
+сохранении логики проверки комплектности ([`completeness.py`](packages/kdcheck/src/kdcheck/checks/completeness.py)).
 
 | Переменная | Назначение |
 |---|---|
@@ -172,14 +175,15 @@ packages/kdcheck/src/kdcheck/
   normalize/                 обозначения, наименования, литеры
   checks/                    Блок 1: дерево изделия и проверка комплектности
   params/                    Блок 2: параметры техтребований и поля чертежа, критичность
+  pipeline.py                базовый конвейер: порядок стадий
+  report/                    выгрузки Excel и HTML, подписи значений
   render.py                  растеризация страниц для просмотра
+  cli.py                     kdcheck run
 packages/kdcheck/tests/      pytest
 backend/arm_web/
   main.py, jobs.py           API и фоновая обработка заданий
   models.py                  модель задания; реэкспорт контракта на время переноса
-  pipeline/                  интерфейс конвейера, внешний конвейер
-  pipeline/baseline/         базовый конвейер: порядок стадий (pipeline.py)
-  exports.py                 Excel и HTML
+  pipeline/                  выбор конвейера: базовый из ядра или внешняя программа
   evaluate.py                метрики по эталону
   demo_kit.py, build_demo.py генератор демо-комплекта и демо-данных интерфейса
 backend/tests/               pytest

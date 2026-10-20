@@ -27,8 +27,9 @@ def cmd_serve(args) -> int:
 
 
 def cmd_process(args) -> int:
+    from kdcheck.report import write_report
+
     from .evaluate import evaluate
-    from .exports import to_html, to_xlsx
     from .pipeline import get_pipeline
 
     input_dir = Path(args.input).resolve()
@@ -36,7 +37,6 @@ def cmd_process(args) -> int:
         print(f"Папка не найдена: {input_dir}", file=sys.stderr)
         return 2
     out = Path(args.output or f"{input_dir.name}_report")
-    out.mkdir(parents=True, exist_ok=True)
     pipeline = get_pipeline()
 
     def progress(stage: str, value: float, message: str | None = None) -> None:
@@ -50,9 +50,7 @@ def cmd_process(args) -> int:
         report.quality = evaluate(
             report, json.loads(Path(args.truth).read_text(encoding="utf-8")), dataset=Path(args.truth).name
         )
-    (out / "report.json").write_text(report.model_dump_json(indent=2, exclude_none=True), encoding="utf-8")
-    (out / "report.xlsx").write_bytes(to_xlsx(report))
-    (out / "report.html").write_text(to_html(report), encoding="utf-8")
+    write_report(report, out)
     s = report.summary
     print(
         f"Документов: {s.documents_total}, расхождений: {s.discrepancies_total}, "
