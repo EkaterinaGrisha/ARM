@@ -1,0 +1,1764 @@
+{
+  "$defs": {
+    "CriticalParameter": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Designation"
+        },
+        "part_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Part Name"
+        },
+        "parameter_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameter Id"
+        },
+        "category": {
+          "enum": [
+            "dimension_tolerance",
+            "general_tolerance",
+            "roughness",
+            "geometric",
+            "heat_treatment",
+            "hardness",
+            "coating",
+            "other"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "rule": {
+          "description": "Код правила отбора",
+          "title": "Rule",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Обоснование для технолога",
+          "title": "Reason",
+          "type": "string"
+        },
+        "score": {
+          "default": 0.5,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "document_id",
+        "category",
+        "text",
+        "rule",
+        "reason"
+      ],
+      "title": "CriticalParameter",
+      "type": "object"
+    },
+    "Discrepancy": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "missing_drawing",
+            "orphan_drawing",
+            "name_mismatch",
+            "duplicate_designation",
+            "revision_mismatch",
+            "missing_specification"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "severity": {
+          "default": "medium",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Designation"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected"
+        },
+        "actual": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actual"
+        },
+        "document_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Document Ids",
+          "type": "array"
+        },
+        "tree_node_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Tree Node Ids",
+          "type": "array"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "title",
+        "message"
+      ],
+      "title": "Discrepancy",
+      "type": "object"
+    },
+    "DocumentInfo": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "file_name": {
+          "title": "File Name",
+          "type": "string"
+        },
+        "path": {
+          "description": "Путь относительно корня комплекта",
+          "title": "Path",
+          "type": "string"
+        },
+        "size_bytes": {
+          "default": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "media_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media Type"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "pages": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PageInfo"
+          },
+          "title": "Pages",
+          "type": "array"
+        },
+        "kind": {
+          "default": "unknown",
+          "enum": [
+            "specification",
+            "assembly_drawing",
+            "part_drawing",
+            "drawing",
+            "other",
+            "unknown"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "origin": {
+          "default": "unknown",
+          "enum": [
+            "vector",
+            "scan",
+            "mixed",
+            "unknown"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "status": {
+          "default": "ok",
+          "enum": [
+            "ok",
+            "warning",
+            "damaged",
+            "unreadable",
+            "foreign",
+            "unsupported"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "problem": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Пояснение для проблемных файлов",
+          "title": "Problem"
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Designation"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "file_name",
+        "path"
+      ],
+      "title": "DocumentInfo",
+      "type": "object"
+    },
+    "ErrorCase": {
+      "additionalProperties": true,
+      "properties": {
+        "block": {
+          "enum": [
+            "completeness",
+            "extraction"
+          ],
+          "title": "Block",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "false_positive",
+            "false_negative",
+            "wrong_value"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Id"
+        }
+      },
+      "required": [
+        "block",
+        "kind",
+        "title"
+      ],
+      "title": "ErrorCase",
+      "type": "object"
+    },
+    "Extracted": {
+      "additionalProperties": true,
+      "description": "Извлечённое значение с прослеживаемостью.",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "raw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "Extracted",
+      "type": "object"
+    },
+    "KitInfo": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "root_designation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root Designation"
+        },
+        "root_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root Name"
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        },
+        "processed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Processed At"
+        },
+        "duration_sec": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Sec"
+        },
+        "pipeline_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pipeline Name"
+        },
+        "pipeline_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pipeline Version"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "KitInfo",
+      "type": "object"
+    },
+    "LogEntry": {
+      "additionalProperties": true,
+      "properties": {
+        "level": {
+          "default": "info",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Id"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "title": "LogEntry",
+      "type": "object"
+    },
+    "PageInfo": {
+      "additionalProperties": true,
+      "properties": {
+        "number": {
+          "title": "Number",
+          "type": "integer"
+        },
+        "width": {
+          "title": "Width",
+          "type": "number"
+        },
+        "height": {
+          "title": "Height",
+          "type": "number"
+        },
+        "unit": {
+          "default": "pt",
+          "enum": [
+            "pt",
+            "px"
+          ],
+          "title": "Unit",
+          "type": "string"
+        },
+        "has_text": {
+          "default": false,
+          "title": "Has Text",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "number",
+        "width",
+        "height"
+      ],
+      "title": "PageInfo",
+      "type": "object"
+    },
+    "Parameter": {
+      "additionalProperties": true,
+      "description": "Параметр технических требований в единой структуре.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "dimension_tolerance",
+            "general_tolerance",
+            "roughness",
+            "geometric",
+            "heat_treatment",
+            "hardness",
+            "coating",
+            "other"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "name": {
+          "description": "Короткое имя: Ra, Ø50k6, Твёрдость, Покрытие…",
+          "title": "Name",
+          "type": "string"
+        },
+        "text": {
+          "description": "Исходный текст требования",
+          "title": "Text",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "value_min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value Min"
+        },
+        "value_max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value Max"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "qualifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Поле допуска (H7), шкала (HRC), базы, вид ТО…",
+          "title": "Qualifier"
+        },
+        "it_grade": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "It Grade"
+        },
+        "general": {
+          "default": false,
+          "description": "Общее требование (неуказанные отклонения, шероховатость остального)",
+          "title": "General",
+          "type": "boolean"
+        },
+        "critical": {
+          "default": false,
+          "title": "Critical",
+          "type": "boolean"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "id",
+        "category",
+        "name",
+        "text"
+      ],
+      "title": "Parameter",
+      "type": "object"
+    },
+    "PartRecord": {
+      "additionalProperties": true,
+      "description": "Извлечённые данные одного чертежа.",
+      "properties": {
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Designation"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "kind": {
+          "default": "part_drawing",
+          "enum": [
+            "specification",
+            "assembly_drawing",
+            "part_drawing",
+            "drawing",
+            "other",
+            "unknown"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "title_block": {
+          "$ref": "#/$defs/TitleBlock",
+          "default": {
+            "designation": null,
+            "name": null,
+            "material": null,
+            "mass": null,
+            "scale": null,
+            "litera": null,
+            "revision": null,
+            "archive_number": null,
+            "first_use": null,
+            "sheet": null,
+            "sheets": null,
+            "format": null
+          }
+        },
+        "requirements": {
+          "default": [],
+          "description": "Пункты технических требований",
+          "items": {
+            "$ref": "#/$defs/Extracted"
+          },
+          "title": "Requirements",
+          "type": "array"
+        },
+        "parameters": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          },
+          "title": "Parameters",
+          "type": "array"
+        }
+      },
+      "required": [
+        "document_id"
+      ],
+      "title": "PartRecord",
+      "type": "object"
+    },
+    "QualityMetric": {
+      "additionalProperties": true,
+      "properties": {
+        "block": {
+          "enum": [
+            "completeness",
+            "extraction"
+          ],
+          "title": "Block",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "precision": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precision"
+        },
+        "recall": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recall"
+        },
+        "f1": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "F1"
+        },
+        "accuracy": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Accuracy"
+        },
+        "support": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Support"
+        }
+      },
+      "required": [
+        "block",
+        "name"
+      ],
+      "title": "QualityMetric",
+      "type": "object"
+    },
+    "QualityReport": {
+      "additionalProperties": true,
+      "properties": {
+        "dataset": {
+          "default": "",
+          "title": "Dataset",
+          "type": "string"
+        },
+        "methodology": {
+          "default": "",
+          "title": "Methodology",
+          "type": "string"
+        },
+        "metrics": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/QualityMetric"
+          },
+          "title": "Metrics",
+          "type": "array"
+        },
+        "errors": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ErrorCase"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "limitations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        }
+      },
+      "title": "QualityReport",
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": true,
+      "description": "Откуда получено значение: документ, страница и область страницы.",
+      "properties": {
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "page": {
+          "default": 1,
+          "description": "Номер страницы, начиная с 1",
+          "title": "Page",
+          "type": "integer"
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Область [x0, y0, x1, y1] в долях ширины/высоты страницы, начало — левый верхний угол",
+          "title": "Bbox"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Исходный распознанный текст",
+          "title": "Text"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "enum": [
+                "text_layer",
+                "ocr",
+                "vlm",
+                "llm",
+                "filename",
+                "rule",
+                "manual"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "document_id"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "SpecRow": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "zone": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "position": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "note": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "SpecRow",
+      "type": "object"
+    },
+    "Specification": {
+      "additionalProperties": true,
+      "properties": {
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "litera": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rows": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SpecRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "document_id"
+      ],
+      "title": "Specification",
+      "type": "object"
+    },
+    "Summary": {
+      "additionalProperties": true,
+      "properties": {
+        "documents_total": {
+          "default": 0,
+          "title": "Documents Total",
+          "type": "integer"
+        },
+        "documents_by_status": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Documents By Status",
+          "type": "object"
+        },
+        "documents_by_kind": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Documents By Kind",
+          "type": "object"
+        },
+        "specifications": {
+          "default": 0,
+          "title": "Specifications",
+          "type": "integer"
+        },
+        "drawings": {
+          "default": 0,
+          "title": "Drawings",
+          "type": "integer"
+        },
+        "tree_items": {
+          "default": 0,
+          "title": "Tree Items",
+          "type": "integer"
+        },
+        "parts": {
+          "default": 0,
+          "title": "Parts",
+          "type": "integer"
+        },
+        "parameters": {
+          "default": 0,
+          "title": "Parameters",
+          "type": "integer"
+        },
+        "discrepancies_total": {
+          "default": 0,
+          "title": "Discrepancies Total",
+          "type": "integer"
+        },
+        "discrepancies_by_type": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Discrepancies By Type",
+          "type": "object"
+        },
+        "critical_parameters": {
+          "default": 0,
+          "title": "Critical Parameters",
+          "type": "integer"
+        },
+        "completeness_ratio": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Доля позиций, требующих чертежа, для которых он найден",
+          "title": "Completeness Ratio"
+        }
+      },
+      "title": "Summary",
+      "type": "object"
+    },
+    "TitleBlock": {
+      "additionalProperties": true,
+      "description": "Поля основной надписи (ГОСТ 2.104).",
+      "properties": {
+        "designation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "material": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "litera": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Номер последнего изменения"
+        },
+        "archive_number": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "first_use": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Первое применение"
+        },
+        "sheet": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sheets": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extracted"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "TitleBlock",
+      "type": "object"
+    },
+    "TreeNode": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "designation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Designation"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "kind": {
+          "default": "unknown",
+          "enum": [
+            "kit",
+            "assembly",
+            "part",
+            "standard",
+            "other_item",
+            "material",
+            "document",
+            "unknown"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quantity"
+        },
+        "total_quantity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Количество на изделие верхнего уровня",
+          "title": "Total Quantity"
+        },
+        "spec_document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spec Document Id"
+        },
+        "drawing_document_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Drawing Document Ids",
+          "type": "array"
+        },
+        "status": {
+          "default": "ok",
+          "enum": [
+            "ok",
+            "missing",
+            "warning",
+            "not_required"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "discrepancy_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Discrepancy Ids",
+          "type": "array"
+        },
+        "children": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TreeNode"
+          },
+          "title": "Children",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "TreeNode",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "kit": {
+      "$ref": "#/$defs/KitInfo"
+    },
+    "summary": {
+      "$ref": "#/$defs/Summary",
+      "default": {
+        "documents_total": 0,
+        "documents_by_status": {},
+        "documents_by_kind": {},
+        "specifications": 0,
+        "drawings": 0,
+        "tree_items": 0,
+        "parts": 0,
+        "parameters": 0,
+        "discrepancies_total": 0,
+        "discrepancies_by_type": {},
+        "critical_parameters": 0,
+        "completeness_ratio": null
+      }
+    },
+    "documents": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DocumentInfo"
+      },
+      "title": "Documents",
+      "type": "array"
+    },
+    "specifications": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Specification"
+      },
+      "title": "Specifications",
+      "type": "array"
+    },
+    "tree": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TreeNode"
+      },
+      "title": "Tree",
+      "type": "array"
+    },
+    "discrepancies": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Discrepancy"
+      },
+      "title": "Discrepancies",
+      "type": "array"
+    },
+    "parts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PartRecord"
+      },
+      "title": "Parts",
+      "type": "array"
+    },
+    "critical_parameters": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CriticalParameter"
+      },
+      "title": "Critical Parameters",
+      "type": "array"
+    },
+    "quality": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QualityReport"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "log": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/LogEntry"
+      },
+      "title": "Log",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kit"
+  ],
+  "title": "Report",
+  "type": "object"
+}
