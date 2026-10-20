@@ -168,16 +168,17 @@ packages/kdcheck/src/kdcheck/
   schemas/                   формат отчёта (контракт)
   ingest/                    чтение файлов: формат, текстовый слой, адаптер PdfBackend
   ocr/                       распознавание сканов (Tesseract)
-  extract/                   основная надпись, строки спецификации
+  extract/                   основная надпись, строки спецификации, блок техтребований
   normalize/                 обозначения, наименования, литеры
   checks/                    Блок 1: дерево изделия и проверка комплектности
+  params/                    Блок 2: параметры техтребований и поля чертежа, критичность
   render.py                  растеризация страниц для просмотра
 packages/kdcheck/tests/      pytest
 backend/arm_web/
   main.py, jobs.py           API и фоновая обработка заданий
   models.py                  модель задания; реэкспорт контракта на время переноса
   pipeline/                  интерфейс конвейера, внешний конвейер
-  pipeline/baseline/         базовый конвейер: requirements, critical, pipeline
+  pipeline/baseline/         базовый конвейер: порядок стадий (pipeline.py)
   exports.py                 Excel и HTML
   evaluate.py                метрики по эталону
   demo_kit.py, build_demo.py генератор демо-комплекта и демо-данных интерфейса

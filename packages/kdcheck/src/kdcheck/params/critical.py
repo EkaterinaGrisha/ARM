@@ -1,9 +1,8 @@
-"""Выделение параметров, потенциально критичных для производства.
+"""Parameters that are potentially critical for production.
 
-Критерии сочетают общеинженерные пороги (точные квалитеты, низкая шероховатость,
-высокая твёрдость, химико-термическая обработка, жёсткие допуски формы) и
-распределение значений внутри комплекта: «самое жёсткое в комплекте» и «встречается
-у одной детали» — сигнал для технолога, даже если абсолютный порог не превышен.
+The criteria combine general engineering thresholds (tight IT grades, low roughness, high hardness, chemical heat
+treatment, tight form tolerances) with the distribution of values inside the doc set: "the tightest in the set" and
+"only one part has it" signal the technologist even when no absolute threshold is crossed.
 """
 
 from __future__ import annotations
@@ -11,7 +10,7 @@ from __future__ import annotations
 from collections import Counter
 from statistics import median
 
-from ...models import CriticalParameter, Parameter, PartRecord
+from kdcheck.schemas import CriticalParameter, Parameter, PartRecord
 
 
 def _fmt(v: float | None) -> str:
