@@ -61,7 +61,6 @@ source = { editable = "backend" }
 dependencies = [
     { name = "fastapi" },
     { name = "kdcheck", extra = ["pymupdf"] },
-    { name = "openpyxl" },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "pymupdf" },
@@ -79,7 +78,6 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.110" },
     { name = "kdcheck", extras = ["ocr"], marker = "extra == 'ocr'", editable = "packages/kdcheck" },
     { name = "kdcheck", extras = ["pymupdf"], editable = "packages/kdcheck" },
-    { name = "openpyxl", specifier = ">=3.1" },
     { name = "pillow", specifier = ">=10.0" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "pymupdf", specifier = ">=1.24" },
@@ -408,6 +406,7 @@ name = "kdcheck"
 version = "0.1.0"
 source = { editable = "packages/kdcheck" }
 dependencies = [
+    { name = "openpyxl" },
     { name = "pillow" },
     { name = "pydantic" },
 ]
@@ -422,6 +421,7 @@ pymupdf = [
 
 [package.metadata]
 requires-dist = [
+    { name = "openpyxl", specifier = ">=3.1" },
     { name = "pillow", specifier = ">=10.0" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "pymupdf", marker = "extra == 'pymupdf'", specifier = ">=1.24" },

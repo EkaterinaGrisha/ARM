@@ -15,7 +15,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from .labels import PARAMETER_CATEGORY
+from kdcheck.report.labels import PARAMETER_CATEGORY
+
 from .models import ErrorCase, QualityMetric, QualityReport, Report
 
 TITLE_FIELDS = {

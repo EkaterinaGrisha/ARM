@@ -2,7 +2,7 @@
 
 import pytest
 from arm_web.jobs import safe_relative_path
-from arm_web.pipeline.baseline.pipeline import BaselinePipeline
+from kdcheck.pipeline import BaselinePipeline
 
 
 def test_bad_files_get_statuses(tmp_path):

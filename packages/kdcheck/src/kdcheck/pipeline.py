@@ -1,7 +1,7 @@
-"""Базовый конвейер: правила поверх текстового слоя PDF и (если доступен) OCR.
+"""Baseline pipeline: rules over the PDF text layer and, when available, OCR.
 
-Задуман как опорная реализация и пример интеграции: каждый этап можно заменить
-моделью команды (VLM/LLM, свой OCR), сохранив формат отчёта.
+A reference implementation and an integration example: any stage can be replaced by a model (VLM, LLM, another OCR)
+while the report format stays the same.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import logging
 import re
 import time
 from collections import Counter
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -18,8 +19,7 @@ from kdcheck.extract import specification, tech_requirements, title_block
 from kdcheck.ingest.document import LoadedDocument, Page, is_unreadable, load_document
 from kdcheck.normalize.designations import doc_code, find_designations, normalize_designation
 from kdcheck.params import critical, parameters
-
-from ...models import (
+from kdcheck.schemas import (
     Extracted,
     KitInfo,
     LogEntry,
@@ -29,10 +29,17 @@ from ...models import (
     Specification,
     Summary,
     TitleBlock,
+    TreeNode,
 )
-from ..base import ProgressCallback, no_progress
 
 log = logging.getLogger(__name__)
+
+# (stage, share done 0..1, note)
+ProgressCallback = Callable[[str, float, str | None], None]
+
+
+def no_progress(stage: str, progress: float, message: str | None = None) -> None:
+    pass
 
 
 def _now() -> str:
@@ -43,7 +50,7 @@ class BaselinePipeline:
     name = "baseline"
     version = "0.1.0"
 
-    def __init__(self, use_ocr: bool = True):
+    def __init__(self, use_ocr: bool = True) -> None:
         self.use_ocr = use_ocr
 
     # ------------------------------------------------------------------ run
@@ -66,7 +73,7 @@ class BaselinePipeline:
                 continue
             try:
                 self._classify_and_parse(doc, specs, parts)
-            except Exception as exc:  # ошибка разбора одного файла не останавливает комплект
+            except Exception as exc:  # a parse error in one file never stops the doc set
                 log.exception("Ошибка разбора %s", doc.info.path)
                 doc.info.status = "warning"
                 doc.info.problem = f"Ошибка разбора: {exc}"
@@ -132,7 +139,9 @@ class BaselinePipeline:
         )
 
     # ------------------------------------------------------------------ classification
-    def _classify_and_parse(self, doc: LoadedDocument, specs, parts) -> None:
+    def _classify_and_parse(
+        self, doc: LoadedDocument, specs: list[tuple[LoadedDocument, Specification]], parts: list[PartRecord]
+    ) -> None:
         info = doc.info
         text_pages = [p for p in doc.pages if p.lines]
         if not text_pages:
@@ -220,9 +229,9 @@ class BaselinePipeline:
                 if ln.vertical or id(ln) in skip:
                     continue
                 if pg is page and ln.cx >= tb_x0 and ln.cy >= tb_y0:
-                    continue  # основная надпись
+                    continue  # title block
                 if ln.bbox[0] < 21 * pg.mm:
-                    continue  # поле подшивки
+                    continue  # binding margin
                 general_zone = ln.cy < 30 * pg.mm and ln.cx > pg.width - 90 * pg.mm
                 part.parameters += parameters.parse_annotation(doc, pg, ln, next_id, general_zone=general_zone)
         return part
@@ -282,7 +291,7 @@ def _filename_name(file_name: str) -> str | None:
     return rest or None
 
 
-def _count_nodes(nodes, pred=lambda n: True) -> int:
+def _count_nodes(nodes: Iterable[TreeNode], pred: Callable[[TreeNode], bool] = lambda n: True) -> int:
     total = 0
     for n in nodes:
         if pred(n):

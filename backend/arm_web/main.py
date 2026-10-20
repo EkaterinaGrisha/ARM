@@ -22,9 +22,9 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from kdcheck.ocr import tesseract
 from kdcheck.render import RenderError, render_page
+from kdcheck.report import to_html, to_xlsx
 
 from . import __version__
-from .exports import to_html, to_xlsx
 from .jobs import JobNotFound, JobStore
 from .models import Job
 from .pipeline import get_pipeline

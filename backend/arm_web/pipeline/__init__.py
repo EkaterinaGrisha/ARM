@@ -13,7 +13,7 @@ def get_pipeline() -> Pipeline:
         from .external import ExternalPipeline
 
         return ExternalPipeline(command, timeout_sec=int(os.environ.get("ARM_PIPELINE_TIMEOUT", "3600")))
-    from .baseline.pipeline import BaselinePipeline
+    from kdcheck.pipeline import BaselinePipeline
 
     return BaselinePipeline(use_ocr=os.environ.get("ARM_OCR", "1") != "0")
 

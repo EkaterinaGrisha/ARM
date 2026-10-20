@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol
 
+from kdcheck.pipeline import ProgressCallback, no_progress
+
 from ..models import Report
 
-# (этап, доля выполнения 0..1, пояснение)
-ProgressCallback = Callable[[str, float, str | None], None]
-
-
-def no_progress(stage: str, progress: float, message: str | None = None) -> None:
-    pass
+__all__ = ["Pipeline", "ProgressCallback", "no_progress"]
 
 
 class Pipeline(Protocol):
