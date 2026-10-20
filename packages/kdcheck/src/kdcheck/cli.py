@@ -7,8 +7,8 @@ import sys
 import uuid
 from pathlib import Path
 
-from kdcheck.pipeline import BaselinePipeline
 from kdcheck.report import write_report
+from kdcheck.run import run
 
 
 def _progress(stage: str, value: float, message: str | None = None) -> None:
@@ -21,9 +21,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"Папка не найдена: {input_dir}", file=sys.stderr)
         return 2
     out = Path(args.output or f"{input_dir.name}_report")
-    pipeline = BaselinePipeline(use_ocr=not args.no_ocr)
-    report = pipeline.run(
-        input_dir, kit_id=uuid.uuid4().hex[:12], kit_name=args.name or input_dir.name, progress=_progress
+    report = run(
+        input_dir,
+        kit_id=uuid.uuid4().hex[:12],
+        kit_name=args.name or input_dir.name,
+        use_ocr=not args.no_ocr,
+        progress=_progress,
     )
     print(file=sys.stderr)
     write_report(report, out)
