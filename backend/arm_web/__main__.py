@@ -55,7 +55,8 @@ def cmd_process(args) -> int:
     (out / "report.html").write_text(to_html(report), encoding="utf-8")
     s = report.summary
     print(
-        f"Документов: {s.documents_total}, расхождений: {s.discrepancies_total}, критичных параметров: {s.critical_parameters}"
+        f"Документов: {s.documents_total}, расхождений: {s.discrepancies_total}, "
+        f"критичных параметров: {s.critical_parameters}"
     )
     print(f"Отчёт: {out / 'report.json'} (+ report.xlsx, report.html)")
     return 0

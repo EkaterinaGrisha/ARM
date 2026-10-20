@@ -243,7 +243,8 @@ class Checker:
                         "high",
                         des,
                         f"{what} отсутствует",
-                        f"{what} {des} «{_value(row.name) or '—'}» указан в спецификации {path[-1]}, но в комплекте не найден",
+                        f"{what} {des} «{_value(row.name) or '—'}» указан в спецификации {path[-1]}, "
+                        "но в комплекте не найден",
                         expected=des,
                         docs=[parent.spec_document_id] if parent.spec_document_id else [],
                         nodes=[node],

@@ -18,7 +18,7 @@ import traceback
 import uuid
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO
 
@@ -31,7 +31,7 @@ _JOB_ID = re.compile(r"^[a-f0-9]{12}$")
 
 
 def now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def safe_relative_path(name: str) -> Path:

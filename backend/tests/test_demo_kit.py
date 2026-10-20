@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from arm_web import demo_kit
 
 SAMPLES = Path(__file__).resolve().parents[2] / "samples"

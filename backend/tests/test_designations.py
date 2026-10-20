@@ -1,5 +1,4 @@
 import pytest
-
 from arm_web.pipeline.baseline.designations import (
     find_designations,
     litera_rank,

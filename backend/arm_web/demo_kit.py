@@ -15,6 +15,7 @@ import os
 import random
 import sys
 from dataclasses import dataclass, field
+from itertools import pairwise
 from pathlib import Path
 
 import pymupdf
@@ -623,7 +624,7 @@ def _title_block(
     change_rows = 4 if not spec_form else 4
     # шапка изменений — 5-я строка
     header_y = Y + change_rows * 5
-    for (c0, c1), label in zip(zip(cols, cols[1:]), ["Изм.", "Лист", "№ докум.", "Подп.", "Дата"]):
+    for (c0, c1), label in zip(pairwise(cols), ["Изм.", "Лист", "№ докум.", "Подп.", "Дата"], strict=True):
         sh.text_center(X + c0, X + c1, header_y + 4, label, 2.5)
     for i, ch in enumerate(sorted(d.changes, key=lambda c: -c.number)[:change_rows]):
         yb = header_y - i * 5 - 1
@@ -633,7 +634,7 @@ def _title_block(
         sh.text_center(X + cols[4], X + cols[5], yb, ch.date, 2.5)
     roles = ["Разраб.", "Пров.", "Т.контр.", "", "Н.контр.", "Утв."]
     names = ["Иванов", "Петров", "", "", "Сидорова", "Кузнецов"]
-    for i, (role, name) in enumerate(zip(roles, names)):
+    for i, (role, name) in enumerate(zip(roles, names, strict=True)):
         yb = header_y + 5 * (i + 1) + 4
         if yb > Y + height:
             break
@@ -720,7 +721,7 @@ def _sketch(sh: Sheet, kind: str, annotations: list[str]) -> None:
     slots = [(-95, -70), (-10, -72), (60, -60), (-100, 75), (0, 78), (60, 70), (85, -10), (-115, 0)]
     if sh.w < 300:
         slots = [(-75, -65), (5, -68), (-75, 68), (5, 72), (55, -30), (55, 30), (-80, 0), (40, 0)]
-    for (dx, dy), ann in zip(slots, annotations):
+    for (dx, dy), ann in zip(slots, annotations, strict=False):  # draws at most len(slots) annotations
         if ann.isdigit() and len(ann) == 1:  # номер позиции на сборочном чертеже
             sh.circle(cx + dx + 1.8, cy + dy - 1.8, 4, width=0.25)
         sh.text(cx + dx, cy + dy, ann, 5 if ann.isdigit() and len(ann) == 1 else 3.5)
@@ -827,7 +828,7 @@ def draw_foreign(font: bytes) -> bytes:
         ("", 4),
         ("г. Калуга                                                    12.06.2025", 3.5),
         ("", 4),
-        (f"Комиссия в составе представителей КБ и производства приняла комплект КД", 3.5),
+        ("Комиссия в составе представителей КБ и производства приняла комплект КД", 3.5),
         (f"на изделие {ROOT} «Редуктор колёсный» для запуска в опытное", 3.5),
         ("производство. Комплект передан в электронном виде.", 3.5),
         ("", 4),

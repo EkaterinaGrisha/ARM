@@ -281,12 +281,15 @@ def to_xlsx(report: Report) -> bytes:
 # ------------------------------------------------------------------------ HTML
 
 CSS = """
-body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1d2433;margin:32px auto;max-width:1100px;padding:0 16px}
+body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1d2433;
+margin:32px auto;max-width:1100px;padding:0 16px}
 h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:32px 0 8px;border-bottom:1px solid #d8dee9;padding-bottom:4px}
 .muted{color:#5b6475}.mono{font-family:ui-monospace,Consolas,monospace}
-table{border-collapse:collapse;width:100%;margin:8px 0}th,td{border:1px solid #d8dee9;padding:4px 8px;text-align:left;vertical-align:top}
+table{border-collapse:collapse;width:100%;margin:8px 0}
+th,td{border:1px solid #d8dee9;padding:4px 8px;text-align:left;vertical-align:top}
 th{background:#eef2f8;font-weight:600}.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}
-.kpi div{border:1px solid #d8dee9;border-radius:8px;padding:8px 14px;min-width:120px}.kpi b{display:block;font-size:22px}
+.kpi div{border:1px solid #d8dee9;border-radius:8px;padding:8px 14px;min-width:120px}
+.kpi b{display:block;font-size:22px}
 .high{color:#b42318}.medium{color:#a15c07}.low{color:#475467}ul.tree{list-style:none;padding-left:18px;margin:0}
 ul.tree li{margin:1px 0}.missing{color:#b42318;font-weight:600}.warning{color:#a15c07}
 @media print{body{margin:0}h2{break-after:avoid}tr{break-inside:avoid}}
@@ -306,7 +309,8 @@ def _tree_html(nodes: list[TreeNode]) -> str:
         qty = f" × {n.quantity:g}" if n.quantity else ""
         mark = {"missing": " — нет документа", "warning": " — есть замечания"}.get(n.status, "")
         items.append(
-            f'<li class="{cls}"><span class="mono">{_e(n.designation) if n.designation else ""}</span> {_e(n.name)}{qty}'
+            f'<li class="{cls}"><span class="mono">{_e(n.designation) if n.designation else ""}</span> '
+            f"{_e(n.name)}{qty}"
             f'<span class="muted"> · {L.NODE_KIND.get(n.kind, n.kind)}</span>{mark}{_tree_html(n.children)}</li>'
         )
     return f'<ul class="tree">{"".join(items)}</ul>'
@@ -354,7 +358,8 @@ def to_html(report: Report) -> str:
         out.append("<table><tr><th>Файл</th><th>Статус</th><th>Пояснение</th></tr>")
         for d in problems:
             out.append(
-                f"<tr><td>{_e(d.path)}</td><td>{_e(L.DOCUMENT_STATUS.get(d.status, d.status))}</td><td>{_e(d.problem)}</td></tr>"
+                f"<tr><td>{_e(d.path)}</td><td>{_e(L.DOCUMENT_STATUS.get(d.status, d.status))}</td>"
+                f"<td>{_e(d.problem)}</td></tr>"
             )
         out.append("</table>")
     else:

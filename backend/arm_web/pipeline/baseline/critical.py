@@ -93,7 +93,8 @@ def select(parts: list[PartRecord]) -> list[CriticalParameter]:
                 part,
                 p,
                 "chemical_heat_treatment",
-                f"{p.name}{' на глубину ' + _fmt(p.value_min) + '…' + _fmt(p.value_max) + ' мм' if p.value_min else ''} — "
+                f"{p.name}"
+                f"{' на глубину ' + _fmt(p.value_min) + '…' + _fmt(p.value_max) + ' мм' if p.value_min else ''} — "
                 "длительная операция в специализированной печи, требует защиты незакаливаемых поверхностей "
                 f"(в комплекте у {treatments[p.name]} дет.)",
                 0.8,

@@ -1,7 +1,6 @@
 """Некорректные входные данные не прерывают обработку комплекта."""
 
 import pytest
-
 from arm_web.jobs import safe_relative_path
 from arm_web.pipeline.baseline.pipeline import BaselinePipeline
 

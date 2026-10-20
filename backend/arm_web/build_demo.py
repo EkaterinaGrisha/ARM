@@ -47,9 +47,11 @@ def build(samples: Path, public_demo: Path, regenerate: bool = False) -> None:
         report,
         truth,
         dataset=(
-            f"Синтетический комплект «Редуктор колёсный»: {_files(len(truth['documents']) + len(truth['problem_files']))} — "
-            f"{n_specs} спецификации, {n_draw} чертежей (из них {n_scan} скана), {len(truth['problem_files'])} проблемных "
-            f"файла; заложено {len(truth['discrepancies'])} расхождений. OCR: {'Tesseract' if ocr.available() else 'не используется'}."
+            "Синтетический комплект «Редуктор колёсный»: "
+            f"{_files(len(truth['documents']) + len(truth['problem_files']))} — "
+            f"{n_specs} спецификации, {n_draw} чертежей (из них {n_scan} скана), "
+            f"{len(truth['problem_files'])} проблемных файла; заложено {len(truth['discrepancies'])} расхождений. "
+            f"OCR: {'Tesseract' if ocr.available() else 'не используется'}."
         ),
     )
 
