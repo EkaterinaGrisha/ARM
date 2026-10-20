@@ -1,5 +1,5 @@
 import pytest
-from arm_web.pipeline.baseline.designations import (
+from kdcheck.normalize.designations import (
     find_designations,
     litera_rank,
     normalize_designation,
@@ -12,12 +12,12 @@ from arm_web.pipeline.baseline.designations import (
     "text, expected",
     [
         ("АРМ.303411.000", "АРМ.303411.000"),
-        ("APM.303411.000 СБ", "АРМ.303411.000 СБ"),  # латиница вместо кириллицы
+        ("APM.303411.000 СБ", "АРМ.303411.000 СБ"),  # Latin letters instead of Cyrillic
         ("АРМ 303411.201", "АРМ.303411.201"),
         ("АБВГ.123456.789-01", "АБВГ.123456.789-01"),
-        ("АРМ.3О3411.0О5", "АРМ.303411.005"),  # буква О вместо нуля (ошибка OCR)
+        ("АРМ.3О3411.0О5", "АРМ.303411.005"),  # letter О instead of zero (OCR error)
         ("Чертёж АРМ.303411.101 Корпус.pdf", "АРМ.303411.101"),
-        ("АРМ.И.0412-25", None),  # номер извещения — не обозначение
+        ("АРМ.И.0412-25", None),  # a change notice number is not a designation
         ("Болт М12×40 ГОСТ 7798-70", None),
         ("", None),
     ],
