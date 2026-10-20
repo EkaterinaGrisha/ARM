@@ -1,4 +1,4 @@
-"""Базовый конвейер на сгенерированном демо-комплекте с известным эталоном."""
+"""Baseline pipeline on the committed demo kit with a known ground truth."""
 
 from arm_web.evaluate import evaluate
 from arm_web.models import Report
