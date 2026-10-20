@@ -49,7 +49,7 @@ Python ≥ 3.11, uv, ruff (lint + format), mypy (strict for `kdcheck`), pytest. 
 uv sync --all-packages --all-extras   # Python environment from uv.lock
 uv run pre-commit install             # ruff, lockfile and requirements checks on commit
 uv run pytest                         # kdcheck and backend tests
-uv run ruff check . && uv run ruff format --check . && uv run mypy
+uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run lint-imports
 sh scripts/export_requirements.sh     # after changing dependencies: refresh backend/requirements.txt
 sh scripts/export_schema.sh           # after changing kdcheck.schemas: refresh docs/report.schema.json and web types
 

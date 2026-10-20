@@ -177,6 +177,7 @@ packages/kdcheck/src/kdcheck/
   params/                    Блок 2: параметры техтребований и поля чертежа, критичность
   pipeline.py                базовый конвейер: порядок стадий
   report/                    выгрузки Excel и HTML, подписи значений
+  run.py                     публичный запуск ядра для API и CLI
   render.py                  растеризация страниц для просмотра
   cli.py                     kdcheck run
 packages/kdcheck/tests/      pytest
