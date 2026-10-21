@@ -27,6 +27,14 @@ def test_run_writes_three_report_forms(tmp_path, capsys):
     assert "Отчёт:" in capsys.readouterr().out
 
 
+def test_run_reports_progress_to_a_file_for_the_api(tmp_path):
+    progress = tmp_path / "progress.json"
+    args = ["run", str(KIT), "-o", str(tmp_path), "--no-ocr", "--kit-id", "job42", "--progress-file", str(progress)]
+    assert main(args) == 0
+    assert json.loads(progress.read_text(encoding="utf-8")) == {"stage": "Готово", "progress": 1.0, "message": None}
+    assert json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))["kit"]["id"] == "job42"
+
+
 def test_run_rejects_a_missing_folder(tmp_path):
     assert main(["run", str(tmp_path / "nope"), "-o", str(tmp_path / "out")]) == 2
     assert not (tmp_path / "out").exists()
