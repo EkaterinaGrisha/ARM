@@ -2,7 +2,8 @@
 
 The criteria combine general engineering thresholds (tight IT grades, low roughness, high hardness, chemical heat
 treatment, tight form tolerances) with the distribution of values inside the doc set: "the tightest in the set" and
-"only one part has it" signal the technologist even when no absolute threshold is crossed.
+"only one part has it" signal the technologist even when no absolute threshold is crossed. The thresholds and scores
+are in ``criticality.yaml``.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 from collections import Counter
 from statistics import median
 
+from kdcheck.config import Criticality
 from kdcheck.schemas import CriticalParameter, Parameter, PartRecord
 
 
@@ -19,7 +21,9 @@ def _fmt(v: float | None) -> str:
     return f"{v:g}".replace(".", ",")
 
 
-def select(parts: list[PartRecord]) -> list[CriticalParameter]:
+def select(parts: list[PartRecord], rules: Criticality) -> list[CriticalParameter]:
+    fit, rough, hard = rules.tight_fit, rules.fine_roughness, rules.high_hardness
+    chem, geo, rare = rules.chemical_heat_treatment, rules.tight_geometric, rules.rare_in_kit
     result: list[CriticalParameter] = []
     all_params = [(part, p) for part in parts for p in part.parameters]
 
@@ -56,7 +60,7 @@ def select(parts: list[PartRecord]) -> list[CriticalParameter]:
         )
 
     for part, p in all_params:
-        if p.category == "dimension_tolerance" and p.it_grade and p.it_grade <= 6:
+        if p.category == "dimension_tolerance" and p.it_grade and p.it_grade <= fit.max_it_grade:
             share = sum(1 for g in grades if g > p.it_grade) / len(grades) if grades else 0
             add(
                 part,
@@ -64,10 +68,10 @@ def select(parts: list[PartRecord]) -> list[CriticalParameter]:
                 "tight_fit",
                 f"Квалитет IT{p.it_grade} ({p.qualifier}) — требует чистовой обработки (шлифование) и контроля "
                 f"калибрами; точнее {share:.0%} посадочных размеров комплекта (медиана IT{median(grades):g})",
-                0.9 if p.it_grade <= 5 else 0.75,
+                fit.strict_score if p.it_grade <= fit.strict_it_grade else fit.score,
             )
         elif p.category == "roughness" and p.value is not None and not p.general:
-            limit = 0.8 if p.qualifier == "Ra" else 6.3
+            limit = rough.max_ra if p.qualifier == "Ra" else rough.max_rz
             is_min = p.qualifier == "Ra" and ra and p.value <= min(ra)
             if p.value <= limit:
                 add(
@@ -76,18 +80,18 @@ def select(parts: list[PartRecord]) -> list[CriticalParameter]:
                     "fine_roughness",
                     f"{p.qualifier} {_fmt(p.value)} мкм — финишная обработка (шлифование, хонингование)"
                     + (f"; минимальное значение в комплекте (медиана Ra {_fmt(median(ra))})" if is_min else ""),
-                    0.85 if is_min else 0.7,
+                    rough.kit_min_score if is_min else rough.score,
                 )
-        elif p.category == "hardness" and p.unit and p.unit.startswith("HRC") and (p.value_min or 0) >= 45:
+        elif p.category == "hardness" and p.unit and p.unit.startswith("HRC") and (p.value_min or 0) >= hard.min_hrc:
             add(
                 part,
                 p,
                 "high_hardness",
                 f"Твёрдость {_fmt(p.value_min)}…{_fmt(p.value_max)} {p.unit} — закалка с последующей "
                 "обработкой твёрдых поверхностей, риск коробления",
-                0.8 if (p.value_min or 0) >= 55 else 0.65,
+                hard.strict_score if (p.value_min or 0) >= hard.strict_min_hrc else hard.score,
             )
-        elif p.category == "heat_treatment" and p.name in ("Цементация", "Нитроцементация", "Азотирование"):
+        elif p.category == "heat_treatment" and p.name in chem.treatments:
             add(
                 part,
                 p,
@@ -96,25 +100,27 @@ def select(parts: list[PartRecord]) -> list[CriticalParameter]:
                 f"{' на глубину ' + _fmt(p.value_min) + '…' + _fmt(p.value_max) + ' мм' if p.value_min else ''} — "
                 "длительная операция в специализированной печи, требует защиты незакаливаемых поверхностей "
                 f"(в комплекте у {treatments[p.name]} дет.)",
-                0.8,
+                chem.score,
             )
-        elif p.category == "geometric" and p.value is not None and p.value <= 0.02:
+        elif p.category == "geometric" and p.value is not None and p.value <= geo.max_tolerance:
             add(
                 part,
                 p,
                 "tight_geometric",
                 f"Допуск {_fmt(p.value)} мм — обработка с одной установки или на координатном оборудовании; "
                 f"жёстче {sum(1 for v in gdt if v > p.value) / len(gdt):.0%} допусков формы и расположения комплекта",
-                0.75,
+                geo.score,
             )
-        elif p.category == "coating" and coatings[(p.qualifier or p.name).lower()] == 1 and len(parts) > 2:
+        elif (
+            p.category == "coating" and coatings[(p.qualifier or p.name).lower()] == 1 and len(parts) >= rare.min_parts
+        ):
             add(
                 part,
                 p,
                 "rare_in_kit",
                 f"Покрытие «{p.qualifier or p.name}» встречается только у этой детали комплекта — "
                 "отдельный передел или кооперация, проверить наличие на площадке",
-                0.55,
+                rare.score,
             )
     result.sort(key=lambda c: -c.score)
     for i, c in enumerate(result, start=1):

@@ -95,7 +95,7 @@ def test_upload_past_the_size_limit_is_rejected(client, monkeypatch):
     before = jobs_on_disk(client)
     r = client.post("/api/jobs", files=[("files", ("a.pdf", b"%PDF" + b"0" * 2 * 1024 * 1024))])
     assert r.status_code == 413
-    assert r.json()["detail"] == "Комплект больше 1 МБ: разделите его или увеличьте ARM_MAX_UPLOAD_MB"
+    assert r.json()["detail"] == "Комплект больше 1 МБ: разделите его или увеличьте max_upload_mb в configs/api.yaml"
     assert jobs_on_disk(client) == before
 
 
@@ -104,4 +104,6 @@ def test_too_many_files_are_rejected_in_russian_past_the_old_1000_cap(client, mo
     files = [("files", (f"f{i}.txt", b"x")) for i in range(1001)]
     r = client.post("/api/jobs", files=files, data={"paths": [f"kit/f{i}.txt" for i in range(1001)]})
     assert r.status_code == 413
-    assert r.json()["detail"] == "Файлов в комплекте: 1001, допустимо не больше 1000. Увеличьте ARM_MAX_FILES"
+    assert r.json()["detail"] == (
+        "Файлов в комплекте: 1001, допустимо не больше 1000. Увеличьте max_files в configs/api.yaml"
+    )

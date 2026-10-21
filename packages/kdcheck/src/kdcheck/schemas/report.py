@@ -14,7 +14,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
@@ -58,6 +58,8 @@ class SourceRef(Model):
     text: str | None = Field(None, description="Исходный распознанный текст")
     method: ExtractionMethod | None = None
     confidence: float | None = Field(None, ge=0, le=1)
+    engine: str | None = Field(None, description="Движок, прочитавший текст: pdfium, tesseract… С версии 1.1")
+    engine_version: str | None = Field(None, description="Версия движка. С версии 1.1")
 
 
 class Extracted(Model):
@@ -240,6 +242,13 @@ class LogEntry(Model):
     document_id: str | None = None
 
 
+class EngineInfo(Model):
+    """Движок или библиотека, от которых зависит результат, и их версия. С версии 1.1."""
+
+    name: str
+    version: str | None = None
+
+
 class KitInfo(Model):
     id: str
     name: str
@@ -250,6 +259,10 @@ class KitInfo(Model):
     duration_sec: float | None = None
     pipeline_name: str | None = None
     pipeline_version: str | None = None
+    engines: list[EngineInfo] = Field([], description="Движки и библиотеки с версиями. С версии 1.1")
+    config_sha256: str | None = Field(
+        None, description="SHA-256 настроек configs/*.yaml, с которыми получен отчёт. С версии 1.1"
+    )
 
 
 class Summary(Model):

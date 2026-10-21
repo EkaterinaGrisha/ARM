@@ -12,12 +12,11 @@ from dataclasses import dataclass
 import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 from PIL import Image, ImageChops, ImageStat
+from pypdfium2.version import PDFIUM_INFO, PYPDFIUM_INFO
 
+from kdcheck.config import ScanRules, TextLayout
 from kdcheck.ingest.pdf import EncryptedPdfError
 from kdcheck.ingest.text import BBox, Line, Word, split_wide_lines
-
-GAP = 1.6  # a gap wider than this many font sizes along the text ends the line: the next cell starts
-SCAN_COVERAGE = 0.5  # a scan covers at least this share of the page
 
 
 @dataclass
@@ -57,8 +56,9 @@ class PdfiumPage:
         (ax, ay), (bx, by) = corners
         return (min(ax, bx), min(ay, by), max(ax, bx), max(ay, by))
 
-    def _chars(self) -> list[_Char]:
+    def _chars(self, layout: TextLayout) -> list[_Char]:
         textpage = self._page.get_textpage()
+        low, high = layout.vertical_angle
         chars: list[_Char] = []
         for i in range(textpage.count_chars()):
             code = pdfium_c.FPDFText_GetUnicode(textpage, i)
@@ -69,32 +69,32 @@ class PdfiumPage:
                     text=chr(code) if code else "",
                     box=self._display(*textpage.get_charbox(i, loose=True)),
                     size=float(pdfium_c.FPDFText_GetFontSize(textpage, i)),
-                    vertical=60 <= displayed <= 120,
+                    vertical=low <= displayed <= high,
                     generated=bool(pdfium_c.FPDFText_IsGenerated(textpage, i)),
                 )
             )
         return chars
 
-    def lines(self) -> list[Line]:
+    def lines(self, layout: TextLayout) -> list[Line]:
         lines: list[Line] = []
         run: list[_Char] = []
-        for ch in self._chars():
+        for ch in self._chars(layout):
             if ch.text in ("\r", "\n"):
                 _flush(run, lines)
                 continue
             if ch.generated and ch.text.isspace():
                 _flush(run, lines)  # PDFium marks the boundary of a text object, here a table cell, with a space
                 continue
-            if run and _breaks(run, ch):
+            if run and _breaks(run, ch, layout):
                 _flush(run, lines)
             run.append(ch)
         _flush(run, lines)
-        return split_wide_lines(lines)
+        return split_wide_lines(lines, layout.cell_gap)
 
     def has_images(self) -> bool:
         return any(True for _ in self._page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_IMAGE], max_depth=2))
 
-    def scan(self) -> tuple[Image.Image, BBox] | None:
+    def scan(self, rules: ScanRules) -> tuple[Image.Image, BBox] | None:
         if self._rotation:  # the pixels would need turning first
             return None
         best: tuple[float, pdfium.PdfImage, tuple[float, float, float, float]] | None = None
@@ -103,7 +103,7 @@ class PdfiumPage:
             area = (right - left) * (top - bottom)
             if best is None or area > best[0]:
                 best = (area, obj, (left, bottom, right, top))
-        if best is None or best[0] < SCAN_COVERAGE * self.width * self.height:
+        if best is None or best[0] < rules.min_coverage * self.width * self.height:
             return None
         _, obj, (left, bottom, right, top) = best
         a, b, c, d, _, _ = obj.get_matrix().get()
@@ -111,35 +111,35 @@ class PdfiumPage:
             return None
         image: Image.Image = obj.get_bitmap(render=False).to_pil().convert("L")
         sx, sy = (right - left) / image.width, (top - bottom) / image.height
-        if abs(sx - sy) > 0.02 * sx:  # stretched
+        if abs(sx - sy) > rules.max_stretch * sx:  # stretched
             return None
         box = self._display(left, bottom, right, top)
-        if not self._looks_like(image, box):
+        if not self._looks_like(image, box, rules):
             return None
         return image, box
 
-    def _looks_like(self, image: Image.Image, box: BBox) -> bool:
+    def _looks_like(self, image: Image.Image, box: BBox, rules: ScanRules) -> bool:
         """Guard against masks and transparency: the scan must look like the rendered page in a thumbnail."""
-        scale = 120 / max(self.width, self.height)
+        scale = rules.check_size / max(self.width, self.height)
         x0, y0, x1, y1 = (round(v * scale) for v in box)
         page = self.render(scale).crop((x0, y0, x1, y1))
-        if page.width < 4 or page.height < 4:
+        if page.width < rules.min_check_size or page.height < rules.min_check_size:
             return False
         thumb = image.resize(page.size)
         diff = ImageStat.Stat(ImageChops.difference(page, thumb)).mean[0]
-        return diff < 25
+        return diff < rules.max_difference
 
     def render(self, scale: float) -> Image.Image:
         image: Image.Image = self._page.render(scale=scale, grayscale=True).to_pil()
         return image
 
 
-def _breaks(run: list[_Char], ch: _Char) -> bool:
+def _breaks(run: list[_Char], ch: _Char, layout: TextLayout) -> bool:
     """Whether ``ch`` cannot continue the line in ``run``: other direction, other baseline or a cell gap."""
     last = next(c for c in reversed(run) if not c.generated)
     if ch.vertical != last.vertical:
         return True
-    size = max(last.size, ch.size, 1.0)
+    size = max(last.size, ch.size, layout.min_char_size)
     # Text may run either way along its axis: up or down when vertical, right to left on a sheet turned 180°.
     axis = 1 if last.vertical else 0
     across = abs((ch.box[1 - axis] + ch.box[3 - axis]) - (last.box[1 - axis] + last.box[3 - axis])) / 2
@@ -147,7 +147,7 @@ def _breaks(run: list[_Char], ch: _Char) -> bool:
         along = ch.box[axis] - last.box[axis + 2]
     else:
         along = last.box[axis] - ch.box[axis + 2]
-    return across > 0.5 * size or along > GAP * size
+    return across > layout.line_shift * size or along > layout.cell_gap * size
 
 
 def _flush(run: list[_Char], lines: list[Line]) -> None:
@@ -198,6 +198,9 @@ class PdfiumDocument:
 
 class PdfiumBackend:
     name = "pdfium"
+
+    def versions(self) -> dict[str, str]:
+        return {self.name: str(PDFIUM_INFO), "pypdfium2": str(PYPDFIUM_INFO)}
 
     def open(self, data: bytes) -> PdfiumDocument:
         try:

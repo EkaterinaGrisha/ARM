@@ -8,18 +8,18 @@ from pathlib import Path
 from PIL import Image
 
 from kdcheck.ingest.document import sniff_media_type
-from kdcheck.ingest.pdf import PdfBackend, default_backend
+from kdcheck.ingest.pdf import get_backend
 
 
 class RenderError(Exception):
     pass
 
 
-def render_page(path: Path, page: int, max_px: int = 2000, *, pdf_backend: PdfBackend | None = None) -> bytes:
-    """PNG of page ``page`` (from 1) with the long side at most ``max_px``."""
+def render_page(path: Path, page: int, *, max_px: int, pdf_backend: str) -> bytes:
+    """PNG of page ``page`` (from 1) with the long side at most ``max_px``; ``pdf_backend`` as in ``models.yaml``."""
     data = path.read_bytes()
     media = sniff_media_type(data[:2048])
-    backend = (pdf_backend or default_backend()) if media == "application/pdf" else None
+    backend = get_backend(pdf_backend) if media == "application/pdf" else None
     try:
         if backend is not None:
             doc = backend.open(data)

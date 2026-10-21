@@ -1,16 +1,17 @@
 """PDF access behind the ``PdfBackend`` interface (ADR-0007).
 
-The core never imports a PDF library directly. ``ARM_PDF_BACKEND`` picks the implementation: ``pdfium``
-(pypdfium2, installed with the core) or ``pymupdf`` (AGPL-3.0, only for a rollback, ``kdcheck[pymupdf]``).
+The core never imports a PDF library directly. ``pdf.backend`` in ``models.yaml`` picks the implementation, and
+``ARM_PDF_BACKEND`` overrides it: ``pdfium`` (pypdfium2, installed with the core) or ``pymupdf`` (AGPL-3.0, only for
+a rollback, ``kdcheck[pymupdf]``).
 """
 
 from __future__ import annotations
 
-import os
 from typing import Protocol
 
 from PIL import Image
 
+from kdcheck.config import ScanRules, TextLayout
 from kdcheck.ingest.text import BBox, Line
 
 
@@ -29,7 +30,7 @@ class PdfPage(Protocol):
         """Page height in points."""
         ...
 
-    def lines(self) -> list[Line]:
+    def lines(self, layout: TextLayout) -> list[Line]:
         """Text layer as lines of words, in points from the top left corner of the page as displayed.
 
         On a rotated page (``/Rotate``) the coordinates follow the rotation, like ``width``, ``height`` and ``render``.
@@ -38,7 +39,7 @@ class PdfPage(Protocol):
 
     def has_images(self) -> bool: ...
 
-    def scan(self) -> tuple[Image.Image, BBox] | None:
+    def scan(self, rules: ScanRules) -> tuple[Image.Image, BBox] | None:
         """The page's scan at its own pixels, grayscale, and its box on the displayed page.
 
         None when the page is not one upright image covering most of it: then the page is rendered instead.
@@ -63,18 +64,20 @@ class PdfDocument(Protocol):
 class PdfBackend(Protocol):
     name: str
 
+    def versions(self) -> dict[str, str]:
+        """Versions of the engine that reads the text, under ``name``, and of the libraries around it."""
+        ...
+
     def open(self, data: bytes) -> PdfDocument:
         """Open a PDF from bytes; raises EncryptedPdfError for password-protected files."""
         ...
 
 
 BACKENDS = ("pdfium", "pymupdf")
-DEFAULT_BACKEND = "pdfium"  # eval/results/pdf-backends.md
 
 
-def default_backend(name: str | None = None) -> PdfBackend:
-    """The backend named by ``name``, else by ``ARM_PDF_BACKEND``, else the default one."""
-    name = name or os.environ.get("ARM_PDF_BACKEND") or DEFAULT_BACKEND
+def get_backend(name: str) -> PdfBackend:
+    """The backend named ``name``: ``pdfium`` or ``pymupdf``."""
     if name == "pdfium":
         from kdcheck.ingest.pdfium_backend import PdfiumBackend
 

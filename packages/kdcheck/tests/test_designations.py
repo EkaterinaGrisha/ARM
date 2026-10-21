@@ -1,11 +1,8 @@
 import pytest
-from kdcheck.normalize.designations import (
-    find_designations,
-    litera_rank,
-    normalize_designation,
-    normalize_litera,
-    normalize_name,
-)
+from kdcheck.config import load_settings
+from kdcheck.normalize.designations import Designations
+
+ESKD = Designations(load_settings().dictionaries)
 
 
 @pytest.mark.parametrize(
@@ -23,21 +20,28 @@ from kdcheck.normalize.designations import (
     ],
 )
 def test_normalize_designation(text, expected):
-    assert normalize_designation(text) == expected
+    assert ESKD.normalize_designation(text) == expected
 
 
 def test_find_designations_with_assembly_code():
-    found = [d for d, _, _ in find_designations("АРМ.303411.000 СБ Сборочный чертёж; АРМ.303411.100")]
+    found = [d for d, _, _ in ESKD.find_designations("АРМ.303411.000 СБ Сборочный чертёж; АРМ.303411.100")]
     assert found == ["АРМ.303411.000 СБ", "АРМ.303411.100"]
 
 
 def test_normalize_name_ignores_case_yo_and_punctuation():
-    assert normalize_name("Колесо  зубчатое.") == normalize_name("колесо зубчатое")
-    assert normalize_name("Редуктор колёсный") == normalize_name("Редуктор колесный")
-    assert normalize_name("Водило") != normalize_name("Водило планетарное")
+    assert ESKD.normalize_name("Колесо  зубчатое.") == ESKD.normalize_name("колесо зубчатое")
+    assert ESKD.normalize_name("Редуктор колёсный") == ESKD.normalize_name("Редуктор колесный")
+    assert ESKD.normalize_name("Водило") != ESKD.normalize_name("Водило планетарное")
 
 
 def test_litera_order():
-    assert normalize_litera("01") == "О1"
-    assert litera_rank("О") < litera_rank("О1") < litera_rank("А")
-    assert litera_rank("X") is None
+    assert ESKD.normalize_litera("01") == "О1"
+    assert ESKD.litera_rank("О") < ESKD.litera_rank("О1") < ESKD.litera_rank("А")
+    assert ESKD.litera_rank("X") is None
+
+
+def test_document_codes_come_from_the_dictionary():
+    words = ESKD.words
+    assert ESKD.normalize_designation("АРМ.303411.000 ЖЖ") == "АРМ.303411.000"  # not a code: left out
+    eskd = Designations(words.model_copy(update={"document_codes": (*words.document_codes, "ЖЖ")}))
+    assert eskd.normalize_designation("АРМ.303411.000 ЖЖ") == "АРМ.303411.000 ЖЖ"

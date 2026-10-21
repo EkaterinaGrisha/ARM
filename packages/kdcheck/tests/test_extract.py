@@ -24,20 +24,20 @@ def _quantity(ex: Extracted | None) -> float | None:
 
 
 @pytest.mark.parametrize("path", DRAWINGS)
-def test_title_block_of_vector_drawing(path):
-    doc = load_document(KIT / path, KIT, use_ocr=False)
+def test_title_block_of_vector_drawing(path, settings, eskd):
+    doc = load_document(KIT / path, KIT, settings)
     page = doc.pages[0]
-    geom = title_block.locate(page)
+    geom = title_block.locate(page, settings.forms)
     assert geom is not None and geom.form == 1
-    tb = title_block.parse(doc, page, geom)
+    tb = title_block.parse(doc, page, geom, settings.forms, eskd)
     assert {f: _text(getattr(tb, f)) for f in FIELDS} == {f: TRUTH[path][f] for f in FIELDS}
 
 
 @pytest.mark.parametrize("path", SPECS)
-def test_specification_rows(path):
-    doc = load_document(KIT / path, KIT, use_ocr=False)
-    assert specification.is_specification(doc.pages[0])
-    spec = specification.parse(doc)
+def test_specification_rows(path, settings, eskd):
+    doc = load_document(KIT / path, KIT, settings)
+    assert specification.is_specification(doc.pages[0], settings.forms)
+    spec = specification.parse(doc, settings.forms, eskd)
     assert (_text(spec.designation), _text(spec.name)) == (TRUTH[path]["designation"], TRUTH[path]["name"])
     got = [(r.section, _text(r.designation), _text(r.name), _quantity(r.quantity)) for r in spec.rows]
     want = [
@@ -52,9 +52,9 @@ def test_specification_rows(path):
     assert got == want
 
 
-def test_foreign_document_has_no_title_block_or_spec_table():
-    doc = load_document(KIT / "Акт приёмки КД.pdf", KIT, use_ocr=False)
+def test_foreign_document_has_no_title_block_or_spec_table(settings):
+    doc = load_document(KIT / "Акт приёмки КД.pdf", KIT, settings)
     page = doc.pages[0]
     assert page.lines
-    assert title_block.locate(page) is None
-    assert not specification.is_specification(page)
+    assert title_block.locate(page, settings.forms) is None
+    assert not specification.is_specification(page, settings.forms)

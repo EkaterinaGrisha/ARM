@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import importlib.metadata as metadata
 import json
-import os
 import platform
 import statistics
 import subprocess
@@ -19,9 +18,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from arm_web.evaluate import evaluate
-from kdcheck.ingest.pdf import BACKENDS, default_backend
+from kdcheck.ingest.pdf import BACKENDS, get_backend
 from kdcheck.pipeline import BaselinePipeline
-from kdcheck.run import ocr_available
+from kdcheck.run import load_settings, ocr_available
 
 ROOT = Path(__file__).resolve().parents[1]
 KIT = ROOT / "samples" / "demo_kit"
@@ -37,8 +36,9 @@ KEY_METRICS = [
 
 
 def page_times(name: str) -> dict[str, float]:
-    """Median milliseconds per PDF page for the text layer and for a 200 dpi render."""
-    backend = default_backend(name)
+    """Median milliseconds per PDF page for the text layer and for a render at ``render_dpi`` of ingest.yaml."""
+    ingest = load_settings().ingest
+    backend = get_backend(name)
     text, render = [], []
     for path in sorted(KIT.rglob("*.pdf")):
         try:
@@ -48,19 +48,19 @@ def page_times(name: str) -> dict[str, float]:
         for i in range(pdf.page_count):
             page = pdf.page(i)
             t = time.perf_counter()
-            page.lines()
+            page.lines(ingest.text)
             text.append(time.perf_counter() - t)
             t = time.perf_counter()
-            page.render(200 / 72)
+            page.render(ingest.render_dpi / 72)
             render.append(time.perf_counter() - t)
     ms = {"text_ms": text, "render_ms": render}
     return {key: round(statistics.median(values) * 1000, 1) for key, values in ms.items()}
 
 
 def run(name: str, use_ocr: bool) -> dict[str, object]:
-    os.environ["ARM_PDF_BACKEND"] = name
+    settings = load_settings(use_ocr=use_ocr, pdf_backend=name)
     started = time.perf_counter()
-    report = BaselinePipeline(use_ocr=use_ocr).run(KIT, kit_id="bench", kit_name="bench")
+    report = BaselinePipeline(settings).run(KIT, kit_id="bench", kit_name="bench")
     seconds = time.perf_counter() - started
     metrics = {}
     for m in evaluate(report, TRUTH).metrics:

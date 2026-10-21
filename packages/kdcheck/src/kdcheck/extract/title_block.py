@@ -1,8 +1,8 @@
 """Title block parsing (GOST 2.104): form 1 for drawings, form 2 for specifications.
 
 The block is located by the column labels («Лит.», «Масса», «Масштаб», «Листов») and scaled by the distance
-between them. Values are then read from cells by the form geometry, so parsing works the same way for vector PDFs
-and recognized scans.
+between them. Values are then read from cells by the form geometry of ``forms.yaml``, so parsing works the same way
+for vector PDFs and recognized scans.
 """
 
 from __future__ import annotations
@@ -10,34 +10,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from kdcheck.config import ChangesTable, Forms, MarginColumns, TitleBlockTemplate
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.ingest.text import BBox, Line, lines_confidence
-from kdcheck.normalize.designations import find_designations, normalize_litera
+from kdcheck.normalize.designations import Designations
 from kdcheck.schemas import Extracted, TitleBlock
 
 Point = tuple[float, float]
-
-# Column label centres from the top left corner of the title block, mm
-FORM1_ANCHORS = {"лит": (142.5, 17.5), "масса": (158.5, 17.5), "масштаб": (176.0, 17.5)}
-FORM2_ANCHORS = {"лит": (142.5, 17.5), "лист": (157.5, 17.5), "листов": (175.0, 17.5)}
-
-FORM1_CELLS = {
-    "designation": (65, 0, 185, 15),
-    "name": (65, 15, 135, 40),
-    "material": (65, 40, 135, 55),
-    "litera": (135, 20, 150, 35),
-    "mass": (150, 20, 167, 35),
-    "scale": (167, 20, 185, 35),
-    "sheet": (135, 35, 155, 40),
-    "sheets": (155, 35, 185, 40),
-}
-FORM2_CELLS = {
-    "designation": (65, 0, 185, 15),
-    "name": (65, 15, 135, 40),
-    "litera": (135, 20, 150, 25),
-    "sheet": (150, 20, 165, 25),
-    "sheets": (165, 20, 185, 25),
-}
 
 
 @dataclass
@@ -47,12 +26,12 @@ class Geometry:
     y0: float
     s: float  # page units per mm
     anchored: bool
+    width: float  # mm
+    height: float  # mm
+    pad: float  # mm added around each cell
 
-    @property
-    def height(self) -> float:
-        return 55 if self.form == 1 else 40
-
-    def rect(self, cell: BBox, pad: float = 0.8) -> BBox:
+    def rect(self, cell: BBox, pad: float | None = None) -> BBox:
+        pad = self.pad if pad is None else pad
         x0, y0, x1, y1 = cell
         return (
             self.x0 + (x0 - pad) * self.s,
@@ -63,31 +42,30 @@ class Geometry:
 
     @property
     def bbox(self) -> BBox:
-        return self.rect((0, 0, 185, self.height), pad=0)
+        return self.rect((0, 0, self.width, self.height), pad=0)
 
 
 def _key(word: str) -> str:
     return re.sub(r"[^а-яё]", "", word.lower())
 
 
-def locate(page: Page) -> Geometry | None:
+def locate(page: Page, forms: Forms) -> Geometry | None:
     """Locate the title block on the page; None if there are no column labels."""
+    template = forms.title_block
+    labels = template.label_words
+    zone_x, zone_y = template.label_zone
     found: dict[str, list[Point]] = {}
     for line in page.lines:
         if line.vertical:
             continue
         for w in line.words:
             k = _key(w.text)
-            if (
-                k in ("лит", "масса", "масштаб", "лист", "листов")
-                and w.cx > page.width * 0.4
-                and w.cy > page.height * 0.5
-            ):
+            if k in labels and w.cx > page.width * zone_x and w.cy > page.height * zone_y:
                 found.setdefault(k, []).append((w.cx, w.cy))
-    for form, anchors in ((1, FORM1_ANCHORS), (2, FORM2_ANCHORS)):
-        hits = _best_row(found, anchors, tol=2.5 * page.mm)
-        if len(hits) >= 2 or (form == 1 and "масштаб" in hits):
-            return _geometry(page, form, anchors, hits)
+    for form, spec in template.forms.items():
+        hits = _best_row(found, spec.labels, tol=template.label_row_tolerance * page.mm)
+        if len(hits) >= spec.min_labels or (spec.sufficient_label is not None and spec.sufficient_label in hits):
+            return _geometry(page, template, form, hits)
     return None
 
 
@@ -109,30 +87,40 @@ def _best_row(found: dict[str, list[Point]], anchors: dict[str, Point], tol: flo
     return best
 
 
-def _geometry(page: Page, form: int, anchors: dict[str, Point], hits: dict[str, Point]) -> Geometry:
+def _geometry(page: Page, template: TitleBlockTemplate, form: int, hits: dict[str, Point]) -> Geometry:
+    anchors = template.forms[form].labels
     s = page.mm
     keys = sorted(hits, key=lambda k: anchors[k][0])
-    if len(keys) >= 2:
+    if len(keys) >= 2:  # two labels give the scale
         a, b = keys[0], keys[-1]
         est = (hits[b][0] - hits[a][0]) / (anchors[b][0] - anchors[a][0])
-        if 0.6 * s < est < 1.6 * s:
+        low, high = template.scale_range
+        if low * s < est < high * s:
             s = est
     k = keys[-1]
     x0 = hits[k][0] - anchors[k][0] * s
     y0 = hits[k][1] - anchors[k][1] * s
-    return Geometry(form=form, x0=x0, y0=y0, s=s, anchored=True)
+    return _placed(template, form, x0, y0, s, anchored=True)
 
 
-def default_geometry(page: Page, form: int = 1) -> Geometry:
-    s = page.mm
-    height = 55 if form == 1 else 40
-    return Geometry(form=form, x0=page.width - (5 + 185) * s, y0=page.height - (5 + height) * s, s=s, anchored=False)
+def _placed(template: TitleBlockTemplate, form: int, x0: float, y0: float, s: float, *, anchored: bool) -> Geometry:
+    height = template.forms[form].height
+    return Geometry(form, x0, y0, s, anchored, width=template.width, height=height, pad=template.cell_padding)
 
 
-def lines_in(page: Page, rect: BBox, *, vertical: bool = False) -> list[Line]:
+def default_geometry(page: Page, forms: Forms, form: int = 1) -> Geometry:
+    """The block where the form puts it: in the bottom right corner of the frame."""
+    template, margin, s = forms.title_block, forms.sheet.frame_margin, page.mm
+    x0 = page.width - (margin + template.width) * s
+    y0 = page.height - (margin + template.forms[form].height) * s
+    return _placed(template, form, x0, y0, s, anchored=False)
+
+
+def lines_in(page: Page, rect: BBox, row_height: float, *, vertical: bool = False) -> list[Line]:
+    """Lines centred in ``rect``, in reading order by rows ``row_height`` page units high."""
     x0, y0, x1, y1 = rect
     picked = [ln for ln in page.lines if ln.vertical == vertical and x0 <= ln.cx <= x1 and y0 <= ln.cy <= y1]
-    return sorted(picked, key=lambda ln: (round(ln.cy / 4), ln.bbox[0]))
+    return sorted(picked, key=lambda ln: (round(ln.cy / row_height), ln.bbox[0]))
 
 
 def _union(lines: list[Line]) -> BBox:
@@ -156,71 +144,72 @@ def _extracted(
     )
 
 
-_LABEL_WORDS = {"лит", "масса", "масштаб", "лист", "листов"}
-
-
-def _cell_text(lines: list[Line]) -> str:
-    words = [w.text for ln in lines for w in ln.words if _key(w.text) not in _LABEL_WORDS]
+def _cell_text(lines: list[Line], labels: set[str]) -> str:
+    words = [w.text for ln in lines for w in ln.words if _key(w.text) not in labels]
     return " ".join(words).strip()
 
 
-def parse(doc: LoadedDocument, page: Page, geom: Geometry) -> TitleBlock:
-    cells = FORM1_CELLS if geom.form == 1 else FORM2_CELLS
+def parse(doc: LoadedDocument, page: Page, geom: Geometry, forms: Forms, eskd: Designations) -> TitleBlock:
+    template = forms.title_block
+    row, labels = template.line_row_height, template.label_words
+    cells = template.forms[geom.form].cells.model_dump(exclude_none=True)
     tb = TitleBlock()
-    got: dict[str, list[Line]] = {name: lines_in(page, geom.rect(cell)) for name, cell in cells.items()}
+    got: dict[str, list[Line]] = {name: lines_in(page, geom.rect(cell), row) for name, cell in cells.items()}
 
     # Designation: the largest line with an ESKD designation in column 2
     des_lines = got["designation"]
-    candidates = [(ln, d) for ln in des_lines for d, _, _ in find_designations(ln.text)]
+    candidates = [(ln, d) for ln in des_lines for d, _, _ in eskd.find_designations(ln.text)]
     if not candidates:  # the designation sometimes sticks out of its cell
-        wide = lines_in(page, geom.rect((40, -6, 185, 18)))
-        candidates = [(ln, d) for ln in wide for d, _, _ in find_designations(ln.text)]
+        wide = lines_in(page, geom.rect(template.designation_overflow), row)
+        candidates = [(ln, d) for ln in wide for d, _, _ in eskd.find_designations(ln.text)]
     if candidates:
         ln, d = max(candidates, key=lambda c: c[0].size)
         tb.designation = _extracted(doc, page, [ln], d)
 
-    name_lines = [ln for ln in got["name"] if not find_designations(ln.text)]
-    name = _cell_text(name_lines)
+    name_lines = [ln for ln in got["name"] if not eskd.find_designations(ln.text)]
+    name = _cell_text(name_lines, labels)
     name = re.sub(r"\s+", " ", name)
     tb.name = _extracted(doc, page, name_lines, name or None)
 
     if "material" in got:
-        mat = _cell_text(got["material"])
+        mat = _cell_text(got["material"], labels)
         tb.material = _extracted(doc, page, got["material"], mat or None)
     if "mass" in got:
-        m = re.search(r"\d+(?:[.,]\d+)?", _cell_text(got["mass"]))
+        m = re.search(r"\d+(?:[.,]\d+)?", _cell_text(got["mass"], labels))
         tb.mass = _extracted(doc, page, got["mass"], m.group(0) if m else None)
     if "scale" in got:
-        m = re.search(r"\d+(?:[.,]\d+)?\s?:\s?\d+(?:[.,]\d+)?", _cell_text(got["scale"]))
+        m = re.search(r"\d+(?:[.,]\d+)?\s?:\s?\d+(?:[.,]\d+)?", _cell_text(got["scale"], labels))
         tb.scale = _extracted(doc, page, got["scale"], m.group(0).replace(" ", "") if m else None)
 
-    lit = _cell_text(got["litera"])
+    lit = _cell_text(got["litera"], labels)
     lit_m = re.search(r"[ПЭТОИАБ0OAБ]\s?\d?", lit.upper())
-    tb.litera = _extracted(doc, page, got["litera"], normalize_litera(lit_m.group(0)) if lit_m else None)
+    tb.litera = _extracted(doc, page, got["litera"], eskd.normalize_litera(lit_m.group(0)) if lit_m else None)
 
     for key in ("sheet", "sheets"):
-        m = re.search(r"\d+", _cell_text(got[key]))
+        m = re.search(r"\d+", _cell_text(got[key], labels))
         setattr(tb, key, _extracted(doc, page, got[key], int(m.group(0)) if m else None))
 
-    tb.revision = _revision(doc, page, geom)
-    tb.archive_number = _margin_value(doc, page, ("подл",))
-    tb.first_use = _margin_value(doc, page, ("примен", "перв"))
+    tb.revision = _revision(doc, page, geom, template.changes, row)
+    margin = template.margin
+    tb.archive_number = _margin_value(doc, page, margin.archive_label, margin, eskd)
+    tb.first_use = _margin_value(doc, page, margin.first_use_label, margin, eskd)
     return tb
 
 
-def _revision(doc: LoadedDocument, page: Page, geom: Geometry) -> Extracted | None:
+def _revision(doc: LoadedDocument, page: Page, geom: Geometry, changes: ChangesTable, row: float) -> Extracted | None:
     """Last change number: the largest number in the «Изм.» column above the header row."""
-    header_y = geom.y0 + 22.5 * geom.s
-    col = (geom.x0 - 1 * geom.s, geom.x0 + 7.5 * geom.s)
-    for ln in lines_in(page, geom.rect((0, 0, 65, 30))):
+    s = geom.s
+    header_y = geom.y0 + changes.header_y * s
+    col = (geom.x0 + changes.column[0] * s, geom.x0 + changes.column[1] * s)
+    for ln in lines_in(page, geom.rect(changes.label_area), row):
         for w in ln.words:
-            if _key(w.text) == "изм":
+            if _key(w.text) == changes.label:
                 header_y = w.cy
-                col = (w.bbox[0] - 1.5 * geom.s, w.bbox[0] + 7 * geom.s)
+                col = (w.bbox[0] + changes.label_column[0] * s, w.bbox[0] + changes.label_column[1] * s)
                 break
     best: tuple[int, Line] | None = None
     for ln in page.lines:
-        if ln.vertical or not (geom.y0 - 1 * geom.s <= ln.cy < header_y - 2 * geom.s):
+        if ln.vertical or not (geom.y0 - changes.top_tolerance * s <= ln.cy < header_y - changes.header_gap * s):
             continue
         for w in ln.words:
             if col[0] <= w.cx <= col[1] and re.fullmatch(r"\d{1,3}", w.text):
@@ -230,35 +219,36 @@ def _revision(doc: LoadedDocument, page: Page, geom: Geometry) -> Extracted | No
     if best is None:
         return None
     num, ln = best
-    row = [
-        x for x in page.lines if not x.vertical and abs(x.cy - ln.cy) < 2 * geom.s and x.bbox[0] < geom.x0 + 66 * geom.s
+    entry = [
+        x
+        for x in page.lines
+        if not x.vertical
+        and abs(x.cy - ln.cy) < changes.row_tolerance * s
+        and x.bbox[0] < geom.x0 + changes.row_right * s
     ]
-    raw = " ".join(x.text for x in sorted(row, key=lambda x: x.bbox[0]))
-    return Extracted(value=num, raw=raw, source=doc.source(page, _union(row), raw, lines_confidence(row)))
+    raw = " ".join(x.text for x in sorted(entry, key=lambda x: x.bbox[0]))
+    return Extracted(value=num, raw=raw, source=doc.source(page, _union(entry), raw, lines_confidence(entry)))
 
 
-def _margin_value(doc: LoadedDocument, page: Page, label_keys: tuple[str, ...]) -> Extracted | None:
+def _margin_value(
+    doc: LoadedDocument, page: Page, label_key: str, margin: MarginColumns, eskd: Designations
+) -> Extracted | None:
     """Value of a vertical column in the left margin (archive number, first use)."""
-    labels = [ln for ln in page.lines if ln.vertical and all(k in ln.text.lower() for k in label_keys[:1])]
+    labels = [ln for ln in page.lines if ln.vertical and label_key in ln.text.lower()]
     for label in labels:
         lx0, ly0, lx1, ly1 = label.bbox
         best = None
         for ln in page.lines:
             if not ln.vertical or ln is label:
                 continue
-            if not (lx1 - 1 <= ln.bbox[0] <= lx1 + 9 * page.mm):
+            if not (lx1 - margin.label_slack <= ln.bbox[0] <= lx1 + margin.value_reach * page.mm):
                 continue
             overlap = min(ly1, ln.bbox[3]) - max(ly0, ln.bbox[1])
-            if overlap > 0.4 * min(ly1 - ly0, ln.bbox[3] - ln.bbox[1]):
+            if overlap > margin.min_overlap * min(ly1 - ly0, ln.bbox[3] - ln.bbox[1]):
                 best = ln
                 break
         if best is not None:
-            value = find_designations(best.text)
+            value = eskd.find_designations(best.text)
             text = value[0][0] if value else best.text.strip()
             return Extracted(value=text, raw=best.text, source=doc.source(page, best.bbox, best.text, best.confidence))
     return None
-
-
-def has_form1_labels(page: Page) -> bool:
-    geom = locate(page)
-    return geom is not None and geom.form == 1

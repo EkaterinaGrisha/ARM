@@ -20,20 +20,30 @@ from pathlib import Path
 from ..models import Report
 from .base import ProgressCallback, no_progress
 
-POLL_SEC = 0.2
 PLACEHOLDER = re.compile(r"\{(input|output|kit_id|kit_name)\}")
 
 
 class ProcessPipeline:
     def __init__(
-        self, name: str, version: str, command: list[str], *, timeout_sec: int = 3600, memory_mb: int | None = None
+        self,
+        name: str,
+        version: str,
+        command: list[str],
+        *,
+        timeout_sec: int,
+        memory_mb: int | None = None,
+        poll_sec: float,
     ):
-        """``command`` items may contain ``{input}``, ``{output}``, ``{kit_id}`` and ``{kit_name}``."""
+        """``command`` items may contain ``{input}``, ``{output}``, ``{kit_id}`` and ``{kit_name}``.
+
+        Limits come from ``configs/api.yaml``: the process is checked every ``poll_sec`` seconds.
+        """
         self.name = name
         self.version = version
         self.command = command
         self.timeout_sec = timeout_sec
         self.memory_mb = memory_mb
+        self.poll_sec = poll_sec
 
     def run(self, input_dir: Path, *, kit_id: str, kit_name: str, progress: ProgressCallback = no_progress) -> Report:
         output_dir = input_dir.parent / "pipeline_output"
@@ -55,7 +65,7 @@ class ProcessPipeline:
                     if time.monotonic() - started > self.timeout_sec:
                         raise RuntimeError(f"Превышено время обработки ({self.timeout_sec} с)")
                     self._report_progress(output_dir / "progress.json", progress)
-                    time.sleep(POLL_SEC)
+                    time.sleep(self.poll_sec)
             finally:
                 if proc.poll() is None:
                     os.killpg(proc.pid, signal.SIGKILL)

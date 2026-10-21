@@ -1,7 +1,16 @@
 """Block 1 on synthetic structures: no PDFs, only the check logic."""
 
-from kdcheck.checks.completeness import DrawingRef, check
+from kdcheck.checks.completeness import DrawingRef, Result
+from kdcheck.checks.completeness import check as run_check
+from kdcheck.config import load_settings
+from kdcheck.normalize.designations import Designations
 from kdcheck.schemas import DocumentInfo, Extracted, PartRecord, Specification, SpecRow, TitleBlock
+
+ESKD = Designations(load_settings().dictionaries)
+
+
+def check(specs, drawings) -> Result:
+    return run_check(specs, drawings, ESKD)
 
 
 def row(i: int, section: str, des: str = "", name: str = "", qty: float | None = 1, note: str = "") -> SpecRow:

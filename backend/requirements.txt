@@ -47,7 +47,10 @@ python-dotenv==1.2.4
 python-multipart==0.0.32
     # via arm-web
 pyyaml==6.0.3
-    # via uvicorn
+    # via
+    #   arm-web
+    #   kdcheck
+    #   uvicorn
 starlette==1.9.0
     # via fastapi
 typing-extensions==4.16.0

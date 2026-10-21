@@ -1,0 +1,32 @@
+# Block 2: when a parameter is potentially critical for production, and its priority score from 0 to 1.
+# The rules and the reasons shown to the technologist are in kdcheck.params.critical; their thresholds are here.
+
+tight_fit:                       # a size tolerance with a fine IT grade
+  max_it_grade: 6
+  score: 0.75
+  strict_it_grade: 5             # this grade and finer score higher
+  strict_score: 0.9
+
+fine_roughness:                  # a surface with low roughness, µm
+  max_ra: 0.8
+  max_rz: 6.3
+  score: 0.7
+  kit_min_score: 0.85            # the lowest Ra of the kit scores higher
+
+high_hardness:                   # HRC
+  min_hrc: 45
+  score: 0.65
+  strict_min_hrc: 55
+  strict_score: 0.8
+
+chemical_heat_treatment:         # names from heat_treatments in dictionaries.yaml
+  treatments: [Цементация, Нитроцементация, Азотирование]
+  score: 0.8
+
+tight_geometric:                 # a form or position tolerance, mm
+  max_tolerance: 0.02
+  score: 0.75
+
+rare_in_kit:                     # a coating that only one part of the kit has
+  min_parts: 3                   # checked in kits of at least this many parts
+  score: 0.55

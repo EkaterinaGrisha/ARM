@@ -1,0 +1,11 @@
+# Engines that read documents (ADR-0007, ADR-0012). The report lists the engines and versions that produced it.
+
+pdf:
+  backend: pdfium                # pdfium; pymupdf (AGPL-3.0) only for a rollback. ARM_PDF_BACKEND overrides
+
+ocr:
+  engine: tesseract
+  enabled: true                  # --no-ocr and ARM_OCR=0 turn it off
+  languages: rus+eng
+  page_segmentation: 11          # Tesseract --psm: sparse text in any order
+  min_word_confidence: 30        # 0–100: words recognized with less are dropped

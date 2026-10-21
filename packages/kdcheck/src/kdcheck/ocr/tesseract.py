@@ -1,54 +1,73 @@
-"""Optional scan recognition with Tesseract: ``kdcheck[ocr]`` plus ``tesseract-ocr`` with the ``rus`` language.
+"""Optional scan recognition with Tesseract: ``kdcheck[ocr]`` plus ``tesseract-ocr`` with the languages of ``ocr`` in
+``models.yaml``.
 
 Without them scans are processed without text: the designation comes from the file name and the document gets
-a warning. ``ARM_OCR=0`` turns OCR off.
+a warning. ``ocr.enabled: false``, ``kdcheck run --no-ocr`` or ``ARM_OCR=0`` turn OCR off.
 """
 
 from __future__ import annotations
 
 import functools
 import logging
-import os
 
 from PIL import Image
 
+from kdcheck.config import OcrEngine, TextLayout
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 
 log = logging.getLogger(__name__)
 
 
 @functools.cache
-def available() -> bool:
-    if os.environ.get("ARM_OCR", "1") == "0":
-        return False
+def available(languages: str) -> bool:
+    """Whether Tesseract is installed with every language of ``languages``, such as ``rus+eng``."""
     try:
         import pytesseract
 
-        langs = set(pytesseract.get_languages(config=""))
+        installed = set(pytesseract.get_languages(config=""))
     except Exception:
         return False
-    if "rus" not in langs:
-        log.warning("Tesseract найден, но нет языка rus — OCR отключён")
+    missing = [lang for lang in languages.split("+") if lang not in installed]
+    if missing:
+        log.warning("Tesseract найден, но нет языков %s — OCR отключён", ", ".join(missing))
         return False
     return True
 
 
-def recognize(image: Image.Image, scale: float = 1.0, origin: tuple[float, float] = (0.0, 0.0)) -> list[Line]:
+@functools.cache
+def version() -> str:
+    import pytesseract
+
+    return str(pytesseract.get_tesseract_version())
+
+
+def recognize(
+    image: Image.Image,
+    engine: OcrEngine,
+    layout: TextLayout,
+    scale: float = 1.0,
+    origin: tuple[float, float] = (0.0, 0.0),
+) -> list[Line]:
     """Recognize an image placed on a page: page = ``origin`` + pixels × ``scale``."""
     import pytesseract
 
     gray = image.convert("L")
-    data = pytesseract.image_to_data(gray, lang="rus+eng", config="--psm 11", output_type=pytesseract.Output.DICT)
+    data = pytesseract.image_to_data(
+        gray,
+        lang=engine.languages,
+        config=f"--psm {engine.page_segmentation}",
+        output_type=pytesseract.Output.DICT,
+    )
     grouped: dict[tuple[int, int, int], list[tuple[Word, float]]] = {}
     for i, text in enumerate(data["text"]):
         text = (text or "").strip()
         conf = float(data["conf"][i])
-        if not text or conf < 30:
+        if not text or conf < engine.min_word_confidence:
             continue
         x, y, w, h = (data[k][i] * scale for k in ("left", "top", "width", "height"))
         x, y = x + origin[0], y + origin[1]
         key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
-        grouped.setdefault(key, []).append((Word(text, (x, y, x + w, y + h)), conf / 100))
+        grouped.setdefault(key, []).append((Word(text, (x, y, x + w, y + h)), conf / 100))  # Tesseract gives 0–100
     lines: list[Line] = []
     for items in grouped.values():
         words = sorted((w for w, _ in items), key=lambda w: w.bbox[0])
@@ -68,4 +87,4 @@ def recognize(image: Image.Image, scale: float = 1.0, origin: tuple[float, float
                 confidence=confidence,
             )
         )
-    return split_wide_lines(lines)
+    return split_wide_lines(lines, layout.cell_gap)

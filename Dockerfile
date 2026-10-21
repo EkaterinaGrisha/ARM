@@ -17,9 +17,12 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY packages/kdcheck /app/packages/kdcheck
 RUN pip install --no-cache-dir --no-deps /app/packages/kdcheck
+# Thresholds, templates, dictionaries and limits (ADR-0012); mount another folder over it to change them
+COPY configs/ /app/configs/
 COPY backend/ ./
 COPY --from=frontend /app/frontend/dist /app/frontend/dist
 ENV ARM_DATA_DIR=/data \
+    ARM_CONFIG_DIR=/app/configs \
     ARM_FRONTEND_DIST=/app/frontend/dist \
     PYTHONUNBUFFERED=1
 VOLUME /data

@@ -1,0 +1,107 @@
+# GOST form templates: where fields sit on a sheet and how far a real sheet may deviate from the template.
+# Lengths are millimetres unless a comment says otherwise; shares are fractions of the sheet width or height.
+
+sheet:
+  formats:                       # paper formats, GOST 2.301: short and long side
+    A4: [210, 297]
+    A3: [297, 420]
+    A2: [420, 594]
+    A1: [594, 841]
+    A0: [841, 1189]
+    A4x3: [297, 630]
+    A4x4: [297, 841]
+  frame_margin: 5                # the frame from the right and bottom edges of the sheet
+  binding_margin: 21             # text closer to the left edge lies in the 20 mm binding field
+  general_roughness_zone: [30, 90]  # the general roughness sign: within 30 mm of the top, 90 mm of the right edge
+
+title_block:                     # GOST 2.104
+  width: 185
+  forms:
+    1:                           # drawings
+      height: 55
+      labels:                    # column label centres from the top left corner of the block
+        лит: [142.5, 17.5]
+        масса: [158.5, 17.5]
+        масштаб: [176.0, 17.5]
+      min_labels: 2              # labels found on one row that place the block
+      sufficient_label: масштаб  # this label alone is enough
+      cells:                     # x0, y0, x1, y1 from the top left corner of the block
+        designation: [65, 0, 185, 15]
+        name: [65, 15, 135, 40]
+        material: [65, 40, 135, 55]
+        litera: [135, 20, 150, 35]
+        mass: [150, 20, 167, 35]
+        scale: [167, 20, 185, 35]
+        sheet: [135, 35, 155, 40]
+        sheets: [155, 35, 185, 40]
+    2:                           # the first sheet of a specification
+      height: 40
+      labels:
+        лит: [142.5, 17.5]
+        лист: [157.5, 17.5]
+        листов: [175.0, 17.5]
+      min_labels: 2
+      cells:
+        designation: [65, 0, 185, 15]
+        name: [65, 15, 135, 40]
+        litera: [135, 20, 150, 25]
+        sheet: [150, 20, 165, 25]
+        sheets: [165, 20, 185, 25]
+  label_zone: [0.4, 0.5]         # labels lie right of this share of the width and below this share of the height
+  label_row_tolerance: 2.5       # labels of one row differ in height by less than this
+  scale_range: [0.6, 1.6]        # a scale measured between labels is used within this range of the nominal one
+  cell_padding: 0.8              # added around each cell
+  line_row_height: 4             # page units (pt or px): lines of a cell are read in rows of this height
+  edge_tolerance: 1              # text up to this far before the block's top left corner still belongs to the block
+  designation_overflow: [40, -6, 185, 18]  # a wider area: the designation sometimes sticks out of its cell
+  changes:                       # the «Изм.» column of the change record table
+    label: изм
+    label_area: [0, 0, 65, 30]   # where the label is looked for
+    header_y: 22.5               # the header row when the label is not found
+    column: [-1, 7.5]            # the column from the left edge of the block when the label is not found
+    label_column: [-1.5, 7]      # the column from the left edge of the label
+    top_tolerance: 1             # entries may start this far above the block
+    header_gap: 2                # entries end this far above the header row
+    row_tolerance: 2             # words of one entry differ in height by less than this
+    row_right: 66                # an entry starts left of this, from the left edge of the block
+  margin:                        # vertical columns in the left margin: archive number and first use
+    archive_label: подл          # «Инв. № подл.»
+    first_use_label: примен      # «Перв. примен.»
+    value_reach: 9               # a value starts within this distance right of its label
+    label_slack: 1               # page units: and no further left of the label's right edge than this
+    min_overlap: 0.4             # the label and the value share this part of the shorter one along the column
+
+specification:                   # GOST 2.106, form 1
+  columns:                       # left and right edges from the left edge of the table
+    format: [0, 6]
+    zone: [6, 12]
+    position: [12, 20]
+    designation: [20, 90]
+    name: [90, 153]
+    quantity: [153, 163]
+    note: [163, 185]
+  header_words:                  # beginnings of the column headers that place the table
+    designation: обозначен
+    name: наименован
+  header_pages: 2                # the header is looked for on this many first pages with text
+  header_zone: 0.3               # the header lies above this share of the sheet height
+  header_row_tolerance: 4        # the two headers differ in height by less than this
+  scale_range: [0.6, 1.6]        # a scale measured between the headers is used within this range of the nominal one
+  header_gap: 2                  # rows start this far below the headers
+  title_block_gap: 0.5           # rows end this far above a form 2 title block
+  bottom_margin: 21              # without one rows end this far above the bottom edge: form 2a, 15 mm high
+  continuation_top: 0.06         # on a sheet without headers rows start below this share of the height
+  continuation_bottom: 22        # and end this far above the bottom edge
+  word_range: [-2, 187]          # words between these distances from the left edge of the table belong to it
+  row_tolerance: 2.2             # words of one row differ in height by less than this
+  designation_zone: 0.8          # without a title block the designation is looked for below this share of the height
+
+tech_requirements:               # the text block right above the title block; distances from its top left corner
+  heading: технические требования
+  left: -10
+  right: 186
+  left_reach: 60                 # lines may start this far left of `left`
+  bottom_tolerance: 1            # lines end above the top edge of the block plus this
+  first_gap: 25                  # the first line lies at most this far above the block
+  line_gap: 2.5                  # the next lines: at most this many line heights apart
+  min_line_gap: 4                # but this far apart is always allowed
