@@ -1,11 +1,12 @@
-"""Хранилище заданий на диске и фоновая обработка.
+"""Job storage on disk and background processing.
 
-Структура каталога задания::
+Job folder layout::
 
-    <data>/jobs/<id>/job.json      состояние задания
-    <data>/jobs/<id>/input/...     загруженный комплект (структура папок сохраняется)
-    <data>/jobs/<id>/report.json   отчёт
-    <data>/jobs/<id>/cache/        отрисованные страницы
+    <data>/jobs/<id>/job.json           job state
+    <data>/jobs/<id>/input/...          the uploaded doc set, folder structure kept
+    <data>/jobs/<id>/pipeline_output/   the job process output: report, progress, log
+    <data>/jobs/<id>/report.json        the report
+    <data>/jobs/<id>/cache/             rendered pages
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from .pipeline import Pipeline
 log = logging.getLogger(__name__)
 
 _JOB_ID = re.compile(r"^[a-f0-9]{12}$")
+_CHUNK = 1024 * 1024
 
 
 def now() -> str:
@@ -35,9 +37,9 @@ def now() -> str:
 
 
 def safe_relative_path(name: str) -> Path:
-    """Относительный путь из имени загруженного файла без выхода за пределы каталога."""
+    """Relative path from an uploaded file name that cannot leave the job folder."""
     parts = [p for p in re.split(r"[\\/]+", name) if p not in ("", ".", "..")]
-    if parts and re.fullmatch(r"[A-Za-z]:", parts[0]):  # диск Windows
+    if parts and re.fullmatch(r"[A-Za-z]:", parts[0]):  # a Windows drive
         parts = parts[1:]
     parts = [re.sub(r'[\x00-\x1f<>:"|?*]', "_", p).strip() or "_" for p in parts]
     return Path(*parts) if parts else Path("file")
@@ -45,6 +47,21 @@ def safe_relative_path(name: str) -> Path:
 
 class JobNotFound(KeyError):
     pass
+
+
+class UploadTooLarge(ValueError):
+    pass
+
+
+def _copy(stream: BinaryIO, out: BinaryIO, limit: int | None) -> int:
+    """Copy ``stream`` into ``out``; raise UploadTooLarge past ``limit`` bytes. Returns the bytes copied."""
+    copied = 0
+    while chunk := stream.read(_CHUNK):
+        copied += len(chunk)
+        if limit is not None and copied > limit:
+            raise UploadTooLarge
+        out.write(chunk)
+    return copied
 
 
 class JobStore:
@@ -108,23 +125,27 @@ class JobStore:
         raise JobNotFound(doc_id)
 
     # ------------------------------------------------------------------ lifecycle
-    def create(self, name: str, files: Sequence[tuple[str, BinaryIO]]) -> Job:
+    def create(self, name: str, files: Sequence[tuple[str, BinaryIO]], *, max_bytes: int | None = None) -> Job:
+        """Store the upload and queue the job; past ``max_bytes`` in total nothing is kept."""
         job_id = uuid.uuid4().hex[:12]
         job_dir = self.root / job_id
         input_dir = job_dir / "input"
         input_dir.mkdir(parents=True)
         total = 0
         used: set[Path] = set()
-        for rel_name, stream in files:
-            rel = safe_relative_path(rel_name)
-            while rel in used:  # одинаковые имена — не перезаписываем
-                rel = rel.with_name(f"{rel.stem}_{len(used)}{rel.suffix}")
-            used.add(rel)
-            target = input_dir / rel
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with target.open("wb") as out:
-                shutil.copyfileobj(stream, out, length=1024 * 1024)
-            total += target.stat().st_size
+        try:
+            for rel_name, stream in files:
+                rel = safe_relative_path(rel_name)
+                while rel in used:  # equal names: never overwrite
+                    rel = rel.with_name(f"{rel.stem}_{len(used)}{rel.suffix}")
+                used.add(rel)
+                target = input_dir / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with target.open("wb") as out:
+                    total += _copy(stream, out, None if max_bytes is None else max_bytes - total)
+        except UploadTooLarge:
+            shutil.rmtree(job_dir, ignore_errors=True)
+            raise
         job = Job(
             id=job_id,
             name=name.strip() or f"Комплект от {datetime.now():%d.%m.%Y %H:%M}",
@@ -185,7 +206,7 @@ class JobStore:
                 summary=report.summary,
                 root_designation=report.kit.root_designation,
             )
-        except Exception as exc:  # задание падает целиком только при ошибке самого конвейера
+        except Exception as exc:  # a job fails as a whole only when the pipeline itself fails
             log.error("Задание %s завершилось ошибкой:\n%s", job_id, traceback.format_exc())
             try:
                 self._update(
@@ -195,7 +216,7 @@ class JobStore:
                 pass
 
     def _recover(self) -> None:
-        """После перезапуска сервера: прерванные задания помечаются ошибкой, ожидавшие — ставятся в очередь."""
+        """After a server restart: interrupted jobs are marked failed, waiting ones are queued again."""
         for job in self.list():
             if job.status == "running":
                 job.status, job.error, job.stage = "failed", "Обработка прервана перезапуском сервера", "Ошибка"

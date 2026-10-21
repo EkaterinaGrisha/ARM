@@ -16,7 +16,7 @@ from pathlib import Path
 
 from kdcheck.checks.completeness import DrawingRef, check
 from kdcheck.extract import specification, tech_requirements, title_block
-from kdcheck.ingest.document import LoadedDocument, Page, is_unreadable, load_document
+from kdcheck.ingest.document import MAX_PAGES, LoadedDocument, Page, is_unreadable, load_document
 from kdcheck.normalize.designations import doc_code, find_designations, normalize_designation
 from kdcheck.params import critical, parameters
 from kdcheck.schemas import (
@@ -50,8 +50,9 @@ class BaselinePipeline:
     name = "baseline"
     version = "0.1.0"
 
-    def __init__(self, use_ocr: bool = True) -> None:
+    def __init__(self, use_ocr: bool = True, max_pages: int | None = MAX_PAGES) -> None:
         self.use_ocr = use_ocr
+        self.max_pages = max_pages
 
     # ------------------------------------------------------------------ run
     def run(self, input_dir: Path, *, kit_id: str, kit_name: str, progress: ProgressCallback = no_progress) -> Report:
@@ -62,7 +63,7 @@ class BaselinePipeline:
         docs: list[LoadedDocument] = []
         for i, path in enumerate(files):
             progress("Чтение файлов", 0.6 * i / max(1, len(files)), path.relative_to(input_dir).as_posix())
-            docs.append(load_document(path, input_dir, use_ocr=self.use_ocr))
+            docs.append(load_document(path, input_dir, use_ocr=self.use_ocr, max_pages=self.max_pages))
 
         progress("Разбор документов", 0.6, None)
         specs: list[tuple[LoadedDocument, Specification]] = []

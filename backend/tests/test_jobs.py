@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 import pytest
-from arm_web.jobs import JobStore
+from arm_web.jobs import JobStore, UploadTooLarge
 from arm_web.pipeline import get_pipeline
 from arm_web.pipeline.process import ProcessPipeline
 from kdcheck.run import BaselinePipeline
@@ -105,12 +105,21 @@ def test_progress_file_reaches_the_job(tmp_path):
     assert wait(store, job.id).status == "done"
 
 
+def test_upload_past_the_size_limit_leaves_nothing(tmp_path):
+    store = store_with(tmp_path)
+    (tmp_path / "big.pdf").write_bytes(b"%PDF-1.7\n" + b"0" * 4096)
+    with (tmp_path / "big.pdf").open("rb") as f, pytest.raises(UploadTooLarge):
+        store.create("big", [("a.pdf", f)], max_bytes=1024)
+    assert list(store.root.iterdir()) == []
+
+
 def test_default_pipeline_is_the_core_in_a_process(monkeypatch):
     monkeypatch.delenv("ARM_PIPELINE_CMD", raising=False)
     monkeypatch.delenv("ARM_INPROCESS", raising=False)
     default = get_pipeline()
     assert isinstance(default, ProcessPipeline) and default.name == "baseline"
     assert default.command[1:4] == ["-m", "kdcheck", "run"] and "--no-ocr" in default.command
+    assert default.command[default.command.index("--max-pages") + 1] == "500"
     monkeypatch.setenv("ARM_INPROCESS", "1")
     assert isinstance(get_pipeline(), BaselinePipeline)
 

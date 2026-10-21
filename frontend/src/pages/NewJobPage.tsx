@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import { Badge } from "../components/common";
 import { useServer } from "../components/Layout";
 import { formatBytes, formatPercent, plural } from "../lib/format";
+import { uploadLimitError } from "../lib/upload";
 
 interface PickedFile {
   file: File;
@@ -53,7 +54,7 @@ function commonFolder(files: PickedFile[]): string | null {
 
 export function NewJobPage() {
   const navigate = useNavigate();
-  const { offline } = useServer();
+  const { offline, health } = useServer();
   const [name, setName] = useState("");
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [over, setOver] = useState(false);
@@ -88,6 +89,11 @@ export function NewJobPage() {
 
   const submit = async () => {
     if (!files.length) return;
+    const limit = uploadLimitError(files.length, stats.bytes, health);
+    if (limit) {
+      setError(limit);
+      return;
+    }
     setUpload(0);
     setError(null);
     try {

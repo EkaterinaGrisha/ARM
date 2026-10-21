@@ -66,4 +66,7 @@ export interface Health {
   pipeline: string;
   pipeline_version: string;
   ocr: boolean;
+  /** Upload limits; older servers do not report them. */
+  max_upload_mb?: number;
+  max_files?: number;
 }

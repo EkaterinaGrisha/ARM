@@ -12,11 +12,12 @@ from PIL import Image
 pymupdf = pytest.importorskip("pymupdf")
 
 
-def _pdf(path: Path, text: str | None = "АРМ.303411.001", password: str | None = None) -> Path:
+def _pdf(path: Path, text: str | None = "АРМ.303411.001", password: str | None = None, pages: int = 1) -> Path:
     doc = pymupdf.open()
-    page = doc.new_page(width=595, height=842)
-    if text:
-        page.insert_text((72, 72), text, fontname="helv")
+    for _ in range(pages):
+        page = doc.new_page(width=595, height=842)
+        if text:
+            page.insert_text((72, 72), text, fontname="helv")
     options = {"encryption": pymupdf.PDF_ENCRYPT_AES_256, "user_pw": password, "owner_pw": password} if password else {}
     doc.save(path, **options)
     return path
@@ -34,6 +35,16 @@ def test_encrypted_pdf_is_damaged_with_reason(tmp_path):
     doc = load_document(_pdf(tmp_path / "secret.pdf", password="x"), tmp_path, use_ocr=False)
     assert doc.info.status == "damaged"
     assert doc.info.problem == "Файл повреждён или не открывается: документ защищён паролем"
+
+
+def test_pages_past_the_limit_are_skipped_with_a_note(tmp_path):
+    path = _pdf(tmp_path / "long.pdf", text="ABC", pages=3)
+    doc = load_document(path, tmp_path, use_ocr=False, max_pages=2)
+    assert doc.info.status == "ok"
+    assert [p.number for p in doc.info.pages] == [1, 2]
+    assert doc.info.notes == ["Прочитано страниц: 2 из 3, остальные пропущены по лимиту на файл"]
+    full = load_document(path, tmp_path, use_ocr=False, max_pages=3)
+    assert len(full.info.pages) == 3 and full.info.notes == []
 
 
 def test_media_type_by_signature_not_extension():

@@ -38,6 +38,7 @@ def wait_done(client, job_id, timeout=60):
 def test_health(client):
     body = client.get("/api/health").json()
     assert body["status"] == "ok" and body["pipeline"] == "baseline"
+    assert body["max_upload_mb"] == 2048 and body["max_files"] == 2000
 
 
 def test_full_cycle(client, demo_kit):
@@ -81,4 +82,26 @@ def test_full_cycle(client, demo_kit):
 def test_unknown_and_invalid_ids(client):
     assert client.get("/api/jobs/000000000000").status_code == 404
     assert client.get("/api/jobs/..%2F..%2Fetc").status_code == 404
-    assert client.post("/api/jobs", data={"name": "x"}).status_code == 422
+    r = client.post("/api/jobs", data={"name": "x"})
+    assert r.status_code == 422 and r.json()["detail"] == "Не выбрано ни одного файла"
+
+
+def jobs_on_disk(client) -> int:
+    return len(client.get("/api/jobs").json())
+
+
+def test_upload_past_the_size_limit_is_rejected(client, monkeypatch):
+    monkeypatch.setenv("ARM_MAX_UPLOAD_MB", "1")
+    before = jobs_on_disk(client)
+    r = client.post("/api/jobs", files=[("files", ("a.pdf", b"%PDF" + b"0" * 2 * 1024 * 1024))])
+    assert r.status_code == 413
+    assert r.json()["detail"] == "Комплект больше 1 МБ: разделите его или увеличьте ARM_MAX_UPLOAD_MB"
+    assert jobs_on_disk(client) == before
+
+
+def test_too_many_files_are_rejected_in_russian_past_the_old_1000_cap(client, monkeypatch):
+    monkeypatch.setenv("ARM_MAX_FILES", "1000")
+    files = [("files", (f"f{i}.txt", b"x")) for i in range(1001)]
+    r = client.post("/api/jobs", files=files, data={"paths": [f"kit/f{i}.txt" for i in range(1001)]})
+    assert r.status_code == 413
+    assert r.json()["detail"] == "Файлов в комплекте: 1001, допустимо не больше 1000. Увеличьте ARM_MAX_FILES"
