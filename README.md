@@ -31,6 +31,7 @@
 # 1. сервер
 python -m venv .venv && . .venv/bin/activate
 pip install -r backend/requirements.txt
+pip install --no-deps ./packages/kdcheck
 
 # 2. фронтенд
 cd frontend && npm ci && npm run build && cd ..
@@ -119,7 +120,7 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
 | `ARM_MAX_FILES` | файлов в одной загрузке (по умолчанию 2000) |
 | `ARM_MAX_PAGES` | страниц на файл (по умолчанию 500, 0 — все); остальные пропускаются с пометкой в документе |
 | `ARM_OCR=0` | не распознавать сканы |
-| `ARM_PDF_BACKEND` | движок PDF: `pdfium` (по умолчанию) или `pymupdf` (откат, AGPL) |
+| `ARM_PDF_BACKEND` | движок PDF: `pdfium` (по умолчанию) или `pymupdf` — откат под AGPL, ставится отдельно: `pip install "pymupdf>=1.24"` |
 | `ARM_WORKERS` | число комплектов, обрабатываемых параллельно |
 | `ARM_FRONTEND_DIST` | путь к собранному фронтенду |
 
