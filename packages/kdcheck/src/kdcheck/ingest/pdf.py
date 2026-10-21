@@ -1,7 +1,7 @@
 """PDF access behind the ``PdfBackend`` interface (ADR-0007).
 
 The core never imports a PDF library directly. ``ARM_PDF_BACKEND`` picks the implementation: ``pdfium``
-(pypdfium2, ``kdcheck[pdfium]``) or ``pymupdf`` (AGPL-3.0, ``kdcheck[pymupdf]``, kept for rollback).
+(pypdfium2, installed with the core) or ``pymupdf`` (AGPL-3.0, only for a rollback, ``kdcheck[pymupdf]``).
 """
 
 from __future__ import annotations
@@ -75,15 +75,14 @@ DEFAULT_BACKEND = "pdfium"  # eval/results/pdf-backends.md
 def default_backend(name: str | None = None) -> PdfBackend:
     """The backend named by ``name``, else by ``ARM_PDF_BACKEND``, else the default one."""
     name = name or os.environ.get("ARM_PDF_BACKEND") or DEFAULT_BACKEND
-    try:
-        if name == "pdfium":
-            from kdcheck.ingest.pdfium_backend import PdfiumBackend
+    if name == "pdfium":
+        from kdcheck.ingest.pdfium_backend import PdfiumBackend
 
-            return PdfiumBackend()
-        if name == "pymupdf":
+        return PdfiumBackend()
+    if name == "pymupdf":
+        try:
             from kdcheck.ingest.pymupdf_backend import PyMuPdfBackend
-
-            return PyMuPdfBackend()
-    except ImportError as exc:
-        raise RuntimeError(f"PDF backend {name} is not installed: install kdcheck[{name}]") from exc
+        except ImportError as exc:
+            raise RuntimeError("PDF backend pymupdf is not installed: install kdcheck[pymupdf]") from exc
+        return PyMuPdfBackend()
     raise ValueError(f"Unknown PDF backend {name!r}: expected one of {', '.join(BACKENDS)}")

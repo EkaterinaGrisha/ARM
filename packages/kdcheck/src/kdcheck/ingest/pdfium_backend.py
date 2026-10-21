@@ -1,4 +1,4 @@
-"""PdfBackend on pypdfium2 (BSD-3-Clause or Apache-2.0; PDFium itself is BSD-3-Clause), ``kdcheck[pdfium]``.
+"""PdfBackend on pypdfium2 (BSD-3-Clause or Apache-2.0; PDFium itself is BSD-3-Clause), the default one.
 
 PDFium reports characters in unrotated PDF user space. They are moved to the page as displayed, the same space as
 the page size and the rendered image, so title block geometry and source highlights work on rotated sheets too.

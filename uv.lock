@@ -64,7 +64,7 @@ version = "0.1.0"
 source = { editable = "backend" }
 dependencies = [
     { name = "fastapi" },
-    { name = "kdcheck", extra = ["pdfium", "pymupdf"] },
+    { name = "kdcheck" },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "python-multipart" },
@@ -79,8 +79,8 @@ ocr = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.110" },
+    { name = "kdcheck", editable = "packages/kdcheck" },
     { name = "kdcheck", extras = ["ocr"], marker = "extra == 'ocr'", editable = "packages/kdcheck" },
-    { name = "kdcheck", extras = ["pdfium", "pymupdf"], editable = "packages/kdcheck" },
     { name = "pillow", specifier = ">=10.0" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "python-multipart", specifier = ">=0.0.9" },
@@ -678,14 +678,12 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pillow" },
     { name = "pydantic" },
+    { name = "pypdfium2" },
 ]
 
 [package.optional-dependencies]
 ocr = [
     { name = "pytesseract" },
-]
-pdfium = [
-    { name = "pypdfium2" },
 ]
 pymupdf = [
     { name = "pymupdf" },
@@ -697,10 +695,10 @@ requires-dist = [
     { name = "pillow", specifier = ">=10.0" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "pymupdf", marker = "extra == 'pymupdf'", specifier = ">=1.24" },
-    { name = "pypdfium2", marker = "extra == 'pdfium'", specifier = ">=5.14" },
+    { name = "pypdfium2", specifier = ">=5.14" },
     { name = "pytesseract", marker = "extra == 'ocr'", specifier = ">=0.3.10" },
 ]
-provides-extras = ["pymupdf", "ocr", "pdfium"]
+provides-extras = ["pymupdf", "ocr"]
 
 [[package]]
 name = "librt"
