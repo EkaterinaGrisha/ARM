@@ -1,9 +1,7 @@
 """Settings from configs/*.yaml (ADR-0012): checked on load, hashed into the report, no thresholds left in code."""
 
 import ast
-import io
 import shutil
-import tokenize
 from pathlib import Path
 
 import pytest
@@ -16,7 +14,7 @@ CORE = ROOT / "packages" / "kdcheck" / "src" / "kdcheck"
 # Numbers that stay in code: facts of file formats, units, PDF and Tesseract, rounding and display.
 # Any other number tunes the results and belongs in configs/*.yaml.
 KEPT: dict[str, dict[float, str]] = {
-    "cli.py": {12: "length of a random kit id"},
+    "cli.py": {12: "length of a random kit id", 70: "width of the progress line in the terminal"},
     "config.py": {4: "depth of this file below the repository root", 100: "top of the Tesseract confidence scale"},
     "ingest/document.py": {
         72: "points per inch",
@@ -52,18 +50,24 @@ NOT_CHECKED = ("report/exports.py", "schemas/")  # the look of the exports; boun
 
 
 def numbers(source: str) -> list[tuple[int, float]]:
-    """Numeric literals of a module other than 0–3: (line, value)."""
-    found = []
-    for tok in tokenize.generate_tokens(io.StringIO(source).readline):
-        if tok.type == tokenize.NUMBER:
-            value = ast.literal_eval(tok.string)
-            if value not in SMALL:
-                found.append((tok.start[0], value))
-    return found
+    """Numeric literals of a module other than 0–3, those inside f-strings too: (line, value).
+
+    The syntax tree sees into f-strings on every Python version; tokens do only from 3.12 (PEP 701).
+    """
+    found = [
+        (node.lineno, node.col_offset, node.value)
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, int | float)
+        and not isinstance(node.value, bool)
+        and node.value not in SMALL
+    ]
+    return [(line, value) for line, _, value in sorted(found)]
 
 
 def test_finder_sees_a_threshold():
     assert numbers("if quality['contrast'] < 18 or x > 0.5 * y:\n    return items[2]\n") == [(1, 18), (1, 0.5)]
+    assert numbers("label = f'{text[:70]:<70} {ratio:.0%}'\n") == [(1, 70)]  # a format spec is text
 
 
 def test_no_numeric_thresholds_in_code():
