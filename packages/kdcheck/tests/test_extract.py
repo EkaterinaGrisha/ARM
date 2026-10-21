@@ -8,8 +8,6 @@ from kdcheck.extract import specification, title_block
 from kdcheck.ingest.document import load_document
 from kdcheck.schemas import Extracted
 
-pytest.importorskip("pymupdf")
-
 KIT = Path(__file__).resolve().parents[3] / "samples" / "demo_kit"
 TRUTH = json.loads((KIT.parent / "demo_kit_truth.json").read_text(encoding="utf-8"))["documents"]
 DRAWINGS = sorted(p for p, t in TRUTH.items() if t["kind"] != "specification" and t.get("origin") == "vector")

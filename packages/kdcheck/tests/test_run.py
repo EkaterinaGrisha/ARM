@@ -6,12 +6,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 from kdcheck.cli import main
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.schemas import Report
-
-pytest.importorskip("pymupdf")
 
 KIT = Path(__file__).resolve().parents[3] / "samples" / "demo_kit"
 
