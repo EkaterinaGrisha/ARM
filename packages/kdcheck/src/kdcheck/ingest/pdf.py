@@ -69,7 +69,7 @@ class PdfBackend(Protocol):
 
 
 BACKENDS = ("pdfium", "pymupdf")
-DEFAULT_BACKEND = "pymupdf"
+DEFAULT_BACKEND = "pdfium"  # eval/results/pdf-backends.md
 
 
 def default_backend(name: str | None = None) -> PdfBackend:

@@ -61,7 +61,7 @@ version = "0.1.0"
 source = { editable = "backend" }
 dependencies = [
     { name = "fastapi" },
-    { name = "kdcheck", extra = ["pymupdf"] },
+    { name = "kdcheck", extra = ["pdfium", "pymupdf"] },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "pymupdf" },
@@ -78,7 +78,7 @@ ocr = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.110" },
     { name = "kdcheck", extras = ["ocr"], marker = "extra == 'ocr'", editable = "packages/kdcheck" },
-    { name = "kdcheck", extras = ["pymupdf"], editable = "packages/kdcheck" },
+    { name = "kdcheck", extras = ["pdfium", "pymupdf"], editable = "packages/kdcheck" },
     { name = "pillow", specifier = ">=10.0" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "pymupdf", specifier = ">=1.24" },
