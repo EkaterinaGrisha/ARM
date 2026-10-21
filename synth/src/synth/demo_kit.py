@@ -1,50 +1,42 @@
-"""Генератор синтетического комплекта КД для демонстрации и тестов.
+"""Synthetic ESKD doc set for demos and tests.
 
-Создаёт папку с PDF/JPG-документами в стиле ЕСКД (спецификации по ГОСТ 2.106,
-чертежи с основной надписью по ГОСТ 2.104), в которые заложены типовые
-расхождения, и файл ``<папка>_truth.json`` с эталонной разметкой.
+Writes a folder of PDF and JPG documents in the ESKD style (specifications by GOST 2.106, drawings with the title
+block of GOST 2.104) with typical discrepancies planted, and ``<folder>_truth.json`` with the ground truth.
 
-    python -m arm_web.demo_kit samples/demo_kit
+Pages are drawn with reportlab (BSD) in the bundled DejaVu Sans, scans are rendered with PDFium (pypdfium2) and get
+noise from the seeded generator, so the kit does not depend on the fonts or the C library of the machine.
+
+    uv run python -m synth.demo_kit samples/demo_kit
 """
 
 from __future__ import annotations
 
 import io
 import json
-import os
 import random
 import sys
 from dataclasses import dataclass, field
 from itertools import pairwise
 from pathlib import Path
+from typing import Any
 
-import pymupdf
+import pypdfium2 as pdfium
 from PIL import Image, ImageFilter
+from reportlab import rl_config
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen.canvas import Canvas
 
 MM = 72 / 25.4
 FORMATS = {"A4": (210, 297), "A3": (420, 297)}
 
-FONT_CANDIDATES = [
-    os.environ.get("ARM_FONT", ""),
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/TTF/DejaVuSans.ttf",
-    "/Library/Fonts/DejaVuSans.ttf",
-    "C:/Windows/Fonts/DejaVuSans.ttf",
-    "C:/Windows/Fonts/arial.ttf",
-]
+FONT = "DejaVuSans"
+# DejaVu Sans 2.37 from https://github.com/dejavu-fonts/dejavu-fonts/releases, license in fonts/LICENSE
+FONT_FILE = Path(__file__).parent / "fonts" / "DejaVuSans.ttf"
 
 
-def _font_buffer() -> bytes:
-    for path in FONT_CANDIDATES:
-        if path and Path(path).is_file():
-            return Path(path).read_bytes()
-    try:  # pip install pymupdf-fonts
-        return pymupdf.Font("notos").buffer
-    except Exception as exc:  # pragma: no cover - depends on the system
-        raise RuntimeError("Не найден шрифт с кириллицей: задайте ARM_FONT=путь/к/шрифту.ttf") from exc
-
-
-# --------------------------------------------------------------------------- данные комплекта
+# --------------------------------------------------------------------------- kit contents
 
 
 @dataclass
@@ -73,7 +65,7 @@ class Drawing:
     sketch: str = "disc"
     output: str = "vector"  # vector | scan_pdf | scan_jpg
     assembly: bool = False
-    # эталонные параметры: (категория, имя) — для оценки качества
+    # expected parameters (category, name) for the quality metrics
     expected_params: list[tuple[str, str]] = field(default_factory=list)
 
 
@@ -518,53 +510,84 @@ PROBLEM_FILES = {
 }
 
 
-# --------------------------------------------------------------------------- рисование
+# --------------------------------------------------------------------------- drawing
+
+
+def _canvas() -> Canvas:
+    """A canvas that writes the same bytes for the same drawing: no timestamps, a fixed document ID."""
+    if FONT not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont(FONT, str(FONT_FILE)))
+    rl_config.useA85 = 0  # binary streams as is, as CAD systems and scanners write them, not a quarter larger
+    # The initial font of each page, else every page refers to an unused Helvetica. The stub types it as a float.
+    return Canvas(io.BytesIO(), invariant=1, pageCompression=1, initialFontName=FONT)  # type: ignore[arg-type]
 
 
 class Sheet:
-    """Страница с координатами в миллиметрах (начало — левый верхний угол)."""
+    """A page with coordinates in millimetres from the top left corner."""
 
-    CONDENSE = 0.85  # узкий шрифт, как чертёжный по ГОСТ 2.304
+    CONDENSE = 0.85  # narrow lettering, like the drafting font of GOST 2.304
 
-    def __init__(self, doc: pymupdf.Document, fmt: str, font: bytes):
-        w, h = FORMATS[fmt]
-        self.w, self.h = w, h
-        self.page = doc.new_page(width=w * MM, height=h * MM)
-        self.page.insert_font(fontname="gost", fontbuffer=font)
-        self.font = pymupdf.Font(fontbuffer=font)
+    def __init__(self, canvas: Canvas, fmt: str) -> None:
+        self.w, self.h = FORMATS[fmt]
+        self.c = canvas
+        canvas.setPageSize((self.w * MM, self.h * MM))
 
-    def line(self, x0, y0, x1, y1, width=0.25):
-        self.page.draw_line((x0 * MM, y0 * MM), (x1 * MM, y1 * MM), width=width * MM, color=(0, 0, 0))
+    def _pt(self, x: float, y: float) -> tuple[float, float]:
+        """Millimetres from the top left corner → points from the bottom left corner, as PDF counts."""
+        return x * MM, (self.h - y) * MM
 
-    def rect(self, x0, y0, x1, y1, width=0.25):
-        self.page.draw_rect(pymupdf.Rect(x0 * MM, y0 * MM, x1 * MM, y1 * MM), width=width * MM, color=(0, 0, 0))
+    def line(self, x0: float, y0: float, x1: float, y1: float, width: float = 0.25) -> None:
+        self.c.setLineWidth(width * MM)
+        self.c.line(*self._pt(x0, y0), *self._pt(x1, y1))
 
-    def circle(self, cx, cy, r, width=0.5, dashes=None):
-        self.page.draw_circle((cx * MM, cy * MM), r * MM, width=width * MM, color=(0, 0, 0), dashes=dashes)
+    def rect(self, x0: float, y0: float, x1: float, y1: float, width: float = 0.25) -> None:
+        self.c.setLineWidth(width * MM)
+        self.c.rect(*self._pt(x0, y1), (x1 - x0) * MM, (y1 - y0) * MM)
+
+    def circle(
+        self, cx: float, cy: float, r: float, width: float = 0.5, dashes: tuple[float, float] | None = None
+    ) -> None:
+        """``dashes``: dash and gap in points."""
+        self.c.saveState()
+        self.c.setLineWidth(width * MM)
+        if dashes:
+            self.c.setDash(list(dashes))
+        self.c.circle(*self._pt(cx, cy), r * MM)
+        self.c.restoreState()
 
     def width(self, s: str, size: float = 3.5) -> float:
-        return self.font.text_length(s, size * MM * 1.35) * self.CONDENSE / MM
+        return pdfmetrics.stringWidth(s, FONT, size * MM * 1.35) * self.CONDENSE / MM
 
-    def text(self, x, y, s, size=3.5, rotate=0, max_width=None):
-        """Текст с базовой линией в точке (x, y); size — высота прописных букв в мм."""
+    def text(
+        self, x: float, y: float, s: str, size: float = 3.5, rotate: int = 0, max_width: float | None = None
+    ) -> None:
+        """Text with the baseline starting at (x, y); ``size`` is the height of capitals in mm.
+
+        Rotated text runs bottom to top, as in the columns of the left margin.
+        """
         if not s:
             return
         fontsize = size * MM * 1.35
-        point = pymupdf.Point(x * MM, y * MM)
+        c = self.c
+        c.saveState()
+        c.translate(*self._pt(x, y))
         if rotate:
-            self.page.insert_text(point, s, fontname="gost", fontsize=fontsize, rotate=rotate)
-            return
-        sx = self.CONDENSE
-        if max_width:
-            natural = self.width(s, size)
-            if natural > max_width:
-                k = max_width / natural
-                sx *= max(k, 0.75)
-                if k < 0.75:
-                    fontsize *= k / 0.75
-        self.page.insert_text(point, s, fontname="gost", fontsize=fontsize, morph=(point, pymupdf.Matrix(sx, 1)))
+            c.rotate(rotate)
+        else:
+            sx = self.CONDENSE
+            if max_width:
+                natural = self.width(s, size)
+                if natural > max_width:
+                    k = max_width / natural
+                    sx *= max(k, 0.75)
+                    if k < 0.75:
+                        fontsize *= k / 0.75
+            c.scale(sx, 1)
+        c.setFont(FONT, fontsize)
+        c.drawString(0, 0, s)
+        c.restoreState()
 
-    def text_center(self, x0, x1, y_base, s, size=3.5):
+    def text_center(self, x0: float, x1: float, y_base: float, s: str, size: float = 3.5) -> None:
         if not s:
             return
         avail = x1 - x0 - 1.6
@@ -574,7 +597,7 @@ class Sheet:
 
 def _frame(sh: Sheet, archive: str, first_use: str) -> None:
     sh.rect(20, 5, sh.w - 5, sh.h - 5, width=0.7)
-    # графы 19–23 (левое поле, снизу) и 24–25 (левое поле, сверху)
+    # columns 19–23 (left margin, bottom) and 24–25 (left margin, top)
     x0, x1, x2 = 8, 13, 20
     labels = [
         ("Инв. № подл.", archive, 25),
@@ -610,11 +633,11 @@ def _title_block(
     spec_form: bool = False,
     sheets: int = 1,
 ) -> None:
-    """Основная надпись: форма 1 (чертежи, 185×55) или форма 2 (спецификации, 185×40)."""
+    """Title block: form 1 for drawings (185×55) or form 2 for specifications (185×40)."""
     height = 40 if spec_form else 55
     X, Y = sh.w - 5 - 185, sh.h - 5 - height
     sh.rect(X, Y, X + 185, Y + height, width=0.7)
-    # левая часть: изменения и подписи
+    # left part: changes and signatures
     cols = [0, 7, 17, 40, 55, 65]
     for c in cols[1:-1]:
         sh.line(X + c, Y, X + c, Y + 25)
@@ -622,7 +645,7 @@ def _title_block(
     for r in range(1, height // 5):
         sh.line(X, Y + r * 5, X + 65, Y + r * 5)
     change_rows = 4 if not spec_form else 4
-    # шапка изменений — 5-я строка
+    # the header of the changes table is the 5th row
     header_y = Y + change_rows * 5
     for (c0, c1), label in zip(pairwise(cols), ["Изм.", "Лист", "№ докум.", "Подп.", "Дата"], strict=True):
         sh.text_center(X + c0, X + c1, header_y + 4, label, 2.5)
@@ -640,7 +663,7 @@ def _title_block(
             break
         sh.text(X + 0.8, yb, role, 2.5, max_width=15.4)
         sh.text(X + 17.8, yb, name, 2.5, max_width=21.4)
-    # правая часть
+    # right part
     sh.line(X + 65, Y + 15, X + 185, Y + 15, width=0.7)
     sh.text_center(X + 65, X + 185, Y + 11, d.designation, 7)
     if spec_form:
@@ -689,7 +712,7 @@ def _sketch(sh: Sheet, kind: str, annotations: list[str]) -> None:
             sh.rect(cx + x0, cy - r, cx + x1, cy + r, width=0.5)
         sh.line(cx - 120, cy, cx + 120, cy, width=0.18)
     elif kind == "gear":
-        sh.circle(cx - 45, cy, 48, dashes="[4 2] 0")
+        sh.circle(cx - 45, cy, 48, dashes=(4, 2))
         sh.circle(cx - 45, cy, 52)
         sh.circle(cx - 45, cy, 25)
         sh.rect(cx + 30, cy - 52, cx + 70, cy + 52, width=0.5)
@@ -702,7 +725,7 @@ def _sketch(sh: Sheet, kind: str, annotations: list[str]) -> None:
     elif kind == "nut":
         sh.circle(cx, cy - 10, 35)
         sh.circle(cx, cy - 10, 24)
-        sh.circle(cx, cy - 10, 22, dashes="[2 1] 0")
+        sh.circle(cx, cy - 10, 22, dashes=(2, 1))
     elif kind == "bracket":
         sh.rect(cx - 90, cy - 10, cx + 50, cy + 5, width=0.5)
         sh.rect(cx - 90, cy - 60, cx - 75, cy + 5, width=0.5)
@@ -717,33 +740,32 @@ def _sketch(sh: Sheet, kind: str, annotations: list[str]) -> None:
         sh.circle(cx - 40, cy, 20)
         sh.rect(cx + 30, cy - 45, cx + 50, cy + 45, width=0.5)
         sh.rect(cx + 30, cy - 20, cx + 50, cy + 20, width=0.25)
-    # размеры и знаки — вокруг изображения
+    # dimensions and symbols around the view
     slots = [(-95, -70), (-10, -72), (60, -60), (-100, 75), (0, 78), (60, 70), (85, -10), (-115, 0)]
     if sh.w < 300:
         slots = [(-75, -65), (5, -68), (-75, 68), (5, 72), (55, -30), (55, 30), (-80, 0), (40, 0)]
     for (dx, dy), ann in zip(slots, annotations, strict=False):  # draws at most len(slots) annotations
-        if ann.isdigit() and len(ann) == 1:  # номер позиции на сборочном чертеже
+        if ann.isdigit() and len(ann) == 1:  # item number on an assembly drawing
             sh.circle(cx + dx + 1.8, cy + dy - 1.8, 4, width=0.25)
         sh.text(cx + dx, cy + dy, ann, 5 if ann.isdigit() and len(ann) == 1 else 3.5)
         sh.line(cx + dx, cy + dy + 1, cx + dx + max(12, sh.width(ann)), cy + dy + 1, width=0.18)
 
 
-def draw_drawing(d: Drawing, font: bytes) -> bytes:
-    doc = pymupdf.open()
-    sh = Sheet(doc, d.fmt, font)
+def draw_drawing(d: Drawing) -> bytes:
+    c = _canvas()
+    sh = Sheet(c, d.fmt)
     _frame(sh, d.archive, d.first_use)
     _title_block(sh, d, material=d.material, mass=d.mass, scale=d.scale)
     _sketch(sh, d.sketch, d.annotations)
     if d.general_roughness:
         sh.text(sh.w - 45, 16, f"√{d.general_roughness} (√)", 5)
-    # технические требования — над основной надписью
+    # technical requirements above the title block
     X = sh.w - 5 - 185
     y = sh.h - 5 - 55 - 6 - 6 * len(d.requirements)
     if len(d.requirements) > 0:
         for i, req in enumerate(d.requirements, start=1):
             sh.text(X, y + (i - 1) * 6, f"{i}. {req}", 3.5, max_width=185)
-    doc.subset_fonts()
-    return doc.tobytes(garbage=3, deflate=True)
+    return c.getpdfdata()
 
 
 SPEC_COLS = [
@@ -757,8 +779,8 @@ SPEC_COLS = [
 ]
 
 
-def draw_spec(s: Spec, font: bytes) -> bytes:
-    doc = pymupdf.open()
+def draw_spec(s: Spec) -> bytes:
+    c = _canvas()
     lines: list[tuple[str, Row | None]] = []
     section = None
     for spec_row in s.rows:
@@ -776,7 +798,7 @@ def draw_spec(s: Spec, font: bytes) -> bytes:
         pages.append(rest[:next_capacity])
         rest = rest[next_capacity:]
     for page_no, page_lines in enumerate(pages, start=1):
-        sh = Sheet(doc, "A4", font)
+        sh = Sheet(c, "A4")
         _frame(sh, "3411-" + s.designation[-3:], "" if s.designation == ROOT else ROOT)
         X = 20
         tb_height = 40 if page_no == 1 else 15
@@ -785,7 +807,7 @@ def draw_spec(s: Spec, font: bytes) -> bytes:
         for x0, x1, label in SPEC_COLS:
             sh.line(X + x0, 5, X + x0, bottom, width=0.7)
             parts = label.split("\n")
-            if x1 - x0 <= 8:  # узкие графы — вертикальная надпись
+            if x1 - x0 <= 8:  # narrow columns get vertical labels
                 sh.text(X + x0 + 4, 18, label, 2.5, rotate=90)
             else:
                 for i, part in enumerate(parts):
@@ -815,13 +837,13 @@ def draw_spec(s: Spec, font: bytes) -> bytes:
             sh.line(X + 175, Y, X + 175, Y + 15)
             sh.text(X + 176, Y + 4, "Лист", 2.5)
             sh.text_center(X + 175, X + 185, Y + 12, str(page_no), 3.5)
-    doc.subset_fonts()
-    return doc.tobytes(garbage=3, deflate=True)
+        c.showPage()
+    return c.getpdfdata()
 
 
-def draw_foreign(font: bytes) -> bytes:
-    doc = pymupdf.open()
-    sh = Sheet(doc, "A4", font)
+def draw_foreign() -> bytes:
+    c = _canvas()
+    sh = Sheet(c, "A4")
     body = [
         ("АКТ", 6),
         ("приёмки комплекта конструкторской документации", 4),
@@ -841,37 +863,49 @@ def draw_foreign(font: bytes) -> bytes:
     for line, size in body:
         sh.text(25, y, line, size)
         y += size * 2.2
-    doc.subset_fonts()
-    return doc.tobytes(garbage=3, deflate=True)
+    return c.getpdfdata()
 
 
-def _scan(pdf_bytes: bytes, *, rng: random.Random, unreadable: bool = False) -> Image.Image:
-    src = pymupdf.open("pdf", pdf_bytes)
+def _noise(size: tuple[int, int], sigma: float, rng: random.Random) -> Image.Image:
+    """Grey noise around 128 with the deviation ``sigma``: the mean of four uniform images is close to normal."""
+    planes = [Image.frombytes("L", size, rng.randbytes(size[0] * size[1])) for _ in range(4)]
+    mean = Image.blend(Image.blend(planes[0], planes[1], 0.5), Image.blend(planes[2], planes[3], 0.5), 0.5)
+    return Image.blend(Image.new("L", size, 128), mean, sigma / 37)  # the mean of four uniform bytes deviates by 37
+
+
+def _scan(pdf: bytes, *, rng: random.Random, noise: random.Random, unreadable: bool = False) -> Image.Image:
+    """The first page as a grey scan: rendered by PDFium, turned a little, with noise."""
     dpi = 40 if unreadable else 150
-    pix = src[0].get_pixmap(dpi=dpi, colorspace=pymupdf.csGRAY)
-    img = Image.open(io.BytesIO(pix.tobytes("png"))).convert("L")
+    img: Image.Image = pdfium.PdfDocument(pdf)[0].render(scale=dpi / 72, grayscale=True).to_pil()
     if unreadable:
         img = img.resize((img.width * 150 // 40, img.height * 150 // 40)).filter(ImageFilter.GaussianBlur(4))
         img = img.point(lambda v: 112 + v * 30 // 255)
     img = img.rotate(rng.uniform(-0.8, 0.8), resample=Image.Resampling.BICUBIC, expand=False, fillcolor=255)
-    noise = Image.effect_noise(img.size, 28 if unreadable else 12)
-    img = Image.blend(img, noise, 0.25 if unreadable else 0.08)
+    img = Image.blend(img, _noise(img.size, 28 if unreadable else 12, noise), 0.25 if unreadable else 0.08)
     return img.point(lambda v: min(255, int(v * (0.92 if unreadable else 1.0) + (6 if not unreadable else 0))))
 
 
-def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> dict:
-    """Записывает комплект в ``out``, эталон — рядом, в ``<out>_truth.json``."""
+def _scan_pdf(jpeg: bytes, fmt: str) -> bytes:
+    """A page that holds only the scan, as a scanner writes it; the JPEG is embedded as is."""
+    c = _canvas()
+    sh = Sheet(c, fmt)
+    c.drawImage(ImageReader(io.BytesIO(jpeg)), 0, 0, sh.w * MM, sh.h * MM, preserveAspectRatio=True, anchor="c")
+    return c.getpdfdata()
+
+
+def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> dict[str, Any]:
+    """Write the kit to ``out`` and the ground truth to ``truth_path``, by default ``<out>_truth.json``."""
     rng = random.Random(seed)
+    noise = random.Random(seed + 1)  # a stream of its own, so the noise does not shift the other random choices
     out.mkdir(parents=True, exist_ok=True)
-    font = _font_buffer()
     spec_dir = out / "Спецификации"
     draw_dir = out / "Чертежи"
     spec_dir.mkdir(exist_ok=True)
     draw_dir.mkdir(exist_ok=True)
-    truth: dict = {"root": ROOT, "documents": {}, "discrepancies": [], "problem_files": {}}
+    truth: dict[str, Any] = {"root": ROOT, "documents": {}, "discrepancies": [], "problem_files": {}}
 
     for s in SPECS:
-        (spec_dir / s.file).write_bytes(draw_spec(s, font))
+        (spec_dir / s.file).write_bytes(draw_spec(s))
         truth["documents"][f"Спецификации/{s.file}"] = {
             "kind": "specification",
             "designation": s.designation,
@@ -881,22 +915,18 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> dict:
             "rows": [r.__dict__ for r in s.rows],
         }
     for d in DRAWINGS:
-        pdf = draw_drawing(d, font)
+        pdf = draw_drawing(d)
         target = draw_dir / d.file
         if d.output == "vector":
             target.write_bytes(pdf)
         else:
-            img = _scan(pdf, rng=rng)
+            img = _scan(pdf, rng=rng, noise=noise)
             if d.output == "scan_jpg":
                 img.save(target, "JPEG", quality=72, dpi=(150, 150))
             else:
                 buf = io.BytesIO()
                 img.save(buf, "JPEG", quality=72)
-                doc = pymupdf.open()
-                w, h = FORMATS[d.fmt]
-                page = doc.new_page(width=w * MM, height=h * MM)
-                page.insert_image(page.rect, stream=buf.getvalue())
-                target.write_bytes(doc.tobytes(deflate=True))
+                target.write_bytes(_scan_pdf(buf.getvalue(), d.fmt))
         truth["documents"][f"Чертежи/{d.file}"] = {
             "kind": "assembly_drawing" if d.assembly else "part_drawing",
             "origin": "vector" if d.output == "vector" else "scan",
@@ -912,10 +942,11 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> dict:
             "requirements": d.requirements,
             "parameters": [{"category": c, "name": n} for c, n in d.expected_params],
         }
-    # проблемные файлы
+    # problem files
     (out / "Чертежи_архив.pdf").write_bytes(b"%PDF-1.7\n" + bytes(rng.randrange(256) for _ in range(4000)))
-    _scan(draw_drawing(DRAWINGS[8], font), rng=rng, unreadable=True).save(out / "скан_0034.jpg", "JPEG", quality=40)
-    (out / "Акт приёмки КД.pdf").write_bytes(draw_foreign(font))
+    unreadable = _scan(draw_drawing(DRAWINGS[8]), rng=rng, noise=noise, unreadable=True)
+    unreadable.save(out / "скан_0034.jpg", "JPEG", quality=40)
+    (out / "Акт приёмки КД.pdf").write_bytes(draw_foreign())
     (out / "Thumbs.db").write_bytes(bytes(rng.randrange(256) for _ in range(1024)))
     truth["problem_files"] = PROBLEM_FILES
     truth["discrepancies"] = [{"type": t, "designation": d} for t, d in EXPECTED_DISCREPANCIES]

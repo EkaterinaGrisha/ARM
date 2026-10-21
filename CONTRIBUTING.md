@@ -48,10 +48,11 @@ Python ≥ 3.11, uv, ruff (lint + format), mypy (strict for `kdcheck`), pytest. 
 ```bash
 uv sync --all-packages --all-extras   # Python environment from uv.lock
 uv run pre-commit install             # ruff, lockfile and requirements checks on commit
-uv run pytest                         # kdcheck and backend tests
+uv run pytest                         # kdcheck, backend and synth tests
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run lint-imports
 sh scripts/export_requirements.sh     # after changing dependencies: refresh backend/requirements.txt
 sh scripts/export_schema.sh           # after changing kdcheck.schemas: refresh docs/report.schema.json and web types
+uv run python -m synth.demo_kit samples/demo_kit   # after changing the generator: regenerate the demo kit
 
 cd frontend && npm ci && npm run typecheck && npm test && npm run build
 ```

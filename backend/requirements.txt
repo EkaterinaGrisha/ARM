@@ -61,9 +61,7 @@ pydantic==2.14.1
 pydantic-core==2.50.1
     # via pydantic
 pymupdf==2.0
-    # via
-    #   arm-web
-    #   kdcheck
+    # via kdcheck
 pymupdf-layout==2.0
     # via pymupdf
 pymupdf4llm==2.0

@@ -1,18 +1,21 @@
 <!doctype html><html lang='ru'><head><meta charset='utf-8'>
 <title>Отчёт — Демо-комплект: редуктор колёсный</title><meta name='viewport' content='width=device-width,initial-scale=1'>
 <style>
-body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1d2433;margin:32px auto;max-width:1100px;padding:0 16px}
+body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1d2433;
+margin:32px auto;max-width:1100px;padding:0 16px}
 h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:32px 0 8px;border-bottom:1px solid #d8dee9;padding-bottom:4px}
 .muted{color:#5b6475}.mono{font-family:ui-monospace,Consolas,monospace}
-table{border-collapse:collapse;width:100%;margin:8px 0}th,td{border:1px solid #d8dee9;padding:4px 8px;text-align:left;vertical-align:top}
+table{border-collapse:collapse;width:100%;margin:8px 0}
+th,td{border:1px solid #d8dee9;padding:4px 8px;text-align:left;vertical-align:top}
 th{background:#eef2f8;font-weight:600}.kpi{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}
-.kpi div{border:1px solid #d8dee9;border-radius:8px;padding:8px 14px;min-width:120px}.kpi b{display:block;font-size:22px}
+.kpi div{border:1px solid #d8dee9;border-radius:8px;padding:8px 14px;min-width:120px}
+.kpi b{display:block;font-size:22px}
 .high{color:#b42318}.medium{color:#a15c07}.low{color:#475467}ul.tree{list-style:none;padding-left:18px;margin:0}
 ul.tree li{margin:1px 0}.missing{color:#b42318;font-weight:600}.warning{color:#a15c07}
 @media print{body{margin:0}h2{break-after:avoid}tr{break-inside:avoid}}
 </style></head><body>
 <h1>Отчёт о входном контроле КД: Демо-комплект: редуктор колёсный</h1>
-<div class='muted'>Изделие: <span class='mono'>АРМ.303411.000</span> Редуктор колёсный · обработан 2026-10-20T16:00:34+00:00 · конвейер baseline 0.1.0</div>
+<div class='muted'>Изделие: <span class='mono'>АРМ.303411.000</span> Редуктор колёсный · обработан 2026-10-21T08:59:33+00:00 · конвейер baseline 0.1.0</div>
 <div class='kpi'>
 <div><b>22</b>Документов</div>
 <div><b>26</b>Позиций в дереве</div>
@@ -36,7 +39,7 @@ ul.tree li{margin:1px 0}.missing{color:#b42318;font-weight:600}.warning{color:#a
 <table><tr><th>Файл</th><th>Статус</th><th>Пояснение</th></tr>
 <tr><td>Thumbs.db</td><td>Неподдерживаемый формат</td><td>Формат файла не поддерживается (.db): ожидаются PDF или изображения</td></tr>
 <tr><td>Акт приёмки КД.pdf</td><td>Посторонний документ</td><td>Посторонний документ: нет основной надписи чертежа и граф спецификации</td></tr>
-<tr><td>Чертежи_архив.pdf</td><td>Повреждён</td><td>Файл повреждён или не открывается: Failed to open stream</td></tr>
+<tr><td>Чертежи_архив.pdf</td><td>Повреждён</td><td>Файл повреждён или не открывается: Failed to load document (PDFium: Data format error).</td></tr>
 <tr><td>скан_0034.jpg</td><td>Нечитаемый скан</td><td>Нечитаемый скан: низкий контраст изображения</td></tr>
 </table>
 <h2>Дерево изделия</h2>
@@ -46,7 +49,7 @@ ul.tree li{margin:1px 0}.missing{color:#b42318;font-weight:600}.warning{color:#a
 <tr><td>АРМ.303411.000 СБ</td><td>Редуктор колёсный</td><td>—</td><td>48</td><td>1:2</td><td>О</td><td>3</td><td>3411-000</td><td>—</td></tr>
 <tr><td>АРМ.303411.001</td><td>Шестерня солнечная</td><td>Сталь 20ХН3А ГОСТ 4543-2016</td><td>1,85</td><td>1:1</td><td>О1</td><td>1</td><td>3411-001</td><td>АРМ.303411.000</td></tr>
 <tr><td>АРМ.303411.002</td><td>Водило планетарное</td><td>Сталь 45 ГОСТ 1050-2013</td><td>6,4</td><td>1:2</td><td>О1</td><td>—</td><td>3411-002</td><td>АРМ.303411.000</td></tr>
-<tr><td>АРМ.303411.003</td><td>Крышка торцевая</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>АРМ.303411.003</td><td>Крышка торцевая</td><td>—</td><td>1,2</td><td>1:1</td><td>О1</td><td>—</td><td>—</td><td>—</td></tr>
 <tr><td>АРМ.303411.005</td><td>Гайка специальная</td><td>Сталь 45 ГОСТ 1050-2013</td><td>0,35</td><td>2:1</td><td>О1</td><td>—</td><td>3411-005</td><td>АРМ.303411.000</td></tr>
 <tr><td>АРМ.303411.100 СБ</td><td>Корпус в сборе</td><td>—</td><td>27</td><td>1:2</td><td>О1</td><td>1</td><td>3411-100</td><td>АРМ.303411.000</td></tr>
 <tr><td>АРМ.303411.101</td><td>Корпус</td><td>СЧ 20 ГОСТ 1412-85</td><td>18,4</td><td>1:2</td><td>О</td><td>1</td><td>3411-101</td><td>АРМ.303411.100</td></tr>
@@ -54,7 +57,7 @@ ul.tree li{margin:1px 0}.missing{color:#b42318;font-weight:600}.warning{color:#a
 <tr><td>АРМ.303411.200 СБ</td><td>Вал ведомый в сборе</td><td>—</td><td>9,6</td><td>1:1</td><td>О1</td><td>—</td><td>3411-200</td><td>АРМ.303411.000</td></tr>
 <tr><td>АРМ.303411.201</td><td>Вал ведомый</td><td>Сталь 40Х ГОСТ 4543-2016</td><td>4,2</td><td>1:1</td><td>О1</td><td>2</td><td>3411-201</td><td>АРМ.303411.200</td></tr>
 <tr><td>АРМ.303411.202</td><td>Колесо зубчатое</td><td>Сталь 20ХН3А ГОСТ 4543-2016</td><td>3,1</td><td>1:1</td><td>О1</td><td>—</td><td>3411-202</td><td>АРМ.303411.200</td></tr>
-<tr><td>АРМ.303411.203</td><td>Кольцо распорное</td><td>—</td><td>0,22</td><td>—</td><td>О1</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>АРМ.303411.203</td><td>Кольцо распорное</td><td>—</td><td>0,22</td><td>1:1</td><td>О1</td><td>—</td><td>—</td><td>—</td></tr>
 <tr><td>АРМ.303411.300 СБ</td><td>Сателлит в сборе</td><td>—</td><td>1,9</td><td>1:1</td><td>О1</td><td>—</td><td>3411-300</td><td>АРМ.303411.000</td></tr>
 <tr><td>АРМ.303412.007</td><td>Кронштейн</td><td>Сталь 09Г2С ГОСТ 19281-2014</td><td>2,7</td><td>1:2</td><td>О</td><td>—</td><td>3412-007</td><td>АРМ.303412.000</td></tr>
 <tr><td>АРМ.303411.201</td><td>Вал ведомый</td><td>Сталь 40Х ГОСТ 4543-2016</td><td>4,2</td><td>1:1</td><td>О1</td><td>3</td><td>3411-201</td><td>АРМ.303411.200</td></tr>
@@ -83,7 +86,7 @@ ul.tree li{margin:1px 0}.missing{color:#b42318;font-weight:600}.warning{color:#a
 <tr><td class='mono'>АРМ.303411.201</td><td>Ra 0,8</td><td>Ra 0,8 мкм — финишная обработка (шлифование, хонингование)</td></tr>
 <tr><td class='mono'>АРМ.303411.201</td><td>Твёрдость HRC</td><td>Твёрдость 48…53 HRC — закалка с последующей обработкой твёрдых поверхностей, риск коробления</td></tr>
 <tr><td class='mono'>АРМ.303411.201</td><td>Твёрдость HRC</td><td>Твёрдость 48…53 HRC — закалка с последующей обработкой твёрдых поверхностей, риск коробления</td></tr>
-<tr><td class='mono'>АРМ.303411.003</td><td>Покрытие Хим.Окс.прм</td><td>Покрытие «Хим.Окс.прм» встречается только у этой детали комплекта — отдельный передел или кооперация, проверить наличие на площадке</td></tr>
+<tr><td class='mono'>АРМ.303411.003</td><td>. Покрытие Хим.Окс.прм.</td><td>Покрытие «Хим.Окс.прм» встречается только у этой детали комплекта — отдельный передел или кооперация, проверить наличие на площадке</td></tr>
 <tr><td class='mono'>АРМ.303411.005</td><td>Покрытие Ц9.хр.</td><td>Покрытие «Ц9.хр» встречается только у этой детали комплекта — отдельный передел или кооперация, проверить наличие на площадке</td></tr>
 </table>
 <h2>Параметры технических требований</h2>
@@ -105,8 +108,8 @@ ul.tree li{margin:1px 0}.missing{color:#b42318;font-weight:600}.warning{color:#a
 <tr><td class='mono'>АРМ.303411.002</td><td>Шероховатость</td><td>Ra 0,8</td><td>Ra 0,8</td></tr>
 <tr><td class='mono'>АРМ.303411.002</td><td>Допуск формы/расположения</td><td>◎ соосности</td><td>◎ Ø0,03 А</td></tr>
 <tr><td class='mono'>АРМ.303411.002</td><td>Шероховатость</td><td>Ra 6,3</td><td>√Ra 6,3 (√)</td></tr>
-<tr><td class='mono'>АРМ.303411.003</td><td>Покрытие</td><td>Хим.Окс.прм</td><td>Покрытие Хим.Окс.прм</td></tr>
-<tr><td class='mono'>АРМ.303411.003</td><td>Общие допуски</td><td>IT14</td><td>Неуказанные предельные отклонения размеров: Н14, h14, +IT14/2</td></tr>
+<tr><td class='mono'>АРМ.303411.003</td><td>Покрытие</td><td>Хим.Окс.прм</td><td>. Покрытие Хим.Окс.прм.</td></tr>
+<tr><td class='mono'>АРМ.303411.003</td><td>Общие допуски</td><td>Неуказанные отклонения</td><td>Неуказанные предельные отклонения размеров: Н14, 114, +1T14/2.</td></tr>
 <tr><td class='mono'>АРМ.303411.003</td><td>Шероховатость</td><td>Ra 3,2</td><td>Ва 3,2</td></tr>
 <tr><td class='mono'>АРМ.303411.005</td><td>Твёрдость</td><td>Твёрдость HRC</td><td>30...35 HRC.</td></tr>
 <tr><td class='mono'>АРМ.303411.005</td><td>Покрытие</td><td>Ц9.хр</td><td>Покрытие Ц9.хр.</td></tr>
@@ -148,8 +151,8 @@ ul.tree li{margin:1px 0}.missing{color:#b42318;font-weight:600}.warning{color:#a
 <tr><td class='mono'>АРМ.303411.202</td><td>Шероховатость</td><td>Ra 0,8</td><td>Ra 0,8</td></tr>
 <tr><td class='mono'>АРМ.303411.202</td><td>Допуск формы/расположения</td><td>↗ биения</td><td>↗ 0,02 А</td></tr>
 <tr><td class='mono'>АРМ.303411.202</td><td>Шероховатость</td><td>Ra 6,3</td><td>√Ra 6,3 (√)</td></tr>
-<tr><td class='mono'>АРМ.303411.203</td><td>Допуск размера</td><td>50H9</td><td>Q50H9</td></tr>
-<tr><td class='mono'>АРМ.303411.203</td><td>Шероховатость</td><td>Ra 3,2</td><td>Ка 3,2</td></tr>
+<tr><td class='mono'>АРМ.303411.203</td><td>Допуск размера</td><td>50H9</td><td>@50H9</td></tr>
+<tr><td class='mono'>АРМ.303411.203</td><td>Шероховатость</td><td>Ra 3,2</td><td>Ва 3,2</td></tr>
 <tr><td class='mono'>АРМ.303412.007</td><td>Покрытие</td><td>Грунт ГФ-021, Эмаль ПФ-115 серая</td><td>Покрытие: Грунт ГФ-021, Эмаль ПФ-115 серая.</td></tr>
 <tr><td class='mono'>АРМ.303412.007</td><td>Общие допуски</td><td>IT14</td><td>Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2.</td></tr>
 <tr><td class='mono'>АРМ.303412.007</td><td>Допуск размера</td><td>Ø18H12</td><td>Ø18H12</td></tr>

@@ -1,10 +1,10 @@
-"""Готовит демо-данные для фронтенда: прогон базового конвейера по демо-комплекту,
-расчёт метрик по эталону, отрисовка страниц и выгрузки отчёта.
+"""Demo data for the frontend: the baseline pipeline on the committed demo kit, metrics against its ground truth,
+rendered pages and report exports.
 
-    python -m arm_web build-demo [--regenerate]
+    python -m arm_web build-demo
 
-Результат кладётся в ``frontend/public/demo`` и позволяет открыть демо-отчёт
-в интерфейсе даже без запущенного сервера.
+Writes to ``frontend/public/demo``, so the demo report opens in the web UI without a server. The kit itself comes
+from the generator: ``uv run python -m synth.demo_kit samples/demo_kit``.
 """
 
 from __future__ import annotations
@@ -17,7 +17,6 @@ from kdcheck.render import RenderError, render_page
 from kdcheck.report import to_html, to_xlsx
 from kdcheck.run import BaselinePipeline, ocr_available
 
-from . import demo_kit
 from .evaluate import evaluate
 
 
@@ -29,14 +28,9 @@ def _files(n: int) -> str:
     return f"{n} файлов"
 
 
-def build(samples: Path, public_demo: Path, regenerate: bool = False) -> None:
+def build(samples: Path, public_demo: Path) -> None:
     kit = samples / "demo_kit"
-    truth_path = samples / "demo_kit_truth.json"
-    if regenerate or not kit.exists() or not truth_path.exists():
-        shutil.rmtree(kit, ignore_errors=True)
-        demo_kit.build(kit, truth_path)
-        print(f"Демо-комплект: {kit}")
-    truth = json.loads(truth_path.read_text(encoding="utf-8"))
+    truth = json.loads((samples / "demo_kit_truth.json").read_text(encoding="utf-8"))
 
     report = BaselinePipeline().run(kit, kit_id="demo", kit_name="Демо-комплект: редуктор колёсный")
     report.kit.created_at = report.kit.processed_at

@@ -4,7 +4,7 @@
 
 Ядро — Python-библиотека `kdcheck` с CLI. Веб-приложение — оболочка над тем же ядром: API принимает комплект и запускает ядро отдельным процессом, фронтенд показывает отчёт. CLI и веб дают одинаковый результат, а команды Блоков 1, 2 и веба работают независимо через общие схемы данных.
 
-Сейчас в ядре `packages/kdcheck` контракт отчёта, чтение файлов (`ingest`, `ocr`, `render`), разбор основной надписи и спецификации (`extract`, `normalize`), Блок 1 (`checks`), Блок 2 (`params`), конвейер, выгрузки и CLI `kdcheck run`. В `backend/` остались API, задания, оценка по эталону и генератор демо-комплекта; веб — в `frontend/`. Переход к этой схеме идёт по шагам из [сверки прототипа](reviews/2026-10-20-prototype.md#7-план-миграции).
+Сейчас в ядре `packages/kdcheck` контракт отчёта, чтение файлов (`ingest`, `ocr`, `render`), разбор основной надписи и спецификации (`extract`, `normalize`), Блок 1 (`checks`), Блок 2 (`params`), конвейер, выгрузки и CLI `kdcheck run`. В `backend/` остались API, задания, оценка по эталону и сборка демо-отчёта; веб — в `frontend/`. Генератор демо-комплекта — в `synth/`: reportlab и pypdfium2, без PyMuPDF. Переход к этой схеме идёт по шагам из [сверки прототипа](reviews/2026-10-20-prototype.md#7-план-миграции).
 
 ## Компоненты
 
@@ -238,13 +238,13 @@ ARM/
 ├── prompts/                # промпты VLM и LLM с версиями
 ├── samples/                # демо-комплект с эталоном, фикстура тестов
 ├── data/                   # вне git
-├── pyproject.toml          # uv workspace: packages/kdcheck, backend
+├── pyproject.toml          # uv workspace: packages/kdcheck, backend, synth
 └── Dockerfile
 ```
 
 Фикстуры контракта — `samples/` и `frontend/public/demo/report.json`.
 
-Границы проверяет import-linter в CI ([ADR-0011](adr/0011-core-public-api.md)). `backend` импортирует из ядра только `kdcheck.schemas`, `kdcheck.run`, `kdcheck.render` и `kdcheck.report`. Блок 1 (`tree`, `checks`) и Блок 2 (`params`) не импортируют друг друга. `kdcheck.schemas` не зависит от остального ядра.
+Границы проверяет import-linter в CI ([ADR-0011](adr/0011-core-public-api.md)). `backend` импортирует из ядра только `kdcheck.schemas`, `kdcheck.run`, `kdcheck.render` и `kdcheck.report`. Блок 1 (`tree`, `checks`) и Блок 2 (`params`) не импортируют друг друга. `kdcheck.schemas` не зависит от остального ядра. Генератор `synth` не импортирует ядро и API, чтобы тестовые данные не зависели от проверяемого кода, а ядро и API не импортируют `synth`.
 
 ## Решения
 

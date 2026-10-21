@@ -10,19 +10,19 @@
   "kit": "samples/demo_kit",
   "page_times": {
     "pdfium": {
-      "text_ms": 1.8,
-      "render_ms": 1.9
+      "text_ms": 1.4,
+      "render_ms": 2.0
     },
     "pymupdf": {
-      "text_ms": 1.9,
-      "render_ms": 24.5
+      "text_ms": 1.4,
+      "render_ms": 24.6
     }
   },
   "runs": [
     {
       "backend": "pdfium",
       "ocr": false,
-      "kit_seconds": 0.12,
+      "kit_seconds": 0.1,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -129,7 +129,7 @@
     {
       "backend": "pdfium",
       "ocr": true,
-      "kit_seconds": 0.61,
+      "kit_seconds": 0.59,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -194,7 +194,7 @@
           "support": 15
         },
         "Основная надпись: Масштаб": {
-          "accuracy": 0.867,
+          "accuracy": 1.0,
           "support": 15
         },
         "Основная надпись: Литера": {
@@ -218,13 +218,13 @@
           "support": 105
         },
         "Основная надпись — сканы": {
-          "accuracy": 0.5,
+          "accuracy": 0.625,
           "support": 16
         },
         "Параметры технических требований": {
-          "precision": 1.0,
+          "precision": 0.987,
           "recall": 0.939,
-          "f1": 0.969,
+          "f1": 0.963,
           "support": 82
         },
         "Строки спецификаций (раздел, обозначение, наименование, кол.)": {
@@ -236,7 +236,7 @@
     {
       "backend": "pymupdf",
       "ocr": false,
-      "kit_seconds": 0.14,
+      "kit_seconds": 0.13,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -404,15 +404,15 @@
           "support": 11
         },
         "Основная надпись: Масса": {
-          "accuracy": 0.933,
+          "accuracy": 1.0,
           "support": 15
         },
         "Основная надпись: Масштаб": {
-          "accuracy": 0.867,
+          "accuracy": 0.933,
           "support": 15
         },
         "Основная надпись: Литера": {
-          "accuracy": 0.933,
+          "accuracy": 1.0,
           "support": 15
         },
         "Основная надпись: Номер изменения": {
@@ -432,13 +432,13 @@
           "support": 105
         },
         "Основная надпись — сканы": {
-          "accuracy": 0.375,
+          "accuracy": 0.562,
           "support": 16
         },
         "Параметры технических требований": {
           "precision": 1.0,
-          "recall": 0.915,
-          "f1": 0.955,
+          "recall": 0.927,
+          "f1": 0.962,
           "support": 82
         },
         "Строки спецификаций (раздел, обозначение, наименование, кол.)": {

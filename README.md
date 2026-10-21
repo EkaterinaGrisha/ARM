@@ -80,12 +80,12 @@ docker build -t arm-kd . && docker run -p 8000:8000 -v arm-data:/data arm-kd
 uv run kdcheck run samples/demo_kit -o out                      # out/report.json, report.xlsx, report.html
 uv run kdcheck run ПАПКА --no-ocr                               # без распознавания сканов
 uv run kdcheck run ПАПКА --max-pages 50                         # не больше 50 страниц на файл (по умолчанию 500)
+uv run python -m synth.demo_kit samples/demo_kit                # пересоздать демо-комплект и эталон к нему
 
 cd backend
 python -m arm_web process ../samples/demo_kit -o out            # то же, но с внешним конвейером из ARM_PIPELINE_CMD
 python -m arm_web process ПАПКА --truth эталон.json             # + метрики качества в отчёте
 python -m arm_web evaluate out/report.json ../samples/demo_kit_truth.json
-python -m arm_web demo-kit ПАПКА                                 # сгенерировать демо-комплект
 python -m arm_web build-demo                                     # обновить демо-отчёт фронтенда
 sh ../scripts/export_schema.sh                                   # JSON Schema отчёта и типы фронтенда
 ```
@@ -145,10 +145,12 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
    регулярными выражениями в единую структуру параметров.
 7. **Комплектность и критичность** — см. [формат отчёта](docs/report-format.md).
 
-Качество на демо-комплекте (синтетический, 22 файла, 9 заложенных расхождений):
-расхождения — точность и полнота 100 %; основные надписи векторных PDF — 100 %,
-сканов — 38 % (OCR не читает мелкие подписи граф); параметры ТТ — точность 100 %,
-полнота 95 %. Подробности и разбор ошибок — вкладка «Качество» демо-отчёта.
+Качество на демо-комплекте (синтетический, 22 файла, 9 заложенных расхождений;
+PDFium и Tesseract): расхождения — точность и полнота 100 %; основные надписи
+векторных PDF — 100 %, сканов — 63 % (OCR не находит материал и не читает вертикальные
+графы — архивный номер и первое применение); параметры ТТ — точность 99 %, полнота 94 %.
+Замер — [eval/results/pdf-backends.md](eval/results/pdf-backends.md), разбор ошибок —
+вкладка «Качество» демо-отчёта.
 Синтетический комплект проще реального, поэтому эти цифры — проверка работоспособности,
 а не оценка на документах АРМ: для неё нужна эталонная выборка из реальных комплектов
 в формате [`samples/demo_kit_truth.json`](samples/demo_kit_truth.json).
@@ -194,13 +196,16 @@ backend/arm_web/
   models.py                  модель задания; реэкспорт контракта на время переноса
   pipeline/                  выбор конвейера: базовый из ядра или внешняя программа
   evaluate.py                метрики по эталону
-  demo_kit.py, build_demo.py генератор демо-комплекта и демо-данных интерфейса
+  build_demo.py              демо-отчёт интерфейса по samples/demo_kit
 backend/tests/               pytest
 frontend/src/
   pages/                     список проверок, загрузка, страница задания
   report/                    вкладки отчёта
   components/                просмотрщик документов, таблицы, графики
 frontend/public/demo/        демо-отчёт, страницы и выгрузки
+synth/src/synth/
+  demo_kit.py                генератор демо-комплекта: reportlab, PDFium, шрифт DejaVu Sans из fonts/
+synth/tests/                 pytest: комплект в samples/ совпадает с выводом генератора
 samples/                     демо-комплект и эталон к нему
 docs/                        формат отчёта, JSON Schema, иллюстрации
 ```
