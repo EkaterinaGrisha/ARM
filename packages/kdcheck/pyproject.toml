@@ -20,6 +20,8 @@ kdcheck = "kdcheck.cli:main"
 # AGPL-3.0, only behind kdcheck.ingest.pdf.PdfBackend (ADR-0007)
 pymupdf = ["pymupdf>=1.24"]
 ocr = ["pytesseract>=0.3.10"]
+# BSD-3-Clause or Apache-2.0; PDFium itself is BSD-3-Clause
+pdfium = ["pypdfium2>=5.14"]
 
 [tool.setuptools.package-data]
 kdcheck = ["py.typed"]

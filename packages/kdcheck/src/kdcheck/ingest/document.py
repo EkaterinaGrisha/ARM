@@ -15,7 +15,7 @@ from typing import Literal
 
 from PIL import Image, ImageFilter, ImageStat
 
-from kdcheck.ingest.pdf import PdfBackend, default_backend
+from kdcheck.ingest.pdf import PdfBackend, PdfPage, default_backend
 from kdcheck.ingest.text import BBox, Line
 from kdcheck.ocr import tesseract
 from kdcheck.schemas import DocumentInfo, PageInfo, SourceRef
@@ -24,7 +24,8 @@ log = logging.getLogger(__name__)
 
 MM_PT = 72 / 25.4
 PAPER_MM = [(210, 297), (297, 420), (420, 594), (594, 841), (841, 1189), (297, 630), (297, 841)]
-PDF_RENDER_DPI = 200
+PDF_RENDER_DPI = 200  # pages without text that are not a single scan
+SCAN_DPI_MAX = 400  # larger scans are reduced before OCR to bound time and memory
 MAX_PAGES = 500  # pages read per file; bounds the time one huge file can take
 
 TextMethod = Literal["text_layer", "ocr"]
@@ -190,16 +191,29 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, *, use_ocr:
             text_pages += 1
         else:
             page.image_only = pg.has_images()
-            image = pg.render(PDF_RENDER_DPI / 72)
+            image, origin, scale = _page_image(pg)
             if index == 0:
                 doc.quality = image_quality(image)
             if use_ocr and tesseract.available() and not is_unreadable(doc.quality):
-                lines = tesseract.recognize(image, scale=pg.width / image.width)
+                lines = tesseract.recognize(image, scale=scale, origin=origin)
                 if lines:
                     page.lines, page.method = lines, "ocr"
         doc.pages.append(page)
     doc.info.origin = "vector" if text_pages == count else "scan" if text_pages == 0 else "mixed"
     _fill_page_info(doc)
+
+
+def _page_image(pg: PdfPage) -> tuple[Image.Image, tuple[float, float], float]:
+    """Image to read a page without text: the scan itself when possible, else a render. Also where it sits."""
+    found = pg.scan()
+    if found is None:
+        image = pg.render(PDF_RENDER_DPI / 72)
+        return image, (0.0, 0.0), pg.width / image.width
+    image, (x0, y0, x1, _) = found
+    limit = round((x1 - x0) / 72 * SCAN_DPI_MAX)
+    if image.width > limit:
+        image = image.resize((limit, round(image.height * limit / image.width)), Image.Resampling.LANCZOS)
+    return image, (x0, y0), (x1 - x0) / image.width
 
 
 def _load_image(doc: LoadedDocument, data: bytes, *, use_ocr: bool, max_pages: int | None) -> None:

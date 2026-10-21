@@ -69,5 +69,8 @@ def test_render_page_limits_size_and_checks_page_number(tmp_path):
 
 
 def test_core_imports_pdf_library_only_through_the_adapter():
-    code = "import sys, kdcheck.ingest.document, kdcheck.render; assert 'pymupdf' not in sys.modules"
+    code = (
+        "import sys, kdcheck.ingest.document, kdcheck.render; "
+        "assert 'pymupdf' not in sys.modules and 'pypdfium2' not in sys.modules"
+    )
     subprocess.run([sys.executable, "-c", code], check=True)

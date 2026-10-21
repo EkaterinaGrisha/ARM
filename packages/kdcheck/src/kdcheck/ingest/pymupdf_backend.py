@@ -17,6 +17,8 @@ pymupdf.TOOLS.mupdf_display_errors(False)
 class PyMuPdfPage:
     def __init__(self, page: Any) -> None:
         self._page = page
+        # Text comes in unrotated page space; this matrix moves it to the page as displayed and rendered.
+        self._rotate = page.rotation_matrix if page.rotation else None
 
     @property
     def width(self) -> float:
@@ -37,18 +39,31 @@ class PyMuPdfPage:
                         if ch["c"].isspace():
                             _flush_word(chars, words)
                         else:
-                            chars.append((ch["c"], _bbox(ch["bbox"])))
+                            chars.append((ch["c"], self._box(ch["bbox"])))
                 _flush_word(chars, words)
                 if not words:
                     continue
                 size = max(span["size"] for span in ln["spans"])
-                vertical = abs(ln["dir"][0]) < 0.5
+                dx, dy = ln["dir"]
+                if self._rotate is not None:  # the linear part only: a direction does not move
+                    m = self._rotate
+                    dx, dy = m.a * dx + m.c * dy, m.b * dx + m.d * dy
+                vertical = abs(dx) < 0.5
                 text = " ".join(w.text for w in words)
-                lines.append(Line(text=text, bbox=_bbox(ln["bbox"]), size=size, vertical=vertical, words=words))
+                lines.append(Line(text=text, bbox=self._box(ln["bbox"]), size=size, vertical=vertical, words=words))
         return split_wide_lines(lines)
+
+    def _box(self, values: Any) -> BBox:
+        if self._rotate is None:
+            return _bbox(values)
+        r = pymupdf.Rect(values) * self._rotate
+        return (r.x0, r.y0, r.x1, r.y1)
 
     def has_images(self) -> bool:
         return bool(self._page.get_images())
+
+    def scan(self) -> tuple[Image.Image, BBox] | None:
+        return None  # kept for rollback: scans are rendered, as before the switch to PDFium
 
     def render(self, scale: float) -> Image.Image:
         pix = self._page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), colorspace=pymupdf.csGRAY, alpha=False)
