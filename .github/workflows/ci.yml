@@ -33,9 +33,6 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - name: Install a Cyrillic font for the demo kit generator test
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core
       - run: uv sync --locked --all-packages --all-extras
       - run: uv run ruff check .
       - run: uv run ruff format --check .

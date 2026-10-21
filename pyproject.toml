@@ -10,6 +10,7 @@ dev = [
   "pytest>=8",
   "ruff>=0.8",
   "types-openpyxl",
+  "types-reportlab",
 ]
 
 [tool.ruff]
