@@ -74,7 +74,9 @@ jobs:
           for _ in $(seq 60); do curl -fsS http://127.0.0.1:8000/api/health && break; sleep 1; done
           curl -fsS http://127.0.0.1:8000/api/health
           curl -fsS http://127.0.0.1:8000/ | grep -q '<div id="root">'
-      - name: The image has the kdcheck command
-        run: docker run --rm arm-kd kdcheck run --help
+      - name: The image processes the demo kit with OCR under the job memory limit
+        run: |
+          docker run --rm -v "$PWD/samples:/samples:ro" arm-kd \
+            python -m arm_web.sandbox --memory-mb 8192 -- kdcheck run /samples/demo_kit -o /tmp/report
       - if: failure()
         run: docker logs arm-kd

@@ -1,13 +1,16 @@
-"""HTTP API веб-интерфейса и раздача собранного фронтенда.
+"""HTTP API of the web UI and serving of the built frontend.
 
     uvicorn arm_web.main:app --port 8000
 
-Настройки (переменные окружения):
-    ARM_DATA_DIR         каталог для заданий (по умолчанию ./data)
-    ARM_PIPELINE_CMD     внешний конвейер команды (см. arm_web/pipeline/external.py)
-    ARM_OCR              0 — не распознавать сканы
-    ARM_WORKERS          число одновременно обрабатываемых комплектов (по умолчанию 1)
-    ARM_FRONTEND_DIST    путь к собранному фронтенду (по умолчанию ../frontend/dist)
+Settings (environment variables):
+    ARM_DATA_DIR          job folder (default ./data)
+    ARM_PIPELINE_CMD      external team pipeline (see arm_web/pipeline/external.py)
+    ARM_PIPELINE_TIMEOUT  seconds per doc set, default 3600
+    ARM_JOB_MEMORY_MB     memory limit of the job process, default 8192, 0 for none (enforced on Linux)
+    ARM_INPROCESS         1 runs the core in API threads without limits (rollback)
+    ARM_OCR               0 turns scan recognition off
+    ARM_WORKERS           doc sets processed at once (default 1)
+    ARM_FRONTEND_DIST     built frontend (default ../frontend/dist)
 """
 
 from __future__ import annotations
