@@ -12,6 +12,7 @@ def get_pipeline() -> Pipeline:
     timeout = int(os.environ.get("ARM_PIPELINE_TIMEOUT", "3600"))
     memory = int(os.environ.get("ARM_JOB_MEMORY_MB", "8192")) or None
     use_ocr = os.environ.get("ARM_OCR", "1") != "0"
+    max_pages = int(os.environ.get("ARM_MAX_PAGES", "500"))
     command = os.environ.get("ARM_PIPELINE_CMD", "").strip()
     if command:
         from .external import ExternalPipeline
@@ -20,11 +21,12 @@ def get_pipeline() -> Pipeline:
     from kdcheck.run import BaselinePipeline
 
     if os.environ.get("ARM_INPROCESS") == "1":  # rollback to the prototype: the core runs in API threads, no limits
-        return BaselinePipeline(use_ocr=use_ocr)
+        return BaselinePipeline(use_ocr=use_ocr, max_pages=max_pages or None)
     from .process import ProcessPipeline
 
     args = [sys.executable, "-m", "kdcheck", "run", "{input}", "-o", "{output}"]
     args += ["--kit-id", "{kit_id}", "--name", "{kit_name}", "--progress-file", "{output}/progress.json"]
+    args += ["--max-pages", str(max_pages)]
     if not use_ocr:
         args.append("--no-ocr")
     return ProcessPipeline(BaselinePipeline.name, BaselinePipeline.version, args, timeout_sec=timeout, memory_mb=memory)

@@ -8,6 +8,9 @@ Settings (environment variables):
     ARM_PIPELINE_TIMEOUT  seconds per doc set, default 3600
     ARM_JOB_MEMORY_MB     memory limit of the job process, default 8192, 0 for none (enforced on Linux)
     ARM_INPROCESS         1 runs the core in API threads without limits (rollback)
+    ARM_MAX_UPLOAD_MB     upload size limit, default 2048
+    ARM_MAX_FILES         files per upload, default 2000
+    ARM_MAX_PAGES         pages read per file, default 500
     ARM_OCR               0 turns scan recognition off
     ARM_WORKERS           doc sets processed at once (default 1)
     ARM_FRONTEND_DIST     built frontend (default ../frontend/dist)
@@ -16,19 +19,22 @@ Settings (environment variables):
 from __future__ import annotations
 
 import logging
+import math
 import os
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from kdcheck.render import RenderError, render_page
 from kdcheck.report import to_html, to_xlsx
 from kdcheck.run import ocr_available
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import UploadFile
 
 from . import __version__
-from .jobs import JobNotFound, JobStore
+from .jobs import JobNotFound, JobStore, UploadTooLarge
 from .models import Job
 from .pipeline import get_pipeline
 
@@ -61,6 +67,10 @@ def _attachment(name: str) -> dict[str, str]:
     return {"Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"}
 
 
+def _limit(name: str, default: int) -> int:
+    return int(os.environ.get(name, str(default)))
+
+
 @app.get("/api/health")
 def health() -> dict:
     pipeline = get_pipeline()
@@ -70,6 +80,8 @@ def health() -> dict:
         "pipeline": pipeline.name,
         "pipeline_version": pipeline.version,
         "ocr": ocr_available(),
+        "max_upload_mb": _limit("ARM_MAX_UPLOAD_MB", 2048),
+        "max_files": _limit("ARM_MAX_FILES", 2000),
     }
 
 
@@ -78,19 +90,62 @@ def list_jobs() -> list[Job]:
     return store.list()
 
 
-@app.post("/api/jobs", status_code=201)
-def create_job(
-    files: list[UploadFile] = File(..., description="Файлы комплекта"),
-    paths: list[str] = Form(default=[], description="Относительные пути файлов (в том же порядке)"),
-    name: str = Form(default=""),
-) -> Job:
-    if not files:
-        raise HTTPException(400, "Не выбрано ни одного файла")
-    items = []
-    for i, f in enumerate(files):
-        rel = paths[i] if i < len(paths) and paths[i] else (f.filename or f"file_{i}")
-        items.append((rel, f.file))
-    return store.create(name, items)
+UPLOAD_FORM = {
+    "requestBody": {
+        "required": True,
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "required": ["files"],
+                    "properties": {
+                        "files": {
+                            "type": "array",
+                            "items": {"type": "string", "format": "binary"},
+                            "description": "Файлы комплекта",
+                        },
+                        "paths": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Относительные пути файлов (в том же порядке)",
+                        },
+                        "name": {"type": "string"},
+                    },
+                }
+            }
+        },
+    }
+}
+
+
+@app.post("/api/jobs", status_code=201, openapi_extra=UPLOAD_FORM)
+async def create_job(request: Request) -> Job:
+    max_mb, max_files = _limit("ARM_MAX_UPLOAD_MB", 2048), _limit("ARM_MAX_FILES", 2000)
+    too_large = f"Комплект больше {max_mb} МБ: разделите его или увеличьте ARM_MAX_UPLOAD_MB"
+    length = request.headers.get("content-length", "")
+    if length.isdigit() and int(length) > max_mb * 1024 * 1024:
+        raise HTTPException(413, too_large)
+    # The size limit bounds the upload, so the parser may take any number of files; their count is checked below.
+    async with request.form(max_files=math.inf, max_fields=math.inf) as form:
+        files = [f for f in form.getlist("files") if isinstance(f, UploadFile)]
+        if not files:
+            raise HTTPException(422, "Не выбрано ни одного файла")
+        if len(files) > max_files:
+            raise HTTPException(
+                413, f"Файлов в комплекте: {len(files)}, допустимо не больше {max_files}. Увеличьте ARM_MAX_FILES"
+            )
+        paths = [p if isinstance(p, str) else "" for p in form.getlist("paths")]
+        name = form.get("name")
+        items = []
+        for i, f in enumerate(files):
+            rel = paths[i] if i < len(paths) and paths[i] else (f.filename or f"file_{i}")
+            items.append((rel, f.file))
+        try:
+            return await run_in_threadpool(
+                store.create, name if isinstance(name, str) else "", items, max_bytes=max_mb * 1024 * 1024
+            )
+        except UploadTooLarge:
+            raise HTTPException(413, too_large) from None
 
 
 @app.get("/api/jobs/{job_id}")
