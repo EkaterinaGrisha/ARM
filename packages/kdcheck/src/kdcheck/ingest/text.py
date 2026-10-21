@@ -46,8 +46,8 @@ def lines_confidence(lines: Iterable[Line]) -> float | None:
     return round(min(values), 2) if values else None
 
 
-def split_wide_lines(lines: list[Line]) -> list[Line]:
-    """Split a line at wide horizontal gaps: these are neighbouring table cells, not one phrase."""
+def split_wide_lines(lines: list[Line], gap: float) -> list[Line]:
+    """Split a line at gaps wider than ``gap`` font sizes: these are neighbouring table cells, not one phrase."""
     result: list[Line] = []
     for ln in lines:
         if ln.vertical or len(ln.words) < 2:
@@ -56,8 +56,7 @@ def split_wide_lines(lines: list[Line]) -> list[Line]:
         words = sorted(ln.words, key=lambda w: w.bbox[0])
         groups = [[words[0]]]
         for w in words[1:]:
-            gap = w.bbox[0] - groups[-1][-1].bbox[2]
-            if gap > ln.size * 1.6:
+            if w.bbox[0] - groups[-1][-1].bbox[2] > ln.size * gap:
                 groups.append([w])
             else:
                 groups[-1].append(w)

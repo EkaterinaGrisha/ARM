@@ -356,6 +356,33 @@
       "title": "DocumentInfo",
       "type": "object"
     },
+    "EngineInfo": {
+      "additionalProperties": true,
+      "description": "Движок или библиотека, от которых зависит результат, и их версия. С версии 1.1.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "EngineInfo",
+      "type": "object"
+    },
     "ErrorCase": {
       "additionalProperties": true,
       "properties": {
@@ -563,6 +590,28 @@
           ],
           "default": null,
           "title": "Pipeline Version"
+        },
+        "engines": {
+          "default": [],
+          "description": "Движки и библиотеки с версиями. С версии 1.1",
+          "items": {
+            "$ref": "#/$defs/EngineInfo"
+          },
+          "title": "Engines",
+          "type": "array"
+        },
+        "config_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 настроек configs/*.yaml, с которыми получен отчёт. С версии 1.1",
+          "title": "Config Sha256"
         }
       },
       "required": [
@@ -1097,6 +1146,32 @@
           ],
           "default": null,
           "title": "Confidence"
+        },
+        "engine": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Движок, прочитавший текст: pdfium, tesseract… С версии 1.1",
+          "title": "Engine"
+        },
+        "engine_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Версия движка. С версии 1.1",
+          "title": "Engine Version"
         }
       },
       "required": [
@@ -1664,7 +1739,7 @@
   "additionalProperties": true,
   "properties": {
     "schema_version": {
-      "default": "1.0",
+      "default": "1.1",
       "title": "Schema Version",
       "type": "string"
     },

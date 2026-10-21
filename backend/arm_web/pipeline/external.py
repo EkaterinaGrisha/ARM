@@ -14,5 +14,7 @@ from .process import ProcessPipeline
 
 
 class ExternalPipeline(ProcessPipeline):
-    def __init__(self, command: str, timeout_sec: int = 3600, memory_mb: int | None = None):
-        super().__init__("external", "-", shlex.split(command), timeout_sec=timeout_sec, memory_mb=memory_mb)
+    def __init__(self, command: str, *, timeout_sec: int, memory_mb: int | None = None, poll_sec: float):
+        super().__init__(
+            "external", "-", shlex.split(command), timeout_sec=timeout_sec, memory_mb=memory_mb, poll_sec=poll_sec
+        )

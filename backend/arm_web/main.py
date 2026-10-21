@@ -2,17 +2,12 @@
 
     uvicorn arm_web.main:app --port 8000
 
-Settings (environment variables):
+Limits come from configs/api.yaml and the core settings from the other configs/*.yaml files (ADR-0012);
+ARM_* variables override single values (see arm_web/settings.py and kdcheck.config). Other settings:
+    ARM_CONFIG_DIR        settings folder (default ../configs)
     ARM_DATA_DIR          job folder (default ./data)
     ARM_PIPELINE_CMD      external team pipeline (see arm_web/pipeline/external.py)
-    ARM_PIPELINE_TIMEOUT  seconds per doc set, default 3600
-    ARM_JOB_MEMORY_MB     memory limit of the job process, default 8192, 0 for none (enforced on Linux)
     ARM_INPROCESS         1 runs the core in API threads without limits (rollback)
-    ARM_MAX_UPLOAD_MB     upload size limit, default 2048
-    ARM_MAX_FILES         files per upload, default 2000
-    ARM_MAX_PAGES         pages read per file, default 500
-    ARM_OCR               0 turns scan recognition off
-    ARM_WORKERS           doc sets processed at once (default 1)
     ARM_FRONTEND_DIST     built frontend (default ../frontend/dist)
 """
 
@@ -29,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from kdcheck.render import RenderError, render_page
 from kdcheck.report import to_html, to_xlsx
-from kdcheck.run import ocr_available
+from kdcheck.run import Settings, load_settings, ocr_available
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
@@ -37,6 +32,7 @@ from . import __version__
 from .jobs import JobNotFound, JobStore, UploadTooLarge
 from .models import Job
 from .pipeline import get_pipeline
+from .settings import api_settings, config_dir
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -44,7 +40,7 @@ DATA_DIR = Path(os.environ.get("ARM_DATA_DIR", "data"))
 FRONTEND_DIST = Path(os.environ.get("ARM_FRONTEND_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist"))
 
 app = FastAPI(title="АРМ — входной контроль КД", version=__version__)
-store = JobStore(DATA_DIR, get_pipeline, workers=int(os.environ.get("ARM_WORKERS", "1")))
+store = JobStore(DATA_DIR, get_pipeline, workers=api_settings().workers)
 
 
 def _job_or_404(job_id: str) -> Job:
@@ -67,21 +63,22 @@ def _attachment(name: str) -> dict[str, str]:
     return {"Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"}
 
 
-def _limit(name: str, default: int) -> int:
-    return int(os.environ.get(name, str(default)))
+def _core() -> Settings:
+    return load_settings(config_dir())
 
 
 @app.get("/api/health")
 def health() -> dict:
     pipeline = get_pipeline()
+    api = api_settings()
     return {
         "status": "ok",
         "version": __version__,
         "pipeline": pipeline.name,
         "pipeline_version": pipeline.version,
-        "ocr": ocr_available(),
-        "max_upload_mb": _limit("ARM_MAX_UPLOAD_MB", 2048),
-        "max_files": _limit("ARM_MAX_FILES", 2000),
+        "ocr": ocr_available(_core()),
+        "max_upload_mb": api.max_upload_mb,
+        "max_files": api.max_files,
     }
 
 
@@ -120,8 +117,9 @@ UPLOAD_FORM = {
 
 @app.post("/api/jobs", status_code=201, openapi_extra=UPLOAD_FORM)
 async def create_job(request: Request) -> Job:
-    max_mb, max_files = _limit("ARM_MAX_UPLOAD_MB", 2048), _limit("ARM_MAX_FILES", 2000)
-    too_large = f"Комплект больше {max_mb} МБ: разделите его или увеличьте ARM_MAX_UPLOAD_MB"
+    api = api_settings()
+    max_mb, max_files = api.max_upload_mb, api.max_files
+    too_large = f"Комплект больше {max_mb} МБ: разделите его или увеличьте max_upload_mb в configs/api.yaml"
     length = request.headers.get("content-length", "")
     if length.isdigit() and int(length) > max_mb * 1024 * 1024:
         raise HTTPException(413, too_large)
@@ -132,7 +130,9 @@ async def create_job(request: Request) -> Job:
             raise HTTPException(422, "Не выбрано ни одного файла")
         if len(files) > max_files:
             raise HTTPException(
-                413, f"Файлов в комплекте: {len(files)}, допустимо не больше {max_files}. Увеличьте ARM_MAX_FILES"
+                413,
+                f"Файлов в комплекте: {len(files)}, допустимо не больше {max_files}. "
+                "Увеличьте max_files в configs/api.yaml",
             )
         paths = [p if isinstance(p, str) else "" for p in form.getlist("paths")]
         name = form.get("name")
@@ -222,7 +222,8 @@ def document_page(job_id: str, doc_id: str, page: int) -> Response:
     cached = store.cache_dir(job_id) / f"{doc_id}-{page}.png"
     if not cached.exists():
         try:
-            cached.write_bytes(render_page(path, page))
+            image = render_page(path, page, max_px=api_settings().page_image_px, pdf_backend=_core().models.pdf.backend)
+            cached.write_bytes(image)
         except RenderError as exc:
             raise HTTPException(422, str(exc)) from None
     return FileResponse(cached, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})

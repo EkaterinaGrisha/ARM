@@ -1,0 +1,36 @@
+# Reading files and pages: limits, rasters, scans and the text lines of a page.
+
+max_pages_per_file: 500          # pages read per file, 0 — all; bounds the time one huge file takes. ARM_MAX_PAGES overrides
+render_dpi: 200                  # a page without text that is not one scan is rendered at this resolution for OCR
+min_image_dpi: 50                # image resolution metadata below this is ignored
+
+scan:                            # a PDF page that is one scanned image is read at its own pixels
+  min_coverage: 0.5              # the image covers at least this share of the page
+  max_stretch: 0.02              # its horizontal and vertical scales differ by less than this share
+  check_size: 120                # px: the long side of the thumbnails that compare the image with the rendered page
+  min_check_size: 4              # px: a smaller thumbnail is not trusted
+  max_difference: 25             # mean grey level difference between the two thumbnails, 0–255
+  max_dpi: 400                   # a finer scan is reduced before OCR to bound time and memory
+
+quality:                         # a scan below any of the thresholds is unreadable
+  sample_width: 1600             # px: a wider image is reduced before measuring
+  min_contrast: 18               # standard deviation of grey levels
+  min_brightness: 60             # mean grey level
+  min_sharpness: 2.0             # mean edge strength
+
+page_scale:                      # pixels per millimetre of an image without resolution metadata
+  aspect_tolerance: 0.08         # the image fits a paper format when their aspect ratios differ by less than this
+  typical_dpi: [150, 200, 300, 400, 600]  # the format giving the resolution nearest to one of these wins
+  fallback_format: A4            # its short side is used when no format fits
+
+text:                            # lines of words from the PDF text layer and from OCR
+  cell_gap: 1.6                  # a gap wider than this many font sizes starts the next table cell
+  line_shift: 0.5                # a character shifted across the line by more than this many font sizes starts a line
+  vertical_angle: [60, 120]      # degrees: text at these angles to the horizontal is vertical
+  min_char_size: 1.0             # pt: smaller font sizes count as this one
+
+confidence:                      # of a value, by how it was read
+  text_layer: 0.95
+  ocr: 0.7                       # when the OCR confidence of the lines is not known
+  filename: 0.5                  # a designation taken from the file name
+  filename_name: 0.4             # a name taken from the file name

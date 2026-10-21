@@ -4,11 +4,14 @@ from itertools import count
 from pathlib import Path
 
 import pytest
+from kdcheck.config import load_settings
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.ingest.text import Line
 from kdcheck.params import critical, parameters
 from kdcheck.schemas import DocumentInfo, Extracted, PartRecord
 
+SETTINGS = load_settings(use_ocr=False)
+PARSER = parameters.Parser(SETTINGS.dictionaries)
 DOC = LoadedDocument(info=DocumentInfo(id="d1", file_name="a.pdf", path="a.pdf"), abs_path=Path("a.pdf"))
 PAGE = Page(number=1, width=1000, height=700, method="text_layer")
 
@@ -19,12 +22,12 @@ def _next_id():
 
 
 def requirement(text: str):
-    return parameters.parse_requirement(Extracted(value=text, raw=text), _next_id())
+    return PARSER.requirement(Extracted(value=text, raw=text), _next_id())
 
 
 def annotation(text: str):
     line = Line(text=text, bbox=(100, 100, 200, 110), size=10)
-    return parameters.parse_annotation(DOC, PAGE, line, _next_id(), general_zone=False)
+    return PARSER.annotation(DOC, PAGE, line, _next_id(), general_zone=False)
 
 
 def summary(params):
@@ -76,10 +79,17 @@ def _part(*texts: str) -> PartRecord:
 
 
 def test_critical_rules_fire_on_tight_values_only():
-    selected = critical.select([_part("Ø40h6", "Ø40h12", "Ra 0,8", "Ra 6,3")])
+    selected = critical.select([_part("Ø40h6", "Ø40h12", "Ra 0,8", "Ra 6,3")], SETTINGS.criticality)
     assert sorted((c.rule, c.text) for c in selected) == [("fine_roughness", "Ra 0,8"), ("tight_fit", "Ø40h6")]
     assert all(c.reason and c.source for c in selected)
 
 
 def test_no_critical_parameters_in_a_loose_part():
-    assert critical.select([_part("Ø40h12", "Ra 6,3", "Ra 12,5")]) == []
+    assert critical.select([_part("Ø40h12", "Ra 6,3", "Ra 12,5")], SETTINGS.criticality) == []
+
+
+def test_criticality_thresholds_come_from_the_settings():
+    rules = SETTINGS.criticality
+    looser = rules.model_copy(update={"tight_fit": rules.tight_fit.model_copy(update={"max_it_grade": 12})})
+    selected = critical.select([_part("Ø40h12")], looser)
+    assert [(c.rule, c.text, c.score) for c in selected] == [("tight_fit", "Ø40h12", rules.tight_fit.score)]

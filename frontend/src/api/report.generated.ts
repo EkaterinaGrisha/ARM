@@ -23,6 +23,21 @@ export interface KitInfo {
   duration_sec?: number | null;
   pipeline_name?: string | null;
   pipeline_version?: string | null;
+  /**
+   * Движки и библиотеки с версиями. С версии 1.1
+   */
+  engines: EngineInfo[];
+  /**
+   * SHA-256 настроек configs/*.yaml, с которыми получен отчёт. С версии 1.1
+   */
+  config_sha256?: string | null;
+}
+/**
+ * Движок или библиотека, от которых зависит результат, и их версия. С версии 1.1.
+ */
+export interface EngineInfo {
+  name: string;
+  version?: string | null;
 }
 export interface Summary {
   documents_total: number;
@@ -112,6 +127,14 @@ export interface SourceRef {
   text?: string | null;
   method?: ("text_layer" | "ocr" | "vlm" | "llm" | "filename" | "rule" | "manual") | null;
   confidence?: number | null;
+  /**
+   * Движок, прочитавший текст: pdfium, tesseract… С версии 1.1
+   */
+  engine?: string | null;
+  /**
+   * Версия движка. С версии 1.1
+   */
+  engine_version?: string | null;
 }
 export interface SpecRow {
   id: string;

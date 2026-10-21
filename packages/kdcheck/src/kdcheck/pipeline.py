@@ -1,25 +1,32 @@
 """Baseline pipeline: rules over the PDF text layer and, when available, OCR.
 
 A reference implementation and an integration example: any stage can be replaced by a model (VLM, LLM, another OCR)
-while the report format stays the same.
+while the report format stays the same. Thresholds, templates and dictionaries come from :class:`Settings`; the
+report records their hash and the engines with versions.
 """
 
 from __future__ import annotations
 
+import itertools
 import logging
 import re
 import time
 from collections import Counter
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
+from importlib import metadata
 from pathlib import Path
 
 from kdcheck.checks.completeness import DrawingRef, check
+from kdcheck.config import Settings, settings_sha256
 from kdcheck.extract import specification, tech_requirements, title_block
-from kdcheck.ingest.document import MAX_PAGES, LoadedDocument, Page, is_unreadable, load_document
-from kdcheck.normalize.designations import doc_code, find_designations, normalize_designation
+from kdcheck.ingest.document import LoadedDocument, Page, load_document
+from kdcheck.ingest.pdf import get_backend
+from kdcheck.normalize.designations import Designations
+from kdcheck.ocr import tesseract
 from kdcheck.params import critical, parameters
 from kdcheck.schemas import (
+    EngineInfo,
     Extracted,
     KitInfo,
     LogEntry,
@@ -50,9 +57,11 @@ class BaselinePipeline:
     name = "baseline"
     version = "0.1.0"
 
-    def __init__(self, use_ocr: bool = True, max_pages: int | None = MAX_PAGES) -> None:
-        self.use_ocr = use_ocr
-        self.max_pages = max_pages
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self.pdf = get_backend(settings.models.pdf.backend)
+        self.eskd = Designations(settings.dictionaries)
+        self.parameters = parameters.Parser(settings.dictionaries)
 
     # ------------------------------------------------------------------ run
     def run(self, input_dir: Path, *, kit_id: str, kit_name: str, progress: ProgressCallback = no_progress) -> Report:
@@ -63,7 +72,7 @@ class BaselinePipeline:
         docs: list[LoadedDocument] = []
         for i, path in enumerate(files):
             progress("Чтение файлов", 0.6 * i / max(1, len(files)), path.relative_to(input_dir).as_posix())
-            docs.append(load_document(path, input_dir, use_ocr=self.use_ocr, max_pages=self.max_pages))
+            docs.append(load_document(path, input_dir, self.settings, pdf_backend=self.pdf))
 
         progress("Разбор документов", 0.6, None)
         specs: list[tuple[LoadedDocument, Specification]] = []
@@ -86,11 +95,11 @@ class BaselinePipeline:
             for d in docs
             if d.info.kind in ("part_drawing", "assembly_drawing", "drawing") and d.info.designation
         ]
-        result = check([(d.info, s) for d, s in specs], drawing_refs)
+        result = check([(d.info, s) for d, s in specs], drawing_refs, self.eskd)
         report_log += [LogEntry(level="warning", message=m) for m in result.log]
 
         progress("Анализ требований", 0.93, None)
-        criticals = critical.select(parts)
+        criticals = critical.select(parts, self.settings.criticality)
 
         progress("Формирование отчёта", 0.97, None)
         infos = [d.info for d in docs]
@@ -125,6 +134,8 @@ class BaselinePipeline:
             duration_sec=round(time.monotonic() - started, 2),
             pipeline_name=self.name,
             pipeline_version=self.version,
+            engines=self.engines(),
+            config_sha256=settings_sha256(self.settings),
         )
         progress("Готово", 1.0, None)
         return Report(
@@ -139,19 +150,28 @@ class BaselinePipeline:
             log=report_log,
         )
 
+    def engines(self) -> list[EngineInfo]:
+        """The engines and libraries whose versions the results depend on."""
+        found = [EngineInfo(name=name, version=v) for name, v in self.pdf.versions().items()]
+        ocr = self.settings.models.ocr
+        if ocr.enabled and tesseract.available(ocr.languages):
+            found.append(EngineInfo(name=ocr.engine, version=tesseract.version()))
+        found.append(EngineInfo(name="pillow", version=metadata.version("pillow")))
+        return found
+
     # ------------------------------------------------------------------ classification
     def _classify_and_parse(
         self, doc: LoadedDocument, specs: list[tuple[LoadedDocument, Specification]], parts: list[PartRecord]
     ) -> None:
-        info = doc.info
+        info, forms = doc.info, self.settings.forms
         text_pages = [p for p in doc.pages if p.lines]
         if not text_pages:
             self._scan_without_text(doc, parts)
             return
-        if any(specification.is_specification(p) for p in text_pages[:2]):
-            spec = specification.parse(doc)
+        if any(specification.is_specification(p, forms) for p in text_pages[: forms.specification.header_pages]):
+            spec = specification.parse(doc, forms, self.eskd)
             info.kind = "specification"
-            info.designation = _str(spec.designation) or _filename_designation(info.file_name)
+            info.designation = _str(spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
             if not spec.rows:
                 info.status, info.problem = "warning", "Спецификация распознана, но строки таблицы не найдены"
@@ -159,24 +179,24 @@ class BaselinePipeline:
             self._check_filename(doc)
             return
         page = text_pages[0]
-        geom = title_block.locate(page)
+        geom = title_block.locate(page, forms)
         if geom is not None and geom.form == 2:
-            spec = specification.parse(doc)
+            spec = specification.parse(doc, forms, self.eskd)
             info.kind = "specification"
             info.designation = _str(spec.designation)
             info.name = _str(spec.name)
             specs.append((doc, spec))
             return
         if geom is None:
-            fallback = title_block.default_geometry(page, 1)
-            has_designation = any(
-                find_designations(ln.text) for ln in title_block.lines_in(page, fallback.rect((40, -6, 185, 18)))
-            )
+            fallback = title_block.default_geometry(page, forms)
+            template = forms.title_block
+            wide = title_block.lines_in(page, fallback.rect(template.designation_overflow), template.line_row_height)
+            has_designation = any(self.eskd.find_designations(ln.text) for ln in wide)
             if page.method == "ocr" and has_designation:
                 geom = fallback
             else:
-                if page.method == "ocr" and is_unreadable(doc.quality):
-                    info.status, info.problem = "unreadable", f"Нечитаемый скан: {is_unreadable(doc.quality)}"
+                if page.method == "ocr" and doc.unreadable:
+                    info.status, info.problem = "unreadable", f"Нечитаемый скан: {doc.unreadable}"
                 elif page.method == "ocr":
                     info.status = "warning"
                     info.problem = "Скан распознан, но основная надпись не найдена — тип документа не определён"
@@ -188,78 +208,84 @@ class BaselinePipeline:
         self._check_filename(doc)
 
     def _parse_drawing(self, doc: LoadedDocument, page: Page, geom: title_block.Geometry) -> PartRecord:
-        info = doc.info
-        tb = title_block.parse(doc, page, geom)
+        info, forms = doc.info, self.settings.forms
+        tb = title_block.parse(doc, page, geom, forms, self.eskd)
         if tb.designation is None:
-            fname = _filename_designation(info.file_name)
+            fname = self._filename_designation(info.file_name)
             if fname:
+                confidence = self.settings.ingest.confidence.filename
                 tb.designation = Extracted(
                     value=fname,
                     raw=info.file_name,
-                    confidence=0.5,
+                    confidence=confidence,
                     source=SourceRef(
-                        document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=0.5
+                        document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=confidence
                     ),
                 )
                 info.notes.append("Обозначение в основной надписи не распознано — взято из имени файла")
         designation = _str(tb.designation)
         name = _str(tb.name)
-        assembly = bool(designation and doc_code(designation) == "СБ") or "сборочный чертеж" in (
-            name or ""
-        ).lower().replace("ё", "е")
-        info.kind = "assembly_drawing" if assembly else "part_drawing"
+        info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(designation, name) else "part_drawing"
         info.designation = designation
         info.name = name
         if page.method == "ocr":
             info.notes.append("Текст получен распознаванием скана (OCR) — значения требуют проверки")
         part = PartRecord(document_id=doc.id, designation=designation, name=name, kind=info.kind, title_block=tb)
 
-        counter = iter(range(1, 10_000))
+        counter = itertools.count(1)
 
         def next_id() -> str:
             return f"{doc.id}-p{next(counter)}"
 
-        tt_lines = tech_requirements.requirement_lines(page, geom)
-        part.requirements = tech_requirements.requirement_items(doc, page, tt_lines)
+        block = forms.tech_requirements
+        tt_lines = tech_requirements.requirement_lines(page, geom, block)
+        part.requirements = tech_requirements.requirement_items(doc, page, tt_lines, block)
         for item in part.requirements:
-            part.parameters += parameters.parse_requirement(item, next_id)
+            part.parameters += self.parameters.requirement(item, next_id)
         skip = {id(ln) for ln in tt_lines}
-        tb_x0, tb_y0 = geom.x0 - 1 * geom.s, geom.y0 - 1 * geom.s
+        edge = forms.title_block.edge_tolerance
+        tb_x0, tb_y0 = geom.x0 - edge * geom.s, geom.y0 - edge * geom.s
+        sheet = forms.sheet
+        top, right = sheet.general_roughness_zone
         for pg in doc.pages:
             for ln in pg.lines:
                 if ln.vertical or id(ln) in skip:
                     continue
                 if pg is page and ln.cx >= tb_x0 and ln.cy >= tb_y0:
                     continue  # title block
-                if ln.bbox[0] < 21 * pg.mm:
+                if ln.bbox[0] < sheet.binding_margin * pg.mm:
                     continue  # binding margin
-                general_zone = ln.cy < 30 * pg.mm and ln.cx > pg.width - 90 * pg.mm
-                part.parameters += parameters.parse_annotation(doc, pg, ln, next_id, general_zone=general_zone)
+                general_zone = ln.cy < top * pg.mm and ln.cx > pg.width - right * pg.mm
+                part.parameters += self.parameters.annotation(doc, pg, ln, next_id, general_zone=general_zone)
         return part
 
     def _scan_without_text(self, doc: LoadedDocument, parts: list[PartRecord]) -> None:
         info = doc.info
-        reason = is_unreadable(doc.quality)
-        if reason:
-            info.status, info.problem = "unreadable", f"Нечитаемый скан: {reason}"
+        if doc.unreadable:
+            info.status, info.problem = "unreadable", f"Нечитаемый скан: {doc.unreadable}"
             return
-        des = _filename_designation(info.file_name)
+        des = self._filename_designation(info.file_name)
         info.status = "warning"
         if not des:
             info.problem = "Скан без текстового слоя: распознавание (OCR) недоступно, обозначение не определено"
             return
         info.problem = "Скан без текстового слоя: распознавание (OCR) недоступно, обозначение взято из имени файла"
         info.designation = des
-        info.name = _filename_name(info.file_name)
-        info.kind = "assembly_drawing" if doc_code(des) == "СБ" else "part_drawing"
-        src = SourceRef(document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=0.5)
-        tb = TitleBlock(designation=Extracted(value=des, raw=info.file_name, confidence=0.5, source=src))
+        info.name = self._filename_name(info.file_name)
+        info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(des, None) else "part_drawing"
+        confidence = self.settings.ingest.confidence
+        src = SourceRef(
+            document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=confidence.filename
+        )
+        tb = TitleBlock(
+            designation=Extracted(value=des, raw=info.file_name, confidence=confidence.filename, source=src)
+        )
         if info.name:
-            tb.name = Extracted(value=info.name, raw=info.file_name, confidence=0.4, source=src)
+            tb.name = Extracted(value=info.name, raw=info.file_name, confidence=confidence.filename_name, source=src)
         parts.append(PartRecord(document_id=doc.id, designation=des, name=info.name, kind=info.kind, title_block=tb))
 
     def _check_filename(self, doc: LoadedDocument) -> None:
-        fname = _filename_designation(doc.info.file_name)
+        fname = self._filename_designation(doc.info.file_name)
         if (
             fname
             and doc.info.designation
@@ -270,26 +296,23 @@ class BaselinePipeline:
                 f"Обозначение в имени файла ({fname}) отличается от основной надписи ({doc.info.designation})"
             )
 
+    def _filename_designation(self, file_name: str) -> str | None:
+        return self.eskd.normalize_designation(Path(file_name).stem)
+
+    def _filename_name(self, file_name: str) -> str | None:
+        stem = Path(file_name).stem
+        found = self.eskd.find_designations(stem)
+        if not found:
+            return None
+        rest = stem[found[0][2] :]
+        rest = re.sub(r"^[\s_\-–.]+", "", rest).replace("_", " ").strip()
+        return rest or None
+
 
 def _str(ex: Extracted | None) -> str | None:
     if ex is None or ex.value in (None, ""):
         return None
     return str(ex.value)
-
-
-def _filename_designation(file_name: str) -> str | None:
-    stem = Path(file_name).stem
-    return normalize_designation(stem)
-
-
-def _filename_name(file_name: str) -> str | None:
-    stem = Path(file_name).stem
-    found = find_designations(stem)
-    if not found:
-        return None
-    rest = stem[found[0][2] :]
-    rest = re.sub(r"^[\s_\-–.]+", "", rest).replace("_", " ").strip()
-    return rest or None
 
 
 def _count_nodes(nodes: Iterable[TreeNode], pred: Callable[[TreeNode], bool] = lambda n: True) -> int:

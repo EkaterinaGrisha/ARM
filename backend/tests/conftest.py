@@ -25,7 +25,7 @@ def demo_kit() -> tuple[Path, dict]:
 
 @pytest.fixture(scope="session")
 def demo_report(demo_kit):
-    from kdcheck.pipeline import BaselinePipeline
+    from kdcheck.run import BaselinePipeline, load_settings
 
     root, _ = demo_kit
-    return BaselinePipeline(use_ocr=False).run(root, kit_id="test", kit_name="Тест")
+    return BaselinePipeline(load_settings(use_ocr=False)).run(root, kit_id="test", kit_name="Тест")

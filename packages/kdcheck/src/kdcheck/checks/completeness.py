@@ -12,13 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from kdcheck.normalize.designations import (
-    base_designation,
-    doc_code,
-    litera_rank,
-    normalize_designation,
-    normalize_name,
-)
+from kdcheck.normalize.designations import Designations, base_designation, doc_code
 from kdcheck.schemas import (
     Discrepancy,
     DiscrepancyType,
@@ -32,18 +26,6 @@ from kdcheck.schemas import (
     SpecRow,
     TreeNode,
 )
-
-SECTION_KIND: dict[str, NodeKind] = {
-    "Документация": "document",
-    "Комплексы": "assembly",
-    "Сборочные единицы": "assembly",
-    "Детали": "part",
-    "Стандартные изделия": "standard",
-    "Прочие изделия": "other_item",
-    "Материалы": "material",
-    "Комплекты": "other_item",
-}
-NEEDS_DRAWING = {"part", "document"}
 
 
 @dataclass
@@ -82,15 +64,21 @@ def _value(ex: Extracted | None) -> str | None:
 
 
 class Checker:
-    def __init__(self, specs: list[tuple[DocumentInfo, Specification]], drawings: list[DrawingRef]) -> None:
+    def __init__(
+        self, specs: list[tuple[DocumentInfo, Specification]], drawings: list[DrawingRef], eskd: Designations
+    ) -> None:
         self.specs = specs
         self.drawings = drawings
+        self.eskd = eskd
+        self.sections: dict[str, NodeKind] = eskd.words.spec_sections
+        self.needs_drawing = set(eskd.words.needs_drawing)
+        self.sb = eskd.words.assembly_drawing_code
         self.result = Result()
         self._ids = 0
         self._node_ids = 0
         self.spec_by_des: dict[str, list[tuple[DocumentInfo, Specification]]] = defaultdict(list)
         for doc, spec in specs:
-            des = normalize_designation(_value(spec.designation)) or doc.designation
+            des = eskd.normalize_designation(_value(spec.designation)) or doc.designation
             if des:
                 self.spec_by_des[des].append((doc, spec))
         self.drawings_by_des: dict[str, list[DrawingRef]] = defaultdict(list)
@@ -150,7 +138,7 @@ class Checker:
                 "Спецификации не найдены — дерево изделия не построено, проверка комплектности ограничена"
             )
         children_des = {
-            normalize_designation(_value(r.designation))
+            self.eskd.normalize_designation(_value(r.designation))
             for _, spec in self.specs
             for r in spec.rows
             if r.designation is not None
@@ -192,7 +180,7 @@ class Checker:
         )
         self.node_index[des].append(node)
         self.referenced.add(des)
-        node.drawing_document_ids = [d.doc.id for d in self.drawings_by_des.get(f"{des} СБ", [])]
+        node.drawing_document_ids = [d.doc.id for d in self.drawings_by_des.get(f"{des} {self.sb}", [])]
         if not specs:
             node.status = "missing"
             has_sb = bool(node.drawing_document_ids)
@@ -224,8 +212,8 @@ class Checker:
         return node
 
     def _row_node(self, row: SpecRow, parent_total: float, path: tuple[str, ...], parent: TreeNode) -> TreeNode:
-        kind = SECTION_KIND.get(row.section or "", "unknown")
-        des = normalize_designation(_value(row.designation))
+        kind = self.sections.get(row.section or "", "unknown")
+        des = self.eskd.normalize_designation(_value(row.designation))
         qty = _qty(row)
         total = parent_total * qty if qty is not None else parent_total
         if des:
@@ -247,10 +235,10 @@ class Checker:
         if des:
             self.node_index[des].append(node)
         note = (_value(row.note) or "").upper()
-        if kind in NEEDS_DRAWING or (kind == "unknown" and des):
+        if kind in self.needs_drawing or (kind == "unknown" and des):
             if not des:
                 node.status = "not_required"
-            elif "БЧ" in note.replace(" ", ""):
+            elif self.eskd.words.no_drawing_mark in note.replace(" ", ""):
                 node.status = "not_required"
             else:
                 found = self.drawings_by_des.get(des, [])
@@ -280,7 +268,7 @@ class Checker:
             return
         for des, refs in self.drawings_by_des.items():
             base, code = base_designation(des), doc_code(des)
-            if des in self.referenced or (code == "СБ" and base in self.referenced):
+            if des in self.referenced or (code == self.sb and base in self.referenced):
                 continue
             for ref in refs:
                 self.add(
@@ -335,9 +323,9 @@ class Checker:
         names: dict[str, dict[str, list[tuple[DocumentInfo, SpecRow]]]] = defaultdict(lambda: defaultdict(list))
         for doc, spec in self.specs:
             for r in spec.rows:
-                row_des = normalize_designation(_value(r.designation))
+                row_des = self.eskd.normalize_designation(_value(r.designation))
                 if row_des:
-                    names[row_des][normalize_name(_value(r.name))].append((doc, r))
+                    names[row_des][self.eskd.normalize_name(_value(r.name))].append((doc, r))
         for des, by_name in names.items():
             if len(by_name) > 1:
                 variants = [f"«{_value(rows[0][1].name)}» ({rows[0][0].path})" for rows in by_name.values()]
@@ -372,10 +360,10 @@ class Checker:
                     continue
                 candidates = list(self.drawings_by_des.get(des, []))
                 if node.kind == "assembly":
-                    candidates = list(self.drawings_by_des.get(f"{des} СБ", []))
+                    candidates = list(self.drawings_by_des.get(f"{des} {self.sb}", []))
                 for ref in candidates:
                     actual = ref.tb_value("name") or ref.doc.name
-                    if not actual or normalize_name(str(actual)) == normalize_name(expected):
+                    if not actual or self.eskd.normalize_name(str(actual)) == self.eskd.normalize_name(expected):
                         continue
                     self.add(
                         "name_mismatch",
@@ -392,7 +380,7 @@ class Checker:
                 if node.kind == "assembly" and node.spec_document_id:
                     for _, spec in self.spec_by_des.get(des, [])[:1]:
                         own = _value(spec.name)
-                        if own and normalize_name(own) != normalize_name(expected):
+                        if own and self.eskd.normalize_name(own) != self.eskd.normalize_name(expected):
                             self.add(
                                 "name_mismatch",
                                 "medium",
@@ -412,7 +400,7 @@ class Checker:
         for des, items in self.spec_by_des.items():
             doc, spec = items[0]
             spec_lit = _value(spec.litera)
-            for ref in self.drawings_by_des.get(f"{des} СБ", []):
+            for ref in self.drawings_by_des.get(f"{des} {self.sb}", []):
                 sb_lit = ref.tb_value("litera")
                 if spec_lit and sb_lit and spec_lit != sb_lit:
                     self.add(
@@ -427,11 +415,11 @@ class Checker:
                         nodes=self.node_index.get(des, []),
                         sources=[spec.litera.source if spec.litera else None, ref.tb_source("litera")],
                     )
-            rank = litera_rank(spec_lit)
+            rank = self.eskd.litera_rank(spec_lit)
             if rank is None:
                 continue
             for row in spec.rows:
-                child = normalize_designation(_value(row.designation))
+                child = self.eskd.normalize_designation(_value(row.designation))
                 if not child or doc_code(child):
                     continue
                 child_docs: list[tuple[str | float | int | None, str, SourceRef | None]] = []
@@ -440,7 +428,7 @@ class Checker:
                 for cdoc, cspec in self.spec_by_des.get(child, []):
                     child_docs.append((_value(cspec.litera), cdoc.id, cspec.litera.source if cspec.litera else None))
                 for lit, doc_id, src in child_docs:
-                    crank = litera_rank(str(lit) if lit else None)
+                    crank = self.eskd.litera_rank(str(lit) if lit else None)
                     if crank is not None and crank < rank:
                         self.add(
                             "revision_mismatch",
@@ -463,5 +451,5 @@ def _qty(row: SpecRow | None) -> float | None:
     return float(v) if isinstance(v, (int, float)) else None
 
 
-def check(specs: list[tuple[DocumentInfo, Specification]], drawings: list[DrawingRef]) -> Result:
-    return Checker(specs, drawings).run()
+def check(specs: list[tuple[DocumentInfo, Specification]], drawings: list[DrawingRef], eskd: Designations) -> Result:
+    return Checker(specs, drawings, eskd).run()

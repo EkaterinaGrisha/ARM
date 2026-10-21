@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import io
+import math
 from typing import Any
 
 import pymupdf
 from PIL import Image
 
+from kdcheck.config import ScanRules, TextLayout
 from kdcheck.ingest.pdf import EncryptedPdfError
 from kdcheck.ingest.text import BBox, Line, Word, split_wide_lines
 
@@ -28,7 +30,8 @@ class PyMuPdfPage:
     def height(self) -> float:
         return float(self._page.rect.height)
 
-    def lines(self) -> list[Line]:
+    def lines(self, layout: TextLayout) -> list[Line]:
+        low, high = layout.vertical_angle
         lines: list[Line] = []
         for block in self._page.get_text("rawdict")["blocks"]:
             for ln in block.get("lines", []):
@@ -48,10 +51,10 @@ class PyMuPdfPage:
                 if self._rotate is not None:  # the linear part only: a direction does not move
                     m = self._rotate
                     dx, dy = m.a * dx + m.c * dy, m.b * dx + m.d * dy
-                vertical = abs(dx) < 0.5
+                vertical = low <= math.degrees(math.atan2(dy, dx)) % 180 <= high
                 text = " ".join(w.text for w in words)
                 lines.append(Line(text=text, bbox=self._box(ln["bbox"]), size=size, vertical=vertical, words=words))
-        return split_wide_lines(lines)
+        return split_wide_lines(lines, layout.cell_gap)
 
     def _box(self, values: Any) -> BBox:
         if self._rotate is None:
@@ -62,7 +65,7 @@ class PyMuPdfPage:
     def has_images(self) -> bool:
         return bool(self._page.get_images())
 
-    def scan(self) -> tuple[Image.Image, BBox] | None:
+    def scan(self, rules: ScanRules) -> tuple[Image.Image, BBox] | None:
         return None  # kept for rollback: scans are rendered, as before the switch to PDFium
 
     def render(self, scale: float) -> Image.Image:
@@ -84,6 +87,9 @@ class PyMuPdfDocument:
 
 class PyMuPdfBackend:
     name = "pymupdf"
+
+    def versions(self) -> dict[str, str]:
+        return {self.name: str(pymupdf.__version__), "mupdf": str(pymupdf.mupdf_version)}
 
     def open(self, data: bytes) -> PyMuPdfDocument:
         doc = pymupdf.open(stream=data, filetype="pdf")

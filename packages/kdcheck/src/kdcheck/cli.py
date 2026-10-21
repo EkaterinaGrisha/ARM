@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 
 from kdcheck.report import write_report
-from kdcheck.run import MAX_PAGES, ProgressCallback, run
+from kdcheck.run import ConfigError, ProgressCallback, run
 
 
 def _progress(stage: str, value: float, message: str | None = None) -> None:
@@ -34,14 +34,19 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"Папка не найдена: {input_dir}", file=sys.stderr)
         return 2
     out = Path(args.output or f"{input_dir.name}_report")
-    report = run(
-        input_dir,
-        kit_id=args.kit_id or uuid.uuid4().hex[:12],
-        kit_name=args.name or input_dir.name,
-        use_ocr=not args.no_ocr,
-        max_pages=args.max_pages or None,
-        progress=_progress_to_file(Path(args.progress_file)) if args.progress_file else _progress,
-    )
+    try:
+        report = run(
+            input_dir,
+            kit_id=args.kit_id or uuid.uuid4().hex[:12],
+            kit_name=args.name or input_dir.name,
+            config=Path(args.config) if args.config else None,
+            use_ocr=False if args.no_ocr else None,
+            max_pages=args.max_pages,
+            progress=_progress_to_file(Path(args.progress_file)) if args.progress_file else _progress,
+        )
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 2
     print(file=sys.stderr)
     write_report(report, out)
     s = report.summary
@@ -61,12 +66,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-o", "--output", help="папка отчёта (по умолчанию <папка>_report)")
     p.add_argument("--name", help="название комплекта в отчёте")
     p.add_argument("--no-ocr", action="store_true", help="не распознавать сканы")
-    p.add_argument(
-        "--max-pages",
-        type=int,
-        default=MAX_PAGES,
-        help=f"страниц на файл, не больше (по умолчанию {MAX_PAGES}, 0 — все)",
-    )
+    p.add_argument("--max-pages", type=int, help="страниц на файл, не больше (по умолчанию — из ingest.yaml, 0 — все)")
+    p.add_argument("--config", help="каталог настроек (по умолчанию — ARM_CONFIG_DIR, иначе configs/ рабочей копии)")
     p.add_argument("--kit-id", help="идентификатор комплекта в отчёте (по умолчанию случайный)")
     p.add_argument("--progress-file", help="писать ход обработки в JSON-файл")
     p.set_defaults(func=cmd_run)

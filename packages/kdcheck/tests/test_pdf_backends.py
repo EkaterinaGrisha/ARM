@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from kdcheck.ingest.document import load_document
-from kdcheck.ingest.pdf import EncryptedPdfError, default_backend
+from kdcheck.ingest.pdf import EncryptedPdfError, get_backend
 from PIL import Image
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen.canvas import Canvas
@@ -47,11 +47,11 @@ def _ink(image: Image.Image) -> tuple[int, int, int, int]:
 
 @pytest.mark.parametrize("name", BACKENDS)
 @pytest.mark.parametrize("rotation", [0, 90, 180, 270])
-def test_text_sits_where_the_render_shows_it(tmp_path, name, rotation):
-    page = default_backend(name).open(_text_pdf(tmp_path / "t.pdf", rotation).read_bytes()).page(0)
+def test_text_sits_where_the_render_shows_it(tmp_path, settings, name, rotation):
+    page = get_backend(name).open(_text_pdf(tmp_path / "t.pdf", rotation).read_bytes()).page(0)
     portrait = rotation in (0, 180)
     assert (round(page.width), round(page.height)) == ((595, 842) if portrait else (842, 595))
-    [line] = page.lines()
+    [line] = page.lines(settings.ingest.text)
     assert line.text == "ROT TEST" and line.vertical is not portrait
     x0, y0, x1, y1 = _ink(page.render(1.0))
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
@@ -61,44 +61,45 @@ def test_text_sits_where_the_render_shows_it(tmp_path, name, rotation):
 @pytest.mark.parametrize("name", BACKENDS)
 def test_password_protected_pdf(tmp_path, name):
     with pytest.raises(EncryptedPdfError, match="документ защищён паролем"):
-        default_backend(name).open(_text_pdf(tmp_path / "s.pdf", password="x").read_bytes())
+        get_backend(name).open(_text_pdf(tmp_path / "s.pdf", password="x").read_bytes())
 
 
 @pytest.mark.parametrize("name", BACKENDS)
-def test_broken_pdf_is_damaged(tmp_path, name):
+def test_broken_pdf_is_damaged(tmp_path, settings, name):
     path = tmp_path / "broken.pdf"
     path.write_bytes(b"%PDF-1.7\n" + b"\x00garbage" * 50)
-    doc = load_document(path, tmp_path, use_ocr=False, pdf_backend=default_backend(name))
+    doc = load_document(path, tmp_path, settings, pdf_backend=get_backend(name))
     assert doc.info.status == "damaged" and doc.info.problem.startswith("Файл повреждён или не открывается")
 
 
-def test_pdfium_reads_a_scan_at_its_own_pixels(tmp_path):
-    page = default_backend("pdfium").open(_scan_pdf(tmp_path / "scan.pdf").read_bytes()).page(0)
-    image, box = page.scan()
+def test_pdfium_reads_a_scan_at_its_own_pixels(tmp_path, settings):
+    page = get_backend("pdfium").open(_scan_pdf(tmp_path / "scan.pdf").read_bytes()).page(0)
+    image, box = page.scan(settings.ingest.scan)
     assert image.size == (1240, 1754) and image.mode == "L"
     assert [round(v) for v in box] == [0, 0, 595, 842]
     assert _ink(image) == (100, 100, 400, 160)
 
 
-def test_no_scan_on_a_text_page_or_a_rotated_page(tmp_path):
-    pdfium = default_backend("pdfium")
-    assert pdfium.open(_text_pdf(tmp_path / "t.pdf").read_bytes()).page(0).scan() is None
-    assert pdfium.open(_scan_pdf(tmp_path / "rotated.pdf", rotation=90).read_bytes()).page(0).scan() is None
+def test_no_scan_on_a_text_page_or_a_rotated_page(tmp_path, settings):
+    pdfium, rules = get_backend("pdfium"), settings.ingest.scan
+    assert pdfium.open(_text_pdf(tmp_path / "t.pdf").read_bytes()).page(0).scan(rules) is None
+    assert pdfium.open(_scan_pdf(tmp_path / "rotated.pdf", rotation=90).read_bytes()).page(0).scan(rules) is None
 
 
 @needs_pymupdf
-def test_pymupdf_renders_scans_as_before(tmp_path):
+def test_pymupdf_renders_scans_as_before(tmp_path, settings):
     """A rollback reproduces the old results: PyMuPDF renders a scan instead of reading its own pixels."""
-    assert default_backend("pymupdf").open(_scan_pdf(tmp_path / "scan.pdf").read_bytes()).page(0).scan() is None
+    page = get_backend("pymupdf").open(_scan_pdf(tmp_path / "scan.pdf").read_bytes()).page(0)
+    assert page.scan(settings.ingest.scan) is None
 
 
 def test_missing_pymupdf_names_the_extra(monkeypatch):
     monkeypatch.setitem(sys.modules, "pymupdf", None)  # import pymupdf now fails as if it were not installed
     monkeypatch.delitem(sys.modules, "kdcheck.ingest.pymupdf_backend", raising=False)
     with pytest.raises(RuntimeError, match=r"install kdcheck\[pymupdf\]"):
-        default_backend("pymupdf")
+        get_backend("pymupdf")
 
 
 def test_unknown_backend_name():
     with pytest.raises(ValueError, match="pdfium, pymupdf"):
-        default_backend("acrobat")
+        get_backend("acrobat")

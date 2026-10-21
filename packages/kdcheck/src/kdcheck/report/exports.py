@@ -60,6 +60,10 @@ def _sheet(
     return ws
 
 
+def _engines(report: Report) -> str:
+    return ", ".join(f"{e.name} {e.version or ''}".strip() for e in report.kit.engines)
+
+
 def to_xlsx(report: Report) -> bytes:
     wb = Workbook()
     ws = wb.worksheets[0]  # a new workbook always has one worksheet
@@ -70,6 +74,8 @@ def to_xlsx(report: Report) -> bytes:
         ("Изделие", f"{k.root_designation or '—'} {k.root_name or ''}".strip()),
         ("Обработан", k.processed_at),
         ("Конвейер", f"{k.pipeline_name} {k.pipeline_version}"),
+        ("Движки", _engines(report) or "—"),
+        ("Настройки, SHA-256", k.config_sha256 or "—"),
         ("Документов", s.documents_total),
         ("Спецификаций", s.specifications),
         ("Чертежей", s.drawings),
@@ -330,8 +336,15 @@ def to_html(report: Report) -> str:
         f"<h1>Отчёт о входном контроле КД: {_e(k.name)}</h1>",
         f"<div class='muted'>Изделие: <span class='mono'>{_e(k.root_designation)}</span> {_e(k.root_name)} · "
         f"обработан {_e(k.processed_at)} · конвейер {_e(k.pipeline_name)} {_e(k.pipeline_version)}</div>",
-        "<div class='kpi'>",
     ]
+    setup = [f"движки: {_e(_engines(report))}"] if k.engines else []
+    if k.config_sha256:  # a short prefix to compare runs by eye; the full hash is in report.json
+        digest = _e(k.config_sha256)
+        setup.append(f"настройки <span class='mono' title='SHA-256 {digest}'>{digest[:12]}</span>")
+    if setup:
+        line = " · ".join(setup)
+        out.append(f"<div class='muted'>{line[0].upper()}{line[1:]}</div>")
+    out.append("<div class='kpi'>")
     ratio = f"{s.completeness_ratio:.0%}" if s.completeness_ratio is not None else "—"
     for title, value in [
         ("Документов", s.documents_total),

@@ -10,6 +10,7 @@ import pytest
 from arm_web.jobs import JobStore, UploadTooLarge
 from arm_web.pipeline import get_pipeline
 from arm_web.pipeline.process import ProcessPipeline
+from arm_web.settings import config_dir
 from kdcheck.run import BaselinePipeline
 
 # Writes a minimal valid report.json into the output folder.
@@ -18,7 +19,7 @@ REPORT = [sys.executable, "-c", "import json, sys; json.dump({'kit': {'id': 'x',
 
 def pipeline(code: str | None = None, *, timeout_sec: int = 30, memory_mb: int | None = None) -> ProcessPipeline:
     command = [sys.executable, "-c", code, "{output}"] if code else [*REPORT, "{output}/report.json"]
-    return ProcessPipeline("test", "0", command, timeout_sec=timeout_sec, memory_mb=memory_mb)
+    return ProcessPipeline("test", "0", command, timeout_sec=timeout_sec, memory_mb=memory_mb, poll_sec=0.05)
 
 
 def wait(store: JobStore, job_id: str, timeout: float = 30):
@@ -116,10 +117,15 @@ def test_upload_past_the_size_limit_leaves_nothing(tmp_path):
 def test_default_pipeline_is_the_core_in_a_process(monkeypatch):
     monkeypatch.delenv("ARM_PIPELINE_CMD", raising=False)
     monkeypatch.delenv("ARM_INPROCESS", raising=False)
+    monkeypatch.delenv("ARM_CONFIG_DIR", raising=False)
     default = get_pipeline()
     assert isinstance(default, ProcessPipeline) and default.name == "baseline"
-    assert default.command[1:4] == ["-m", "kdcheck", "run"] and "--no-ocr" in default.command
-    assert default.command[default.command.index("--max-pages") + 1] == "500"
+    assert default.command[1:4] == ["-m", "kdcheck", "run"]
+    assert default.command[default.command.index("--config") + 1] == str(config_dir())
+    assert (default.timeout_sec, default.memory_mb) == (3600, 8192)  # configs/api.yaml
+    monkeypatch.setenv("ARM_PIPELINE_TIMEOUT", "60")
+    monkeypatch.setenv("ARM_JOB_MEMORY_MB", "0")
+    assert (get_pipeline().timeout_sec, get_pipeline().memory_mb) == (60, None)
     monkeypatch.setenv("ARM_INPROCESS", "1")
     assert isinstance(get_pipeline(), BaselinePipeline)
 

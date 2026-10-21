@@ -1,7 +1,7 @@
 """Specification parsing (GOST 2.106, form 1).
 
-Table columns are restored from the positions of the «Обозначение» and «Наименование» headers and the standard
-column widths. Rows are grouped by the vertical coordinate; wrapped names join the previous position, and section
+Table columns are restored from the positions of the «Обозначение» and «Наименование» headers and the column widths
+of ``forms.yaml``. Rows are grouped by the vertical coordinate; wrapped names join the previous position, and section
 headers («Детали», «Стандартные изделия»…) set the section for the rows below.
 """
 
@@ -10,35 +10,14 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from kdcheck.config import Forms, SpecificationTemplate
 from kdcheck.extract import title_block
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.ingest.text import BBox, Word
-from kdcheck.normalize.designations import find_designations, normalize_designation
+from kdcheck.normalize.designations import Designations
 from kdcheck.schemas import Extracted, Specification, SpecRow
 
-SECTIONS = [
-    "Документация",
-    "Комплексы",
-    "Сборочные единицы",
-    "Детали",
-    "Стандартные изделия",
-    "Прочие изделия",
-    "Материалы",
-    "Комплекты",
-]
-_SECTION_KEYS = {re.sub(r"[^а-я]", "", s.lower()): s for s in SECTIONS}
-
-# Specification columns: (field, left edge, right edge), mm from the left edge of the table
-COLUMNS = [
-    ("format", 0, 6),
-    ("zone", 6, 12),
-    ("position", 12, 20),
-    ("designation", 20, 90),
-    ("name", 90, 153),
-    ("quantity", 153, 163),
-    ("note", 163, 185),
-]
-DESIGNATION_CX, NAME_CX = 55.0, 121.5
+Column = tuple[str, float, float]  # field, left and right edge, mm from the left edge of the table
 
 
 @dataclass
@@ -47,81 +26,97 @@ class Table:
     s: float
     top: float
     bottom: float
+    columns: list[Column]
 
     def column(self, x: float) -> str | None:
         mm = (x - self.x0) / self.s
-        for name, left, right in COLUMNS:
+        for name, left, right in self.columns:
             if left <= mm < right:
                 return name
         return None
 
 
-def find_header(page: Page) -> tuple[Word, Word] | None:
-    des = [w for ln in page.lines if not ln.vertical for w in ln.words if w.text.lower().startswith("обозначен")]
-    names = [w for ln in page.lines if not ln.vertical for w in ln.words if w.text.lower().startswith("наименован")]
+def find_header(page: Page, template: SpecificationTemplate) -> tuple[Word, Word] | None:
+    words = template.header_words
+    lines = [ln for ln in page.lines if not ln.vertical]
+    des = [w for ln in lines for w in ln.words if w.text.lower().startswith(words.designation)]
+    names = [w for ln in lines for w in ln.words if w.text.lower().startswith(words.name)]
     for d in des:
         for n in names:
-            if abs(d.cy - n.cy) < 4 * page.mm and n.cx > d.cx and d.cy < page.height * 0.3:
+            if (
+                abs(d.cy - n.cy) < template.header_row_tolerance * page.mm
+                and n.cx > d.cx
+                and d.cy < page.height * template.header_zone
+            ):
                 return d, n
     return None
 
 
-def is_specification(page: Page) -> bool:
-    return find_header(page) is not None
+def is_specification(page: Page, forms: Forms) -> bool:
+    return find_header(page, forms.specification) is not None
 
 
-def _table(page: Page, header: tuple[Word, Word] | None, prev: Table | None) -> Table | None:
+def _table(page: Page, header: tuple[Word, Word] | None, prev: Table | None, forms: Forms) -> Table | None:
+    template = forms.specification
     if header is None:
         if prev is None:
             return None
-        return Table(prev.x0, prev.s, page.height * 0.06, page.height - 22 * prev.s)
+        top = page.height * template.continuation_top
+        return Table(prev.x0, prev.s, top, page.height - template.continuation_bottom * prev.s, prev.columns)
+    columns = [(name, left, right) for name, (left, right) in template.columns.model_dump().items()]
+    designation_cx, name_cx = sum(template.columns.designation) / 2, sum(template.columns.name) / 2
     d, n = header
-    s = (n.cx - d.cx) / (NAME_CX - DESIGNATION_CX)
-    if not 0.6 * page.mm < s < 1.6 * page.mm:
+    s = (n.cx - d.cx) / (name_cx - designation_cx)
+    low, high = template.scale_range
+    if not low * page.mm < s < high * page.mm:
         s = page.mm
-    x0 = d.cx - DESIGNATION_CX * s
-    top = max(d.bbox[3], n.bbox[3]) + 2 * s
-    geom = title_block.locate(page)
+    x0 = d.cx - designation_cx * s
+    top = max(d.bbox[3], n.bbox[3]) + template.header_gap * s
+    geom = title_block.locate(page, forms)
     if geom is not None and geom.form == 2:
-        bottom = geom.y0 - 0.5 * s
+        bottom = geom.y0 - template.title_block_gap * s
     else:
-        bottom = page.height - 21 * s  # form 2a: a 15 mm title block
-    return Table(x0, s, top, bottom)
+        bottom = page.height - template.bottom_margin * s  # form 2a
+    return Table(x0, s, top, bottom, columns)
 
 
-def parse(doc: LoadedDocument) -> Specification:
+def parse(doc: LoadedDocument, forms: Forms, eskd: Designations) -> Specification:
     spec = Specification(document_id=doc.id)
     rows: list[SpecRow] = []
     section: str | None = None
     table: Table | None = None
+    sections = {re.sub(r"[^а-я]", "", s.lower()): s for s in eskd.words.spec_sections}
     for page in doc.pages:
         if not page.lines:
             continue
         if spec.designation is None:
-            geom = title_block.locate(page)
+            geom = title_block.locate(page, forms)
             if geom is not None and geom.form == 2:
-                tb = title_block.parse(doc, page, geom)
+                tb = title_block.parse(doc, page, geom, forms, eskd)
                 spec.designation, spec.name, spec.litera, spec.revision = (
                     tb.designation,
                     tb.name,
                     tb.litera,
                     tb.revision,
                 )
-        table = _table(page, find_header(page), table)
+        table = _table(page, find_header(page, forms.specification), table, forms)
         if table is None:
             continue
-        section = _parse_page(doc, page, table, rows, section)
+        section = _parse_page(doc, page, table, rows, section, forms.specification, sections, eskd)
     if spec.designation is None:
-        spec.designation = _designation_fallback(doc)
+        spec.designation = _designation_fallback(doc, forms.specification, eskd)
     spec.rows = rows
     return spec
 
 
-def _designation_fallback(doc: LoadedDocument) -> Extracted | None:
+def _designation_fallback(doc: LoadedDocument, template: SpecificationTemplate, eskd: Designations) -> Extracted | None:
     """Specification designation from large text at the bottom of the first sheet."""
     for page in doc.pages[:1]:
         candidates = [
-            (ln, d) for ln in page.lines if ln.cy > page.height * 0.8 for d, _, _ in find_designations(ln.text)
+            (ln, d)
+            for ln in page.lines
+            if ln.cy > page.height * template.designation_zone
+            for d, _, _ in eskd.find_designations(ln.text)
         ]
         if candidates:
             ln, d = max(candidates, key=lambda c: c[0].size)
@@ -139,15 +134,25 @@ def _cluster_rows(words: list[Word], tol: float) -> list[list[Word]]:
     return rows
 
 
-def _parse_page(doc: LoadedDocument, page: Page, table: Table, rows: list[SpecRow], section: str | None) -> str | None:
+def _parse_page(
+    doc: LoadedDocument,
+    page: Page,
+    table: Table,
+    rows: list[SpecRow],
+    section: str | None,
+    template: SpecificationTemplate,
+    sections: dict[str, str],
+    eskd: Designations,
+) -> str | None:
+    left, right = (table.x0 + edge * table.s for edge in template.word_range)
     words = [
         w
         for ln in page.lines
         if not ln.vertical
         for w in ln.words
-        if table.top <= w.cy <= table.bottom and table.x0 - 2 * table.s <= w.cx <= table.x0 + 187 * table.s
+        if table.top <= w.cy <= table.bottom and left <= w.cx <= right
     ]
-    for cluster in _cluster_rows(words, tol=2.2 * table.s):
+    for cluster in _cluster_rows(words, tol=template.row_tolerance * table.s):
         cells: dict[str, list[Word]] = {}
         for w in sorted(cluster, key=lambda w: w.bbox[0]):
             col = table.column(w.cx)
@@ -158,14 +163,14 @@ def _parse_page(doc: LoadedDocument, page: Page, table: Table, rows: list[SpecRo
         text = {k: " ".join(w.text for w in v) for k, v in cells.items()}
         only_name = set(cells) == {"name"}
         key = re.sub(r"[^а-я]", "", text.get("name", "").lower())
-        if only_name and key in _SECTION_KEYS:
-            section = _SECTION_KEYS[key]
+        if only_name and key in sections:
+            section = sections[key]
             continue
         has_identity = any(text.get(k) for k in ("designation", "position", "quantity", "format"))
         if not has_identity and rows and rows[-1].source and rows[-1].source.page == page.number:
             _append_continuation(doc, page, rows[-1], cells)
             continue
-        rows.append(_make_row(doc, page, len(rows) + 1, section, cells))
+        rows.append(_make_row(doc, page, len(rows) + 1, section, cells, eskd))
     return section
 
 
@@ -179,7 +184,7 @@ def _bbox(words: list[Word]) -> BBox:
 
 
 def _make_row(
-    doc: LoadedDocument, page: Page, index: int, section: str | None, cells: dict[str, list[Word]]
+    doc: LoadedDocument, page: Page, index: int, section: str | None, cells: dict[str, list[Word]], eskd: Designations
 ) -> SpecRow:
     row = SpecRow(id=f"{doc.id}-r{index}", section=section)
     all_words = [w for ws in cells.values() for w in ws]
@@ -187,7 +192,7 @@ def _make_row(
         raw = " ".join(w.text for w in words)
         value: str | float | None = raw
         if field == "designation":
-            value = normalize_designation(raw) or raw
+            value = eskd.normalize_designation(raw) or raw
         elif field == "quantity":
             value = _quantity(raw)
         elif field == "position":

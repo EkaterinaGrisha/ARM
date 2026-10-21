@@ -1,0 +1,10 @@
+# Limits of the web service (ADR-0006). The ARM_* environment variables named below override them.
+# The service does not hash this file into reports: it does not change what a report contains.
+
+max_upload_mb: 2048              # ARM_MAX_UPLOAD_MB: the size of one upload
+max_files: 2000                  # ARM_MAX_FILES: files in one upload
+job_timeout_sec: 3600            # ARM_PIPELINE_TIMEOUT: time for one doc set; then the job ends with an error
+job_memory_mb: 8192              # ARM_JOB_MEMORY_MB: memory of the job process, 0 — no limit; enforced on Linux
+workers: 1                       # ARM_WORKERS: doc sets processed at once
+progress_poll_sec: 0.2           # how often the job process is checked for progress
+page_image_px: 2000              # the long side of a page image in the document viewer

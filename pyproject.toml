@@ -13,6 +13,7 @@ dev = [
   "reportlab>=5.0",
   "ruff>=0.8",
   "types-openpyxl",
+  "types-pyyaml",
   "types-reportlab",
 ]
 
@@ -72,6 +73,7 @@ name = "The API imports only the public core modules: schemas, run, render, repo
 type = "forbidden"
 source_modules = ["arm_web"]
 forbidden_modules = [
+  "kdcheck.config",
   "kdcheck.ingest",
   "kdcheck.ocr",
   "kdcheck.extract",

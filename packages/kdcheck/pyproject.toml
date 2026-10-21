@@ -13,6 +13,8 @@ dependencies = [
   "pydantic>=2.6",
   # The default PDF backend (ADR-0007). BSD-3-Clause or Apache-2.0; PDFium itself is BSD-3-Clause
   "pypdfium2>=5.14",
+  # configs/*.yaml (ADR-0012). MIT
+  "pyyaml>=6.0",
 ]
 
 [project.scripts]

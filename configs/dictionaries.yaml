@@ -1,0 +1,103 @@
+# ESKD dictionaries: the terms parsers look for. Grammars of designations, sizes and roughness stay in code.
+# Patterns are case-insensitive regular expressions.
+
+spec_sections:                   # specification sections, GOST 2.106, and the product tree node each one gives
+  Документация: document
+  Комплексы: assembly
+  Сборочные единицы: assembly
+  Детали: part
+  Стандартные изделия: standard
+  Прочие изделия: other_item
+  Материалы: material
+  Комплекты: other_item
+needs_drawing: [part, document]  # node kinds that need their own document in the kit
+no_drawing_mark: БЧ              # «без чертежа» in the note column
+assembly_drawing_code: СБ
+assembly_drawing_name: сборочный чертеж  # in the name of an assembly drawing; ё is compared as е
+
+document_codes: [СБ, ВО, ТЧ, ГЧ, МЭ, МЧ, УЧ, ЭЗ, Э3, ПЗ, ТУ, ВП, ВД, ПЭ3, ТБ, РР, Д1]  # GOST 2.102
+litera_order: [П, Э, Т, О, О1, О2, О3, А, Б]  # GOST 2.103, from the earliest stage
+
+latin_lookalikes:                # Latin letters typed or recognized instead of Cyrillic ones
+  "A": "А"
+  "B": "В"
+  "C": "С"
+  "E": "Е"
+  "H": "Н"
+  "K": "К"
+  "M": "М"
+  "O": "О"
+  "P": "Р"
+  "T": "Т"
+  "X": "Х"
+  "Y": "У"
+  "a": "а"
+  "b": "в"
+  "c": "с"
+  "e": "е"
+  "k": "к"
+  "m": "м"
+  "o": "о"
+  "p": "р"
+  "t": "т"
+  "x": "х"
+  "y": "у"
+digit_lookalikes:                # Cyrillic letters recognized instead of digits in the number part of a designation
+  "О": "0"
+  "о": "0"
+  "З": "3"
+  "б": "6"
+
+heat_treatments:                 # the first match names the treatment
+  - {pattern: "цементир|цементац", name: Цементация}
+  - {pattern: "нитроцемент", name: Нитроцементация}
+  - {pattern: "азотир", name: Азотирование}
+  - {pattern: '(закал\w*|закалк\w*)\s+ТВЧ|ТВЧ', name: Закалка ТВЧ}
+  - {pattern: "закал", name: Закалка}
+  - {pattern: "улучш", name: Улучшение}
+  - {pattern: "нормализ", name: Нормализация}
+  - {pattern: "отжиг|отжечь", name: Отжиг}
+  - {pattern: "старени|состарить", name: Старение}
+
+geometric_tolerances:            # in requirement texts; the first match names the tolerance
+  - {pattern: "позиционн", name: Позиционный допуск}
+  - {pattern: "плоскостност", name: Допуск плоскостности}
+  - {pattern: "параллельност", name: Допуск параллельности}
+  - {pattern: "перпендикулярност", name: Допуск перпендикулярности}
+  - {pattern: "соосност", name: Допуск соосности}
+  - {pattern: "симметричност", name: Допуск симметричности}
+  - {pattern: 'радиальн\w+\s+биени', name: Допуск радиального биения}
+  - {pattern: 'торцов\w+\s+биени', name: Допуск торцового биения}
+  - {pattern: "цилиндричност", name: Допуск цилиндричности}
+  - {pattern: "круглост", name: Допуск круглости}
+
+gdt_symbols:                     # form and position tolerance symbols on the drawing field, GOST 2.308
+  "⊥": Допуск перпендикулярности
+  "∥": Допуск параллельности
+  "//": Допуск параллельности
+  "◎": Допуск соосности
+  "↗": Допуск биения
+  "⏥": Допуск плоскостности
+  "▱": Допуск плоскостности
+  "⌖": Позиционный допуск
+  "⊕": Позиционный допуск
+  "○": Допуск круглости
+  "⌭": Допуск цилиндричности
+  "∠": Допуск наклона
+  "⌯": Допуск симметричности
+  "≡": Допуск симметричности
+
+coating_hints:                   # a requirement with any of these is about a coating, GOST 9.306
+  - покрыти
+  - 'хим\.?\s?окс'
+  - 'ан\.?\s?окс'
+  - '\bЦ\d'
+  - '\bКд\d'
+  - '\bН\d+\.'
+  - '\bХ\d'
+  - фосф
+  - грунт
+  - эмаль
+  - лак
+  - окрасить
+  - оксидир

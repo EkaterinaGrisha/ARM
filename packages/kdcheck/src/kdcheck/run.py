@@ -4,12 +4,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kdcheck.ingest.document import MAX_PAGES
+from kdcheck.config import ConfigError, Settings, config_dir, load_settings
 from kdcheck.ocr import tesseract
 from kdcheck.pipeline import BaselinePipeline, ProgressCallback, no_progress
 from kdcheck.schemas import Report
 
-__all__ = ["MAX_PAGES", "BaselinePipeline", "ProgressCallback", "no_progress", "ocr_available", "run"]
+__all__ = [
+    "BaselinePipeline",
+    "ConfigError",
+    "ProgressCallback",
+    "Settings",
+    "config_dir",
+    "load_settings",
+    "no_progress",
+    "ocr_available",
+    "run",
+]
 
 
 def run(
@@ -17,15 +27,20 @@ def run(
     *,
     kit_id: str,
     kit_name: str,
-    use_ocr: bool = True,
-    max_pages: int | None = MAX_PAGES,
+    config: Path | None = None,
+    use_ocr: bool | None = None,
+    max_pages: int | None = None,
     progress: ProgressCallback = no_progress,
 ) -> Report:
-    """Process a doc set folder with the baseline pipeline; ``max_pages`` caps the pages read per file."""
-    pipeline = BaselinePipeline(use_ocr=use_ocr, max_pages=max_pages)
-    return pipeline.run(input_dir, kit_id=kit_id, kit_name=kit_name, progress=progress)
+    """Process a doc set folder with the baseline pipeline and the settings in ``config`` (ADR-0012).
+
+    ``use_ocr`` and ``max_pages`` override the settings when given; ``max_pages=0`` reads every page.
+    """
+    settings = load_settings(config, use_ocr=use_ocr, max_pages=max_pages)
+    return BaselinePipeline(settings).run(input_dir, kit_id=kit_id, kit_name=kit_name, progress=progress)
 
 
-def ocr_available() -> bool:
-    """Whether scans get recognized: Tesseract with Russian is installed and ARM_OCR is not 0."""
-    return tesseract.available()
+def ocr_available(settings: Settings | None = None) -> bool:
+    """Whether scans get recognized: OCR is on in the settings and Tesseract has their languages."""
+    ocr = (settings or load_settings()).models.ocr
+    return ocr.enabled and tesseract.available(ocr.languages)

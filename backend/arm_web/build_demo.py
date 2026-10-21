@@ -15,9 +15,10 @@ from pathlib import Path
 
 from kdcheck.render import RenderError, render_page
 from kdcheck.report import to_html, to_xlsx
-from kdcheck.run import BaselinePipeline, ocr_available
+from kdcheck.run import BaselinePipeline, load_settings, ocr_available
 
 from .evaluate import evaluate
+from .settings import config_dir
 
 
 def _files(n: int) -> str:
@@ -32,7 +33,8 @@ def build(samples: Path, public_demo: Path) -> None:
     kit = samples / "demo_kit"
     truth = json.loads((samples / "demo_kit_truth.json").read_text(encoding="utf-8"))
 
-    report = BaselinePipeline().run(kit, kit_id="demo", kit_name="Демо-комплект: редуктор колёсный")
+    settings = load_settings(config_dir())
+    report = BaselinePipeline(settings).run(kit, kit_id="demo", kit_name="Демо-комплект: редуктор колёсный")
     report.kit.created_at = report.kit.processed_at
     n_specs = sum(1 for d in truth["documents"].values() if d["kind"] == "specification")
     n_draw = len(truth["documents"]) - n_specs
@@ -45,7 +47,7 @@ def build(samples: Path, public_demo: Path) -> None:
             f"{_files(len(truth['documents']) + len(truth['problem_files']))} — "
             f"{n_specs} спецификации, {n_draw} чертежей (из них {n_scan} скана), "
             f"{len(truth['problem_files'])} проблемных файла; заложено {len(truth['discrepancies'])} расхождений. "
-            f"OCR: {'Tesseract' if ocr_available() else 'не используется'}."
+            f"OCR: {'Tesseract' if ocr_available(settings) else 'не используется'}."
         ),
     )
 
@@ -56,7 +58,7 @@ def build(samples: Path, public_demo: Path) -> None:
         for page in doc.pages:
             try:
                 (pages_dir / f"{doc.id}-{page.number}.png").write_bytes(
-                    render_page(kit / doc.path, page.number, max_px=1600)
+                    render_page(kit / doc.path, page.number, max_px=1600, pdf_backend=settings.models.pdf.backend)
                 )
             except RenderError as exc:
                 print(f"  страница не отрисована: {doc.path} — {exc}")

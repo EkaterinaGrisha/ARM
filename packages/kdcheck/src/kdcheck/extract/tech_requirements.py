@@ -4,22 +4,23 @@ from __future__ import annotations
 
 import re
 
+from kdcheck.config import TechRequirementsTemplate
 from kdcheck.extract.title_block import Geometry
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.ingest.text import Line, lines_confidence
 from kdcheck.schemas import Extracted
 
 
-def requirement_lines(page: Page, geom: Geometry) -> list[Line]:
+def requirement_lines(page: Page, geom: Geometry, block: TechRequirementsTemplate) -> list[Line]:
     """Requirement lines: the text block right above the title block."""
     s = geom.s
-    left, right = geom.x0 - 10 * s, geom.x0 + 186 * s
+    left, right = geom.x0 + block.left * s, geom.x0 + block.right * s
     candidates = [
         ln
         for ln in page.lines
         if not ln.vertical
-        and ln.bbox[3] <= geom.y0 + 1 * s
-        and ln.bbox[0] >= left - 60 * s
+        and ln.bbox[3] <= geom.y0 + block.bottom_tolerance * s
+        and ln.bbox[0] >= left - block.left_reach * s
         and ln.cx <= right
         and ln.bbox[2] > left
     ]
@@ -28,7 +29,11 @@ def requirement_lines(page: Page, geom: Geometry) -> list[Line]:
     edge = geom.y0
     for ln in candidates:
         gap = edge - ln.bbox[3]
-        limit = 25 * s if not picked else max(2.5 * (ln.bbox[3] - ln.bbox[1]), 4 * s)
+        limit = (
+            block.first_gap * s
+            if not picked
+            else max(block.line_gap * (ln.bbox[3] - ln.bbox[1]), block.min_line_gap * s)
+        )
         if gap > limit:
             if picked:
                 break
@@ -44,11 +49,14 @@ def requirement_lines(page: Page, geom: Geometry) -> list[Line]:
 _ITEM_START = re.compile(r"^\s*(?:[il|]?\s?)?(\d{1,2})\s?[.)]\s*")
 
 
-def requirement_items(doc: LoadedDocument, page: Page, lines: list[Line]) -> list[Extracted]:
+def requirement_items(
+    doc: LoadedDocument, page: Page, lines: list[Line], block: TechRequirementsTemplate
+) -> list[Extracted]:
+    heading = re.compile(re.escape(block.heading), re.IGNORECASE)
     items: list[tuple[str, list[Line]]] = []
     for ln in lines:
         text = ln.text.strip()
-        if re.fullmatch(r"(?i)технические требования", text):
+        if heading.fullmatch(text):
             continue
         m = _ITEM_START.match(text)
         if m or not items:
