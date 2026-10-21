@@ -1,38 +1,41 @@
 """Both PdfBackend implementations keep one contract: text, size and render share the displayed page (ADR-0007)."""
 
-import io
+import sys
+from importlib.util import find_spec
 from pathlib import Path
 
 import pytest
 from kdcheck.ingest.document import load_document
 from kdcheck.ingest.pdf import EncryptedPdfError, default_backend
 from PIL import Image
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen.canvas import Canvas
 
-pymupdf = pytest.importorskip("pymupdf")
-pytest.importorskip("pypdfium2")
+# PyMuPDF (AGPL) is only for a rollback; without it the PDFium half of every test still runs.
+needs_pymupdf = pytest.mark.skipif(find_spec("pymupdf") is None, reason="PyMuPDF is optional: kdcheck[pymupdf]")
+BACKENDS = ["pdfium", pytest.param("pymupdf", marks=needs_pymupdf)]
 
-BACKENDS = ["pdfium", "pymupdf"]
+
+def _canvas(path: Path, rotation: int = 0, password: str | None = None) -> Canvas:
+    """A portrait 595×842 page turned by /Rotate. reportlab takes the displayed size, so a quarter turn swaps it."""
+    canvas = Canvas(str(path), pagesize=(842, 595) if rotation % 180 else (595, 842), encrypt=password)
+    canvas.setPageRotation(rotation)
+    return canvas
 
 
 def _text_pdf(path: Path, rotation: int = 0, password: str | None = None) -> Path:
-    doc = pymupdf.open()
-    page = doc.new_page(width=595, height=842)
-    page.insert_text((100, 200), "ROT TEST", fontname="helv", fontsize=12)
-    page.set_rotation(rotation)
-    options = {"encryption": pymupdf.PDF_ENCRYPT_AES_256, "user_pw": password, "owner_pw": password} if password else {}
-    doc.save(path, **options)
+    canvas = _canvas(path, rotation, password)
+    canvas.drawString(100, 642, "ROT TEST")
+    canvas.save()
     return path
 
 
-def _scan_pdf(path: Path, size: tuple[int, int] = (1240, 1754)) -> Path:
+def _scan_pdf(path: Path, size: tuple[int, int] = (1240, 1754), rotation: int = 0) -> Path:
     scan = Image.new("L", size, 255)
     scan.paste(0, (100, 100, 400, 160))
-    buf = io.BytesIO()
-    scan.save(buf, "PNG")
-    doc = pymupdf.open()
-    page = doc.new_page(width=595, height=842)
-    page.insert_image(page.rect, stream=buf.getvalue())
-    doc.save(path)
+    canvas = _canvas(path, rotation)
+    canvas.drawImage(ImageReader(scan), 0, 0, 595, 842)
+    canvas.save()
     return path
 
 
@@ -80,12 +83,20 @@ def test_pdfium_reads_a_scan_at_its_own_pixels(tmp_path):
 def test_no_scan_on_a_text_page_or_a_rotated_page(tmp_path):
     pdfium = default_backend("pdfium")
     assert pdfium.open(_text_pdf(tmp_path / "t.pdf").read_bytes()).page(0).scan() is None
-    rotated = _scan_pdf(tmp_path / "scan.pdf")
-    doc = pymupdf.open(rotated)
-    doc[0].set_rotation(90)
-    doc.save(tmp_path / "rotated.pdf")
-    assert pdfium.open((tmp_path / "rotated.pdf").read_bytes()).page(0).scan() is None
-    assert default_backend("pymupdf").open(rotated.read_bytes()).page(0).scan() is None
+    assert pdfium.open(_scan_pdf(tmp_path / "rotated.pdf", rotation=90).read_bytes()).page(0).scan() is None
+
+
+@needs_pymupdf
+def test_pymupdf_renders_scans_as_before(tmp_path):
+    """A rollback reproduces the old results: PyMuPDF renders a scan instead of reading its own pixels."""
+    assert default_backend("pymupdf").open(_scan_pdf(tmp_path / "scan.pdf").read_bytes()).page(0).scan() is None
+
+
+def test_missing_pymupdf_names_the_extra(monkeypatch):
+    monkeypatch.setitem(sys.modules, "pymupdf", None)  # import pymupdf now fails as if it were not installed
+    monkeypatch.delitem(sys.modules, "kdcheck.ingest.pymupdf_backend", raising=False)
+    with pytest.raises(RuntimeError, match=r"install kdcheck\[pymupdf\]"):
+        default_backend("pymupdf")
 
 
 def test_unknown_backend_name():

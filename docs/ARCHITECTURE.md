@@ -23,7 +23,7 @@ flowchart LR
 
 | Компонент | Ответственность | Технологии |
 | --- | --- | --- |
-| `kdcheck` (ядро) | Пайплайн, правила, схемы, отчёты, CLI | Python 3.11+, pydantic, pypdfium2 за адаптером `PdfBackend` (PyMuPDF — для отката), OpenCV, networkx |
+| `kdcheck` (ядро) | Пайплайн, правила, схемы, отчёты, CLI | Python 3.11+, pydantic, pypdfium2 за адаптером `PdfBackend` (PyMuPDF — только для отката, в поставку не входит), OpenCV, networkx |
 | API | Приём комплекта, задания в `job.json`, запуск `kdcheck run` отдельным процессом с лимитами, выдача отчёта и изображений | FastAPI |
 | Web UI | Загрузка, отчёт, просмотр листов с подсветкой | React, TypeScript, Vite; типы из JSON Schema отчёта |
 | Сервер моделей | VLM и LLM по OpenAI-совместимому API | vLLM, профиль GPU |
@@ -208,6 +208,7 @@ sequenceDiagram
 - Сервер моделей vLLM для профиля GPU — отдельным контейнером через `docker compose`, когда появится VLM.
 - Без интернета: веса моделей загружаются заранее в `models/` (вне git), версии фиксируются в `configs/models.yaml`.
 - По умолчанию все модели локальные. Облачные адаптеры включаются флагом только с разрешения АРМ.
+- В образе нет зависимостей под AGPL: CI проверяет `backend/requirements.txt` через pip-licenses ([ADR-0007](adr/0007-pdf-library.md)). PyMuPDF для отката ставится отдельно.
 
 ## Структура репозитория (целевая)
 

@@ -41,6 +41,8 @@ jobs:
       - run: uv run pytest -ra
       - name: backend/requirements.txt matches uv.lock
         run: sh scripts/export_requirements.sh && git diff --exit-code backend/requirements.txt
+      - name: No AGPL in what ships (ADR-0007)
+        run: sh scripts/check_licenses.sh
 
   frontend:
     runs-on: ubuntu-latest

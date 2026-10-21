@@ -32,7 +32,7 @@ Before starting a task, find its stage in docs/PLAN.md. If the task changes the 
 - **Checks.** Each rule has an id (`B1.NAME.001`), a Russian message for the report, and tests with a positive and a negative case.
 - **Evaluation.** The gold set in `eval/gold/` is frozen; never tune on the test split; every quality claim cites a metrics file.
 - **Data safety.** The repo is public: customer data never goes into git (`data/`, `models/`, `out/` are ignored). Customer documents are never sent to external APIs unless the customer allowed it (config flag, off by default).
-- **Licenses.** Prefer Apache-2.0/MIT/BSD. AGPL components (PyMuPDF, Ultralytics YOLO) only behind an adapter and after an explicit decision in docs/ARCHITECTURE.md.
+- **Licenses.** Prefer Apache-2.0/MIT/BSD. AGPL components (PyMuPDF, Ultralytics YOLO) only behind an adapter and after an explicit decision in docs/ARCHITECTURE.md. CI fails on an AGPL dependency in what ships, `backend/requirements.txt` (pip-licenses, `scripts/check_licenses.sh`).
 
 ## Stack
 
@@ -51,6 +51,7 @@ uv run pre-commit install             # ruff, lockfile and requirements checks o
 uv run pytest                         # kdcheck, backend and synth tests
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run lint-imports
 sh scripts/export_requirements.sh     # after changing dependencies: refresh backend/requirements.txt
+sh scripts/check_licenses.sh          # after changing dependencies: no AGPL in what ships
 sh scripts/export_schema.sh           # after changing kdcheck.schemas: refresh docs/report.schema.json and web types
 uv run python -m synth.demo_kit samples/demo_kit   # after changing the generator: regenerate the demo kit
 

@@ -11,17 +11,17 @@ dependencies = [
   "openpyxl>=3.1",
   "pillow>=10.0",
   "pydantic>=2.6",
+  # The default PDF backend (ADR-0007). BSD-3-Clause or Apache-2.0; PDFium itself is BSD-3-Clause
+  "pypdfium2>=5.14",
 ]
 
 [project.scripts]
 kdcheck = "kdcheck.cli:main"
 
 [project.optional-dependencies]
-# AGPL-3.0, only behind kdcheck.ingest.pdf.PdfBackend (ADR-0007)
+# AGPL-3.0: only behind kdcheck.ingest.pdf.PdfBackend, for a rollback with ARM_PDF_BACKEND=pymupdf (ADR-0007)
 pymupdf = ["pymupdf>=1.24"]
 ocr = ["pytesseract>=0.3.10"]
-# BSD-3-Clause or Apache-2.0; PDFium itself is BSD-3-Clause
-pdfium = ["pypdfium2>=5.14"]
 
 [tool.setuptools.package-data]
 kdcheck = ["py.typed"]

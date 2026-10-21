@@ -14,45 +14,23 @@ et-xmlfile==2.0.0
     # via openpyxl
 fastapi==0.155.0
     # via arm-web
-flatbuffers==25.12.19
-    # via onnxruntime
 h11==0.16.0
     # via uvicorn
 httptools==0.9.0
     # via uvicorn
 idna==3.20
     # via anyio
-networkx==3.6.1 ; python_full_version < '3.12'
-    # via pymupdf
-networkx==3.7 ; python_full_version >= '3.12'
-    # via pymupdf
-numpy==2.4.6 ; python_full_version < '3.12'
-    # via
-    #   onnxruntime
-    #   pymupdf
-numpy==2.5.4 ; python_full_version >= '3.12'
-    # via
-    #   onnxruntime
-    #   pymupdf
-onnxruntime==1.31.0
-    # via pymupdf
 openpyxl==3.1.5
     # via kdcheck
 opentelemetry-api==1.45.1
     # via fastapi
 packaging==26.3
-    # via
-    #   onnxruntime
-    #   pytesseract
+    # via pytesseract
 pillow==13.0.0
     # via
     #   arm-web
     #   kdcheck
     #   pytesseract
-protobuf==7.36.2
-    # via onnxruntime
-psutil==7.2.2
-    # via pymupdf
 pydantic==2.14.1
     # via
     #   arm-web
@@ -60,12 +38,6 @@ pydantic==2.14.1
     #   kdcheck
 pydantic-core==2.50.1
     # via pydantic
-pymupdf==2.0
-    # via kdcheck
-pymupdf-layout==2.0
-    # via pymupdf
-pymupdf4llm==2.0
-    # via pymupdf
 pypdfium2==5.14.0
     # via kdcheck
 pytesseract==0.3.13
@@ -75,13 +47,9 @@ python-dotenv==1.2.4
 python-multipart==0.0.32
     # via arm-web
 pyyaml==6.0.3
-    # via
-    #   pymupdf
-    #   uvicorn
+    # via uvicorn
 starlette==1.9.0
     # via fastapi
-tabulate==0.10.0
-    # via pymupdf
 typing-extensions==4.16.0
     # via
     #   anyio

@@ -8,18 +8,16 @@ from kdcheck.ingest.document import load_document, sniff_media_type
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 from kdcheck.render import RenderError, render_page
 from PIL import Image
+from reportlab.pdfgen.canvas import Canvas
 
-pymupdf = pytest.importorskip("pymupdf")
 
-
-def _pdf(path: Path, text: str | None = "АРМ.303411.001", password: str | None = None, pages: int = 1) -> Path:
-    doc = pymupdf.open()
+def _pdf(path: Path, text: str | None = "ARM.303411.001", password: str | None = None, pages: int = 1) -> Path:
+    canvas = Canvas(str(path), pagesize=(595, 842), encrypt=password)
     for _ in range(pages):
-        page = doc.new_page(width=595, height=842)
         if text:
-            page.insert_text((72, 72), text, fontname="helv")
-    options = {"encryption": pymupdf.PDF_ENCRYPT_AES_256, "user_pw": password, "owner_pw": password} if password else {}
-    doc.save(path, **options)
+            canvas.drawString(72, 770, text)
+        canvas.showPage()
+    canvas.save()
     return path
 
 
