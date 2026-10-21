@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["backend", "packages/kdcheck"]
+members = ["backend", "packages/kdcheck", "synth"]
 
 [dependency-groups]
 dev = [
@@ -27,7 +27,7 @@ extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Query", "fast
 [tool.mypy]
 plugins = ["pydantic.mypy"]
 python_version = "3.11"
-files = ["backend/arm_web", "packages/kdcheck/src/kdcheck"]
+files = ["backend/arm_web", "packages/kdcheck/src/kdcheck", "synth/src/synth"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 
@@ -57,11 +57,11 @@ module = ["kdcheck.ingest.pymupdf_backend"]
 disallow_untyped_calls = false
 
 [tool.pytest.ini_options]
-testpaths = ["backend/tests", "packages/kdcheck/tests"]
+testpaths = ["backend/tests", "packages/kdcheck/tests", "synth/tests"]
 
 # Import boundaries of the core (ADR-0010, ADR-0011). Run: uv run lint-imports
 [tool.importlinter]
-root_packages = ["kdcheck", "arm_web"]
+root_packages = ["kdcheck", "arm_web", "synth"]
 
 [[tool.importlinter.contracts]]
 name = "The API imports only the public core modules: schemas, run, render, report"
@@ -101,3 +101,15 @@ forbidden_modules = [
   "kdcheck.run",
   "kdcheck.cli",
 ]
+
+[[tool.importlinter.contracts]]
+name = "The test data generator does not use the code under test"
+type = "forbidden"
+source_modules = ["synth"]
+forbidden_modules = ["kdcheck", "arm_web"]
+
+[[tool.importlinter.contracts]]
+name = "The core and the API do not import the generator, which is not installed with them"
+type = "forbidden"
+source_modules = ["kdcheck", "arm_web"]
+forbidden_modules = ["synth"]

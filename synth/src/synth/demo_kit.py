@@ -4,7 +4,7 @@
 чертежи с основной надписью по ГОСТ 2.104), в которые заложены типовые
 расхождения, и файл ``<папка>_truth.json`` с эталонной разметкой.
 
-    python -m arm_web.demo_kit samples/demo_kit
+    uv run python -m synth.demo_kit samples/demo_kit
 """
 
 from __future__ import annotations

@@ -13,7 +13,6 @@ dependencies = [
   "python-multipart>=0.0.9",
   "kdcheck[pdfium,pymupdf]",
   "pydantic>=2.6",
-  "pymupdf>=1.24",
   "pillow>=10.0",
 ]
 

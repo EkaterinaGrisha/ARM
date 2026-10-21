@@ -1,11 +1,10 @@
-"""Командная строка.
+"""Command line of the web service.
 
-python -m arm_web serve [--host 0.0.0.0] [--port 8000]       веб-интерфейс и API
-python -m arm_web process ПАПКА [-o ОТЧЁТ] [--truth ЭТАЛОН]   пакетная обработка комплекта
-python -m arm_web demo-kit ПАПКА                             сгенерировать демо-комплект
-python -m arm_web evaluate report.json truth.json [--write]  метрики качества по эталону
-python -m arm_web build-demo                                 демо-данные для фронтенда
-python -m arm_web schema                                     JSON Schema отчёта
+python -m arm_web serve [--host 0.0.0.0] [--port 8000]        web UI and API
+python -m arm_web process FOLDER [-o REPORT] [--truth TRUTH]  process a doc set in batch
+python -m arm_web evaluate report.json truth.json [--write]   quality metrics against a ground truth
+python -m arm_web build-demo                                  demo data for the frontend
+python -m arm_web schema                                      report JSON Schema
 """
 
 from __future__ import annotations
@@ -60,12 +59,6 @@ def cmd_process(args) -> int:
     return 0
 
 
-def cmd_demo_kit(args) -> int:
-    from .demo_kit import main
-
-    return main([args.output])
-
-
 def cmd_evaluate(args) -> int:
     from .evaluate import main
 
@@ -75,7 +68,7 @@ def cmd_evaluate(args) -> int:
 def cmd_build_demo(args) -> int:
     from .build_demo import build
 
-    build(REPO / "samples", REPO / "frontend" / "public" / "demo", regenerate=args.regenerate)
+    build(REPO / "samples", REPO / "frontend" / "public" / "demo")
     return 0
 
 
@@ -103,10 +96,6 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--truth", help="эталон для расчёта метрик качества")
     p.set_defaults(func=cmd_process)
 
-    p = sub.add_parser("demo-kit", help="сгенерировать демо-комплект")
-    p.add_argument("output", nargs="?", default="samples/demo_kit")
-    p.set_defaults(func=cmd_demo_kit)
-
     p = sub.add_parser("evaluate", help="метрики качества по эталону")
     p.add_argument("report")
     p.add_argument("truth")
@@ -114,7 +103,6 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_evaluate)
 
     p = sub.add_parser("build-demo", help="собрать демо-данные для фронтенда")
-    p.add_argument("--regenerate", action="store_true", help="пересоздать демо-комплект")
     p.set_defaults(func=cmd_build_demo)
 
     p = sub.add_parser("schema", help="JSON Schema отчёта")
