@@ -4,18 +4,26 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from kdcheck.ingest.document import MAX_PAGES
 from kdcheck.ocr import tesseract
 from kdcheck.pipeline import BaselinePipeline, ProgressCallback, no_progress
 from kdcheck.schemas import Report
 
-__all__ = ["BaselinePipeline", "ProgressCallback", "no_progress", "ocr_available", "run"]
+__all__ = ["MAX_PAGES", "BaselinePipeline", "ProgressCallback", "no_progress", "ocr_available", "run"]
 
 
 def run(
-    input_dir: Path, *, kit_id: str, kit_name: str, use_ocr: bool = True, progress: ProgressCallback = no_progress
+    input_dir: Path,
+    *,
+    kit_id: str,
+    kit_name: str,
+    use_ocr: bool = True,
+    max_pages: int | None = MAX_PAGES,
+    progress: ProgressCallback = no_progress,
 ) -> Report:
-    """Process a doc set folder with the baseline pipeline."""
-    return BaselinePipeline(use_ocr=use_ocr).run(input_dir, kit_id=kit_id, kit_name=kit_name, progress=progress)
+    """Process a doc set folder with the baseline pipeline; ``max_pages`` caps the pages read per file."""
+    pipeline = BaselinePipeline(use_ocr=use_ocr, max_pages=max_pages)
+    return pipeline.run(input_dir, kit_id=kit_id, kit_name=kit_name, progress=progress)
 
 
 def ocr_available() -> bool:

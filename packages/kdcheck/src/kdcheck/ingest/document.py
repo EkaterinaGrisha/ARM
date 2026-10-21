@@ -25,6 +25,7 @@ log = logging.getLogger(__name__)
 MM_PT = 72 / 25.4
 PAPER_MM = [(210, 297), (297, 420), (420, 594), (594, 841), (841, 1189), (297, 630), (297, 841)]
 PDF_RENDER_DPI = 200
+MAX_PAGES = 500  # pages read per file; bounds the time one huge file can take
 
 TextMethod = Literal["text_layer", "ocr"]
 
@@ -119,7 +120,12 @@ def sniff_media_type(head: bytes) -> str | None:
 
 
 def load_document(
-    path: Path, root: Path, *, use_ocr: bool = True, pdf_backend: PdfBackend | None = None
+    path: Path,
+    root: Path,
+    *,
+    use_ocr: bool = True,
+    pdf_backend: PdfBackend | None = None,
+    max_pages: int | None = MAX_PAGES,
 ) -> LoadedDocument:
     rel = path.relative_to(root).as_posix()
     data = path.read_bytes()
@@ -145,9 +151,9 @@ def load_document(
     backend = (pdf_backend or default_backend()) if info.media_type == "application/pdf" else None
     try:
         if backend is not None:
-            _load_pdf(doc, data, backend, use_ocr=use_ocr)
+            _load_pdf(doc, data, backend, use_ocr=use_ocr, max_pages=max_pages)
         else:
-            _load_image(doc, data, use_ocr=use_ocr)
+            _load_image(doc, data, use_ocr=use_ocr, max_pages=max_pages)
     except Exception as exc:  # a damaged file must not stop the doc set
         log.info("Не удалось прочитать %s: %s", rel, exc)
         info.status = "damaged"
@@ -162,12 +168,20 @@ def _short(exc: Exception) -> str:
     return text if len(text) < 160 else text[:157] + "…"
 
 
-def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, *, use_ocr: bool) -> None:
+def _pages_to_read(doc: LoadedDocument, count: int, max_pages: int | None) -> int:
+    if max_pages is None or count <= max_pages:
+        return count
+    doc.info.notes.append(f"Прочитано страниц: {max_pages} из {count}, остальные пропущены по лимиту на файл")
+    return max_pages
+
+
+def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, *, use_ocr: bool, max_pages: int | None) -> None:
     pdf = backend.open(data)
     if pdf.page_count == 0:
         raise ValueError("в документе нет страниц")
+    count = _pages_to_read(doc, pdf.page_count, max_pages)
     text_pages = 0
-    for index in range(pdf.page_count):
+    for index in range(count):
         pg = pdf.page(index)
         page = Page(number=index + 1, width=pg.width, height=pg.height, unit="pt")
         page.lines = pg.lines()
@@ -184,16 +198,16 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, *, use_ocr:
                 if lines:
                     page.lines, page.method = lines, "ocr"
         doc.pages.append(page)
-    doc.info.origin = "vector" if text_pages == pdf.page_count else "scan" if text_pages == 0 else "mixed"
+    doc.info.origin = "vector" if text_pages == count else "scan" if text_pages == 0 else "mixed"
     _fill_page_info(doc)
 
 
-def _load_image(doc: LoadedDocument, data: bytes, *, use_ocr: bool) -> None:
+def _load_image(doc: LoadedDocument, data: bytes, *, use_ocr: bool, max_pages: int | None) -> None:
     with Image.open(io.BytesIO(data)) as probe:
         probe.verify()
     image = Image.open(io.BytesIO(data))
     image.load()
-    frames = getattr(image, "n_frames", 1)
+    frames = _pages_to_read(doc, getattr(image, "n_frames", 1), max_pages)
     raw_dpi = image.info.get("dpi")
     dpi = float(raw_dpi[0]) if raw_dpi and raw_dpi[0] and float(raw_dpi[0]) > 50 else None
     doc.info.origin = "scan"
