@@ -33,8 +33,8 @@ def available() -> bool:
     return True
 
 
-def recognize(image: Image.Image, scale: float = 1.0) -> list[Line]:
-    """Recognize a page; coordinates are multiplied by ``scale`` (pixels to page units)."""
+def recognize(image: Image.Image, scale: float = 1.0, origin: tuple[float, float] = (0.0, 0.0)) -> list[Line]:
+    """Recognize an image placed on a page: page = ``origin`` + pixels × ``scale``."""
     import pytesseract
 
     gray = image.convert("L")
@@ -46,6 +46,7 @@ def recognize(image: Image.Image, scale: float = 1.0) -> list[Line]:
         if not text or conf < 30:
             continue
         x, y, w, h = (data[k][i] * scale for k in ("left", "top", "width", "height"))
+        x, y = x + origin[0], y + origin[1]
         key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
         grouped.setdefault(key, []).append((Word(text, (x, y, x + w, y + h)), conf / 100))
     lines: list[Line] = []
