@@ -90,12 +90,23 @@ export interface DocumentInfo {
   name?: string | null;
   notes: string[];
 }
+/**
+ * Страница файла. Ширина и высота 0 — страница не открылась, размер неизвестен.
+ */
 export interface PageInfo {
   number: number;
   width: number;
   height: number;
   unit: "pt" | "px";
   has_text: boolean;
+  /**
+   * Формат листа по ГОСТ 2.301 по размеру страницы: A4, A3, A4x3…; нет — размер не подходит ни к одному формату или неизвестен. С версии 1.3
+   */
+  format?: string | null;
+  /**
+   * Почему страница не прочитана или не разобрана; остальные страницы обработаны. С версии 1.3
+   */
+  problem?: string | null;
 }
 export interface Specification {
   document_id: string;

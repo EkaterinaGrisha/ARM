@@ -13,7 +13,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from kdcheck.report import labels as L
-from kdcheck.schemas import Extracted, Report, SourceRef, TreeNode
+from kdcheck.schemas import DocumentInfo, Extracted, Report, SourceRef, TreeNode
 
 
 def _v(ex: Extracted | None) -> str | float | int | None:
@@ -58,6 +58,11 @@ def _sheet(
         for c in row:
             c.alignment = Alignment(vertical="top", wrap_text=True)
     return ws
+
+
+def _formats(doc: DocumentInfo) -> str | None:
+    """Sheet formats of the pages, each once, in page order."""
+    return ", ".join(dict.fromkeys(p.format for p in doc.pages if p.format)) or None
 
 
 def _engines(report: Report) -> str:
@@ -268,22 +273,34 @@ def to_xlsx(report: Report) -> bytes:
     _sheet(
         wb,
         "Документы",
-        ["Файл", "Тип", "Происхождение", "Стр.", "Обозначение", "Наименование", "Статус", "Проблема", "Примечания"],
+        [
+            "Файл",
+            "Тип",
+            "Происхождение",
+            "Стр.",
+            "Формат",
+            "Обозначение",
+            "Наименование",
+            "Статус",
+            "Проблема",
+            "Примечания",
+        ],
         [
             [
                 d.path,
                 L.DOCUMENT_KIND.get(d.kind, d.kind),
                 L.ORIGIN.get(d.origin, d.origin),
                 len(d.pages),
+                _formats(d),
                 d.designation,
                 d.name,
                 L.DOCUMENT_STATUS.get(d.status, d.status),
                 d.problem,
-                "\n".join(d.notes),
+                "\n".join([*d.notes, *(f"Стр. {p.number}: {p.problem}" for p in d.pages if p.problem)]),
             ]
             for d in report.documents
         ],
-        [48, 18, 13, 6, 22, 28, 20, 50, 50],
+        [48, 18, 13, 6, 10, 22, 28, 20, 50, 50],
     )
 
     if report.quality:

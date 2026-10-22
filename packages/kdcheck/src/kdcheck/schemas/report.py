@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.3"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
@@ -83,11 +83,23 @@ class Extracted(Model):
 
 
 class PageInfo(Model):
+    """Страница файла. Ширина и высота 0 — страница не открылась, размер неизвестен."""
+
     number: int
     width: float
     height: float
     unit: Literal["pt", "px"] = "pt"
     has_text: bool = False
+    format: str | None = Field(
+        None,
+        description=(
+            "Формат листа по ГОСТ 2.301 по размеру страницы: A4, A3, A4x3…; нет — размер не подходит "
+            "ни к одному формату или неизвестен. С версии 1.3"
+        ),
+    )
+    problem: str | None = Field(
+        None, description="Почему страница не прочитана или не разобрана; остальные страницы обработаны. С версии 1.3"
+    )
 
 
 class DocumentInfo(Model):

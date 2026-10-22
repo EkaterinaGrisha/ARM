@@ -97,7 +97,7 @@ export function DocumentViewer() {
   }, [zoom, activeBox, pageNo, imgState]);
 
   if (!viewer || !doc) return null;
-  const aspect = page ? page.height / page.width : 1.414;
+  const aspect = page && page.width > 0 && page.height > 0 ? page.height / page.width : 1.414;
 
   return (
     <div className="viewer-backdrop" onMouseDown={(e) => e.target === e.currentTarget && closeViewer()}>
@@ -202,6 +202,13 @@ export function DocumentViewer() {
                 {n}
               </div>
             ))}
+            {page && (page.format || page.problem) && (
+              <div className="muted">
+                Страница {pageNo}
+                {page.format && <> · формат {page.format}</>}
+                {page.problem && <> · {page.problem}</>}
+              </div>
+            )}
             <div className="subtle" style={{ overflowWrap: "anywhere" }}>
               {doc.path}
             </div>

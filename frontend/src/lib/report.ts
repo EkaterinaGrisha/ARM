@@ -127,6 +127,11 @@ export function matchesQuery(query: string, ...values: (string | null | undefine
   return values.some((v) => v && v.toLowerCase().replace(/ё/g, "е").includes(q));
 }
 
+/** Форматы листов документа по страницам, каждый один раз. */
+export function sheetFormats(doc: DocumentInfo): string {
+  return [...new Set(doc.pages.map((p) => p.format).filter(Boolean))].join(", ");
+}
+
 export function problemDocuments(report: Report): DocumentInfo[] {
   return report.documents.filter((d) => d.status !== "ok");
 }
