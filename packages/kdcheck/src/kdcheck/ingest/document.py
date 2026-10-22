@@ -127,7 +127,12 @@ def load_document(
 ) -> LoadedDocument:
     """Read one file of the kit. ``known`` maps the SHA-256 of the files read before to their paths."""
     rel = path.relative_to(root).as_posix()
-    data = path.read_bytes()
+    try:
+        data = path.read_bytes()
+    except OSError as exc:  # no access, or the file is gone: the kit goes on
+        info = DocumentInfo(id=document_id(rel), file_name=path.name, path=rel, status="damaged")
+        info.problem = f"Файл не читается: {_read_error(exc)}"
+        return LoadedDocument(info=info, abs_path=path)
     digest = hashlib.sha256(data).hexdigest()
     info = DocumentInfo(id=document_id(rel), file_name=path.name, path=rel, size_bytes=len(data), sha256=digest)
     doc = LoadedDocument(info=info, abs_path=path)
@@ -163,6 +168,14 @@ def load_document(
         doc.pages = []
         info.pages = []
     return doc
+
+
+def _read_error(exc: OSError) -> str:
+    if isinstance(exc, PermissionError):
+        return "нет прав на чтение"
+    if isinstance(exc, FileNotFoundError):
+        return "файл удалён во время обработки"
+    return _short(exc)
 
 
 def _short(exc: Exception) -> str:

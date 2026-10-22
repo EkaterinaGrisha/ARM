@@ -1,4 +1,5 @@
 import io
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -59,6 +60,18 @@ def test_byte_copy_of_a_known_file_is_not_read_again(tmp_path, settings):
         path.write_bytes(b"")
     known = {load_document(empty[0], tmp_path, settings).info.sha256: "e1.pdf"}
     assert load_document(empty[1], tmp_path, settings, known=known).info.status == "damaged"  # empty first
+
+
+@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() == 0, reason="file permissions do not bind root")
+def test_file_without_read_access_is_damaged(tmp_path, settings):
+    path = _pdf(tmp_path / "locked.pdf")
+    path.chmod(0)
+    try:
+        doc = load_document(path, tmp_path, settings)
+    finally:
+        path.chmod(0o644)
+    assert (doc.info.status, doc.info.problem) == ("damaged", "Файл не читается: нет прав на чтение")
+    assert doc.info.sha256 is None and doc.pages == []
 
 
 def test_pages_past_the_limit_are_skipped_with_a_note(tmp_path):
