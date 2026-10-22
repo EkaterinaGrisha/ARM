@@ -42,6 +42,7 @@ class Section(BaseModel):
 
 class Sheet(Section):
     formats: dict[str, Point]
+    format_tolerance: Share
     frame_margin: float
     binding_margin: float
     general_roughness_zone: Point  # from the top and from the right edge

@@ -18,7 +18,7 @@ from typing import Literal
 
 from PIL import Image, ImageFilter, ImageStat
 
-from kdcheck.config import ScanQuality, Settings
+from kdcheck.config import ScanQuality, Settings, Sheet
 from kdcheck.ingest.pdf import EncryptedPdfError, PdfBackend, PdfPage, get_backend
 from kdcheck.ingest.text import BBox, Line
 from kdcheck.ocr import tesseract
@@ -46,6 +46,7 @@ class Page:
     engine: str | None = None  # what read the text, and its version
     engine_version: str | None = None
     confidence: float | None = None  # of values read by ``method`` when the lines give none
+    format: str | None = None  # GOST 2.301 sheet format by the size of the page
     problem: str | None = None  # why the page was not read or parsed; the other pages were
 
     @property
@@ -226,6 +227,7 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
         try:
             pg = pdf.page(index)
             page.width, page.height = pg.width, pg.height
+            page.format = sheet_format(pg.width / MM_PT, pg.height / MM_PT, settings.forms.sheet)
             page.lines = pg.lines(ingest.text)
             if page.lines:
                 page.read_by("text_layer", backend.name, version, ingest.confidence.text_layer)
@@ -278,6 +280,9 @@ def _load_image(doc: LoadedDocument, data: bytes, settings: Settings) -> None:
             frame = image.convert("L")
             page.width, page.height = frame.width, frame.height
             page.dpi = dpi or estimated_dpi(frame.width, frame.height, settings)
+            if dpi:  # an estimated resolution assumes a format, so only a known one tells it
+                size = (frame.width / dpi * MM_PER_INCH, frame.height / dpi * MM_PER_INCH)
+                page.format = sheet_format(*size, settings.forms.sheet)
             if index == 0:
                 doc.quality = image_quality(frame, ingest.quality.sample_width)
                 doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
@@ -303,6 +308,17 @@ def _pages_read(doc: LoadedDocument) -> list[Page]:
     return read
 
 
+def sheet_format(width_mm: float, height_mm: float, sheet: Sheet) -> str | None:
+    """The GOST 2.301 format of a sheet this size in either orientation, the closest one within the tolerance."""
+    short, long_ = sorted((width_mm, height_mm))
+    best, best_err = None, sheet.format_tolerance
+    for name, (f_short, f_long) in sheet.formats.items():
+        err = max(abs(short - f_short) / f_short, abs(long_ - f_long) / f_long)
+        if err <= best_err:
+            best, best_err = name, err
+    return best
+
+
 def estimated_dpi(width: float, height: float, settings: Settings) -> float:
     """Resolution of an image without metadata: the paper format and typical scan resolution that fit it best."""
     rules, formats = settings.ingest.page_scale, settings.forms.sheet.formats
@@ -326,6 +342,7 @@ def _fill_page_info(doc: LoadedDocument) -> None:
             height=round(p.height, 2),
             unit=p.unit,
             has_text=bool(p.lines),
+            format=p.format,
             problem=p.problem,
         )
         for p in doc.pages

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from kdcheck.config import load_settings
-from kdcheck.ingest.document import load_document, sniff_media_type
+from kdcheck.ingest.document import load_document, sheet_format, sniff_media_type
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 from kdcheck.render import RenderError, render_page
 from PIL import Image, ImageDraw
@@ -29,6 +29,7 @@ def test_vector_pdf_reads_text_layer(tmp_path, settings):
     assert doc.info.origin == "vector"
     assert doc.pages[0].method == "text_layer"
     assert [ln.text for ln in doc.pages[0].lines] == ["ABC 123"]
+    assert doc.info.pages[0].format == "A4"
     source = doc.source(doc.pages[0], (0, 0, 10, 10))
     assert source.engine == "pdfium" and source.engine_version
     assert source.confidence == settings.ingest.confidence.text_layer
@@ -122,6 +123,30 @@ def test_pages_past_the_limit_are_skipped_with_a_note(tmp_path):
     for limit in (3, 0):  # 0: no limit
         full = load_document(path, tmp_path, load_settings(use_ocr=False, max_pages=limit))
         assert len(full.info.pages) == 3 and full.info.notes == []
+
+
+@pytest.mark.parametrize(
+    ("size", "expected"),
+    [
+        ((210, 297), "A4"),
+        ((297, 210), "A4"),  # landscape
+        ((303, 428), "A3"),  # 2 % larger: a plotter margin
+        ((215.9, 279.4), None),  # US Letter is no GOST format
+        ((148, 210), "A5"),
+        ((297, 630), "A4x3"),
+        ((841, 1783), "A1x3"),
+    ],
+)
+def test_sheet_format_by_size(settings, size, expected):
+    assert sheet_format(*size, settings.forms.sheet) == expected
+
+
+def test_image_format_needs_its_resolution(tmp_path, settings):
+    a4 = Image.new("L", (1241, 1754), 255)  # A4 at 150 dpi
+    a4.save(tmp_path / "with.png", dpi=(150, 150))
+    a4.save(tmp_path / "without.png")
+    assert load_document(tmp_path / "with.png", tmp_path, settings).info.pages[0].format == "A4"
+    assert load_document(tmp_path / "without.png", tmp_path, settings).info.pages[0].format is None
 
 
 def test_media_type_by_signature_not_extension():
