@@ -25,13 +25,22 @@ FONT = "DejaVuSans"
 FONT_FILE = Path(__file__).parent / "fonts" / "DejaVuSans.ttf"
 
 
-def new_canvas() -> Canvas:
-    """A canvas that writes the same bytes for the same drawing: no timestamps, a fixed document ID."""
+def new_canvas(password: str | None = None) -> Canvas:
+    """A canvas that writes the same bytes for the same drawing: no timestamps, a fixed document ID.
+
+    With ``password`` the PDF opens only with it.
+    """
     if FONT not in pdfmetrics.getRegisteredFontNames():
         pdfmetrics.registerFont(TTFont(FONT, str(FONT_FILE)))
     rl_config.useA85 = 0  # binary streams as is, as CAD systems and scanners write them, not a quarter larger
     # The initial font of each page, else every page refers to an unused Helvetica. The stub types it as a float.
-    return Canvas(io.BytesIO(), invariant=1, pageCompression=1, initialFontName=FONT)  # type: ignore[arg-type]
+    return Canvas(
+        io.BytesIO(),
+        invariant=1,
+        pageCompression=1,
+        initialFontName=FONT,  # type: ignore[arg-type]
+        encrypt=password,
+    )
 
 
 class Sheet:
@@ -263,8 +272,8 @@ def _sketch(sh: Sheet, kind: str, annotations: list[str]) -> None:
         sh.line(cx + dx, cy + dy + 1, cx + dx + max(12, sh.width(ann)), cy + dy + 1, width=0.18)
 
 
-def draw_drawing(d: Drawing) -> bytes:
-    c = new_canvas()
+def draw_drawing(d: Drawing, password: str | None = None) -> bytes:
+    c = new_canvas(password)
     sh = Sheet(c, d.fmt)
     _frame(sh, d.archive, d.first_use)
     _title_block(sh, d, material=d.material, mass=d.mass, scale=d.scale)
