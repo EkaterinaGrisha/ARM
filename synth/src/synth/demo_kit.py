@@ -13,15 +13,14 @@ generator. So the kit does not depend on the fonts or the C library of the machi
 from __future__ import annotations
 
 import io
-import json
 import random
 import sys
 from pathlib import Path
-from typing import Any
 
 from synth.model import Change, Drawing, Row, Spec
 from synth.render import draw_drawing, draw_foreign, draw_spec
 from synth.scans import scan, scan_pdf
+from synth.truth import DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
 
 ROOT = "АРМ.303411.000"
 
@@ -448,7 +447,7 @@ PROBLEM_FILES = {
 }
 
 
-def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> dict[str, Any]:
+def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> KitTruth:
     """Write the kit to ``out`` and the ground truth to ``truth_path``, by default ``<out>_truth.json``."""
     rng = random.Random(seed)
     noise = random.Random(seed + 1)  # a stream of its own, so the noise does not shift the other random choices
@@ -457,18 +456,11 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> dict[str,
     draw_dir = out / "Чертежи"
     spec_dir.mkdir(exist_ok=True)
     draw_dir.mkdir(exist_ok=True)
-    truth: dict[str, Any] = {"root": ROOT, "documents": {}, "discrepancies": [], "problem_files": {}}
+    truth = KitTruth(root=ROOT, documents={})
 
     for s in SPECS:
         (spec_dir / s.file).write_bytes(draw_spec(s))
-        truth["documents"][f"Спецификации/{s.file}"] = {
-            "kind": "specification",
-            "designation": s.designation,
-            "name": s.name,
-            "litera": s.litera,
-            "revision": str(max((c.number for c in s.changes), default=0) or "") or None,
-            "rows": [r.__dict__ for r in s.rows],
-        }
+        truth.documents[f"Спецификации/{s.file}"] = SpecTruth.of(s)
     for d in DRAWINGS:
         pdf = draw_drawing(d)
         target = draw_dir / d.file
@@ -482,31 +474,16 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> dict[str,
                 buf = io.BytesIO()
                 img.save(buf, "JPEG", quality=72)
                 target.write_bytes(scan_pdf(buf.getvalue(), d.fmt))
-        truth["documents"][f"Чертежи/{d.file}"] = {
-            "kind": "assembly_drawing" if d.assembly else "part_drawing",
-            "origin": "vector" if d.output == "vector" else "scan",
-            "designation": d.designation,
-            "name": d.name,
-            "material": d.material or None,
-            "mass": d.mass or None,
-            "scale": d.scale,
-            "litera": d.litera,
-            "revision": str(max((c.number for c in d.changes), default=0) or "") or None,
-            "archive_number": d.archive or None,
-            "first_use": d.first_use or None,
-            "requirements": d.requirements,
-            "parameters": [{"category": c, "name": n} for c, n in d.expected_params],
-        }
+        truth.documents[f"Чертежи/{d.file}"] = DrawingTruth.of(d)
     # problem files
     (out / "Чертежи_архив.pdf").write_bytes(b"%PDF-1.7\n" + bytes(rng.randrange(256) for _ in range(4000)))
     unreadable = scan(draw_drawing(DRAWINGS[8]), rng=rng, noise=noise, unreadable=True)
     unreadable.save(out / "скан_0034.jpg", "JPEG", quality=40)
     (out / "Акт приёмки КД.pdf").write_bytes(draw_foreign(ROOT, SPECS[0].name))
     (out / "Thumbs.db").write_bytes(bytes(rng.randrange(256) for _ in range(1024)))
-    truth["problem_files"] = PROBLEM_FILES
-    truth["discrepancies"] = [{"type": t, "designation": d} for t, d in EXPECTED_DISCREPANCIES]
-    truth_path = truth_path or out.with_name(out.name + "_truth.json")
-    truth_path.write_text(json.dumps(truth, ensure_ascii=False, indent=2), encoding="utf-8")
+    truth.problem_files = PROBLEM_FILES
+    truth.discrepancies = [ExpectedDiscrepancy(type=t, designation=d) for t, d in EXPECTED_DISCREPANCIES]
+    truth.write(truth_path or out.with_name(out.name + "_truth.json"))
     return truth
 
 
