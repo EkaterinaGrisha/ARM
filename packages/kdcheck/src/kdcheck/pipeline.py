@@ -20,7 +20,7 @@ from pathlib import Path
 from kdcheck.checks import rules
 from kdcheck.checks.completeness import check
 from kdcheck.config import Settings, settings_sha256
-from kdcheck.extract import specification, tech_requirements, title_block
+from kdcheck.extract import review, specification, tech_requirements, title_block
 from kdcheck.ingest.document import LoadedDocument, Page, load_document
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.normalize.designations import Designations
@@ -106,6 +106,8 @@ class BaselinePipeline:
         criticals = critical.select(parts, self.settings.criticality)
 
         progress("Формирование отчёта", 0.97, None)
+        for model in [*parts, *(s for _, s in specs)]:
+            review.mark(model, self.settings.ingest.review)
         infos = [d.info for d in docs]
         for d in infos:
             if d.status in ("damaged", "unsupported", "unreadable", "foreign"):

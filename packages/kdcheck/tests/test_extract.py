@@ -4,9 +4,10 @@ import json
 from pathlib import Path
 
 import pytest
-from kdcheck.extract import specification, title_block
+from kdcheck.config import Review
+from kdcheck.extract import review, specification, title_block
 from kdcheck.ingest.document import load_document
-from kdcheck.schemas import Extracted
+from kdcheck.schemas import Extracted, PartRecord, SourceRef, TitleBlock
 
 KIT = Path(__file__).resolve().parents[3] / "samples" / "demo_kit"
 TRUTH = json.loads((KIT.parent / "demo_kit_truth.json").read_text(encoding="utf-8"))["documents"]
@@ -58,3 +59,29 @@ def test_foreign_document_has_no_title_block_or_spec_table(settings):
     assert page.lines
     assert title_block.locate(page, settings.forms) is None
     assert not specification.is_specification(page, settings.forms)
+
+
+def _read(method: str, confidence: float | None, value: str | None = "АРМ.303411.001") -> Extracted:
+    return Extracted(value=value, source=SourceRef(document_id="d1", method=method, confidence=confidence))
+
+
+def test_value_status_follows_the_review_settings(settings):
+    rules = settings.ingest.review
+    assert review.status(_read("text_layer", 0.95), rules) == "ok"
+    assert review.status(_read("text_layer", 0.5), rules) == "low_confidence"  # below min_confidence
+    assert review.status(_read("ocr", 0.9), rules) == "low_confidence"  # OCR is not calibrated yet
+    assert review.status(_read("filename", None), rules) == "low_confidence"
+    assert review.status(_read("text_layer", 0.95, value=None), rules) == "missing"
+    calibrated = Review(methods=(), min_confidence=rules.min_confidence)
+    assert review.status(_read("ocr", 0.9), calibrated) == "ok"
+
+
+def test_marking_reaches_nested_values_and_keeps_a_status_set_before(settings):
+    conflict = _read("text_layer", 0.95).model_copy(update={"status": "conflict"})
+    part = PartRecord(
+        document_id="d1",
+        title_block=TitleBlock(designation=conflict, name=_read("ocr", 0.9, value="Вал")),
+        requirements=[_read("text_layer", 0.95, value="1. *Размеры для справок.")],
+    )
+    review.mark(part, settings.ingest.review)
+    assert [ex.status for ex in review.values(part)] == ["conflict", "low_confidence", "ok"]

@@ -19,7 +19,7 @@ from typing import Annotated, Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from kdcheck.schemas import NodeKind, Severity
+from kdcheck.schemas import ExtractionMethod, NodeKind, Severity
 
 CONFIG_DIR_ENV = "ARM_CONFIG_DIR"
 
@@ -193,6 +193,11 @@ class MethodConfidence(Section):
     filename_name: Share
 
 
+class Review(Section):
+    methods: tuple[ExtractionMethod, ...]
+    min_confidence: Share
+
+
 class Ingest(Section):
     max_pages_per_file: int = Field(ge=0)
     render_dpi: float
@@ -202,6 +207,7 @@ class Ingest(Section):
     page_scale: PageScale
     text: TextLayout
     confidence: MethodConfidence
+    review: Review
 
 
 # ---------------------------------------------------------------- dictionaries.yaml

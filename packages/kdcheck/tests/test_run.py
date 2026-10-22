@@ -9,6 +9,7 @@ from pathlib import Path
 
 from kdcheck.cli import main
 from kdcheck.config import settings_sha256
+from kdcheck.extract import review
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.schemas import Report
 
@@ -94,3 +95,13 @@ def test_run_stops_on_broken_settings(tmp_path, capsys):
     assert main(["run", str(KIT), "-o", str(tmp_path / "out"), "--config", str(config)]) == 2
     assert "criticality.yaml: tight_fit.score" in capsys.readouterr().err
     assert not (tmp_path / "out").exists()
+
+
+def test_values_to_check_are_marked(settings):
+    report = BaselinePipeline(settings).run(KIT, kit_id="t", kit_name="t")  # OCR off: scans keep file names
+    found = list(review.values(report))
+    assert found and all(ex.status for ex in found)
+    by_method: dict[str | None, set[str | None]] = {}
+    for ex in found:
+        by_method.setdefault(ex.source.method if ex.source else None, set()).add(ex.status)
+    assert by_method == {"text_layer": {"ok"}, "filename": {"low_confidence"}}
