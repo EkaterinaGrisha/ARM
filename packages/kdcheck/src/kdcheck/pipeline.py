@@ -73,9 +73,13 @@ class BaselinePipeline:
         files = sorted(p for p in input_dir.rglob("*") if p.is_file())
         progress("Чтение файлов", 0.0, f"Файлов в комплекте: {len(files)}")
         docs: list[LoadedDocument] = []
+        known: dict[str, str] = {}  # SHA-256 → the first file with these bytes
         for i, path in enumerate(files):
             progress("Чтение файлов", 0.6 * i / max(1, len(files)), path.relative_to(input_dir).as_posix())
-            docs.append(load_document(path, input_dir, self.settings, pdf_backend=self.pdf))
+            doc = load_document(path, input_dir, self.settings, pdf_backend=self.pdf, known=known)
+            if doc.info.sha256:
+                known.setdefault(doc.info.sha256, doc.info.path)
+            docs.append(doc)
 
         progress("Разбор документов", 0.6, None)
         specs: list[tuple[LoadedDocument, Specification]] = []
@@ -110,7 +114,7 @@ class BaselinePipeline:
             review.mark(model, self.settings.ingest.review)
         infos = [d.info for d in docs]
         for d in infos:
-            if d.status in ("damaged", "unsupported", "unreadable", "foreign"):
+            if d.status in ("damaged", "encrypted", "unsupported", "unreadable", "foreign", "duplicate_file"):
                 report_log.append(LogEntry(level="warning", message=d.problem or d.status, document_id=d.id))
         tree_items = _count_nodes(tree.roots)
         need = _count_nodes(

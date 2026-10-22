@@ -12,6 +12,7 @@ from kdcheck.config import settings_sha256
 from kdcheck.extract import review
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.schemas import Report
+from reportlab.pdfgen.canvas import Canvas
 
 ROOT = Path(__file__).resolve().parents[3]
 KIT = ROOT / "samples" / "demo_kit"
@@ -58,6 +59,9 @@ def test_bad_files_get_statuses(tmp_path, settings):
     (tmp_path / "broken.pdf").write_bytes(b"%PDF-1.7\n" + b"\x00garbage" * 50)
     (tmp_path / "fake.jpg").write_bytes(b"\xff\xd8\xff" + b"not a jpeg" * 10)
     (tmp_path / "notes.docx").write_bytes(b"PK\x03\x04 zip")
+    canvas = Canvas(str(tmp_path / "secret.pdf"), encrypt="x")
+    canvas.drawString(72, 770, "АРМ.303411.001")
+    canvas.save()
     report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
     statuses = {d.file_name: d.status for d in report.documents}
     assert statuses == {
@@ -65,9 +69,28 @@ def test_bad_files_get_statuses(tmp_path, settings):
         "broken.pdf": "damaged",
         "fake.jpg": "damaged",
         "notes.docx": "unsupported",
+        "secret.pdf": "encrypted",
     }
     assert all(d.problem for d in report.documents)
+    assert {e.document_id for e in report.log if e.document_id} == {d.id for d in report.documents}
     assert report.tree == []
+
+
+def test_byte_copy_is_read_once_and_is_no_duplicate_designation(tmp_path, settings):
+    drawing = KIT / "Чертежи" / "АРМ.303411.002 Водило.pdf"
+    (tmp_path / "архив").mkdir()
+    for target in (tmp_path / "Водило.pdf", tmp_path / "архив" / "Водило.pdf"):
+        shutil.copy(drawing, target)
+    report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
+    statuses = {d.path: (d.status, d.problem) for d in report.documents}
+    assert statuses["Водило.pdf"][0] == "ok"
+    assert statuses["архив/Водило.pdf"] == (
+        "duplicate_file",
+        "Побайтовая копия файла Водило.pdf: повторно не разбирается",
+    )
+    assert [p.designation for p in report.parts] == ["АРМ.303411.002"]
+    assert report.discrepancies == []
+    assert report.summary.documents_by_status == {"ok": 1, "duplicate_file": 1}
 
 
 def test_empty_kit(tmp_path, settings):
