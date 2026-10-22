@@ -107,10 +107,16 @@ DocumentTruth = Annotated[SpecTruth | DrawingTruth, Field(discriminator="kind")]
 
 
 class ExpectedDiscrepancy(Truth):
-    """A discrepancy the check should find: its type in the report and the designation it concerns."""
+    """A discrepancy the check should find: its type in the report and the designation it concerns.
+
+    ``rule_id`` names the Block 1 rule that finds it, none when the core has no such rule yet; ``mutation`` names the
+    mutation of :mod:`synth.mutations` that planted it, none for a discrepancy planted by hand.
+    """
 
     type: str
     designation: str
+    rule_id: str | None = None
+    mutation: str | None = None
 
 
 class KitTruth(Truth):
@@ -118,6 +124,8 @@ class KitTruth(Truth):
     documents: dict[str, DocumentTruth] = Field(description="By the path of the file in the kit")
     discrepancies: list[ExpectedDiscrepancy] = []
     problem_files: dict[str, str] = Field({}, description="Path of the file → the document status to expect")
+    seed: int | None = None
+    mutations: list[str] = Field([], description="Mutations applied to the kit, in order")
 
     def write(self, path: Path) -> None:
         path.write_text(json.dumps(self.model_dump(mode="json"), ensure_ascii=False, indent=2), encoding="utf-8")

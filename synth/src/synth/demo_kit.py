@@ -427,16 +427,17 @@ DRAWINGS = [
     ),
 ]
 
+# type, designation and the Block 1 rule that finds it (kdcheck.checks.rules)
 EXPECTED_DISCREPANCIES = [
-    ("missing_drawing", "АРМ.303411.004"),
-    ("missing_drawing", "АРМ.303411.103"),
-    ("missing_specification", "АРМ.303411.300"),
-    ("orphan_drawing", "АРМ.303412.007"),
-    ("name_mismatch", "АРМ.303411.002"),
-    ("duplicate_designation", "АРМ.303411.201"),
-    ("revision_mismatch", "АРМ.303411.201"),
-    ("revision_mismatch", "АРМ.303411.000"),
-    ("revision_mismatch", "АРМ.303411.101"),
+    ("missing_drawing", "АРМ.303411.004", "B1.MISSING.001"),
+    ("missing_drawing", "АРМ.303411.103", "B1.MISSING.001"),
+    ("missing_specification", "АРМ.303411.300", "B1.SPEC.001"),
+    ("orphan_drawing", "АРМ.303412.007", "B1.ORPHAN.001"),
+    ("name_mismatch", "АРМ.303411.002", "B1.NAME.001"),
+    ("duplicate_designation", "АРМ.303411.201", "B1.DUP.001"),
+    ("revision_mismatch", "АРМ.303411.201", "B1.VERSION.001"),
+    ("revision_mismatch", "АРМ.303411.000", "B1.LITERA.001"),
+    ("revision_mismatch", "АРМ.303411.101", "B1.LITERA.002"),
 ]
 
 PROBLEM_FILES = {
@@ -456,7 +457,7 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> KitTruth:
     draw_dir = out / "Чертежи"
     spec_dir.mkdir(exist_ok=True)
     draw_dir.mkdir(exist_ok=True)
-    truth = KitTruth(root=ROOT, documents={})
+    truth = KitTruth(root=ROOT, documents={}, seed=seed)
 
     for s in SPECS:
         (spec_dir / s.file).write_bytes(draw_spec(s))
@@ -482,7 +483,7 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> KitTruth:
     (out / "Акт приёмки КД.pdf").write_bytes(draw_foreign(ROOT, SPECS[0].name))
     (out / "Thumbs.db").write_bytes(bytes(rng.randrange(256) for _ in range(1024)))
     truth.problem_files = PROBLEM_FILES
-    truth.discrepancies = [ExpectedDiscrepancy(type=t, designation=d) for t, d in EXPECTED_DISCREPANCIES]
+    truth.discrepancies = [ExpectedDiscrepancy(type=t, designation=d, rule_id=r) for t, d, r in EXPECTED_DISCREPANCIES]
     truth.write(truth_path or out.with_name(out.name + "_truth.json"))
     return truth
 
