@@ -1,7 +1,8 @@
 """Report contract: the format of ``report.json`` for a checked doc set.
 
 The contract between the pipeline (blocks 1 and 2), the API and the web UI. Any pipeline that
-writes ``report.json`` in this format plugs into the web UI without frontend changes.
+writes ``report.json`` in this format plugs into the web UI without frontend changes. Unknown fields are rejected,
+so a typo does not pass silently; a pipeline keeps data of its own in ``Report.extensions``.
 
 Class docstrings and field descriptions are published in the JSON Schema (``docs/report.schema.json``)
 for integrators, so they stay in Russian like other user-facing strings.
@@ -10,15 +11,18 @@ for integrators, so they stay in Russian like other user-facing strings.
 from __future__ import annotations
 
 import json
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
-DocumentStatus = Literal["ok", "warning", "damaged", "unreadable", "foreign", "unsupported"]
+DocumentStatus = Literal[
+    "ok", "warning", "damaged", "unreadable", "foreign", "unsupported", "encrypted", "duplicate_file"
+]
+ExtractedStatus = Literal["ok", "low_confidence", "missing", "conflict"]
 DocumentOrigin = Literal["vector", "scan", "mixed", "unknown"]
 NodeKind = Literal["kit", "assembly", "part", "standard", "other_item", "material", "document", "unknown"]
 NodeStatus = Literal["ok", "missing", "warning", "not_required"]
@@ -44,7 +48,7 @@ ParameterCategory = Literal[
 
 
 class Model(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
 
 class SourceRef(Model):
@@ -68,6 +72,13 @@ class Extracted(Model):
     value: str | float | int | None = None
     raw: str | None = None
     confidence: float | None = Field(None, ge=0, le=1)
+    status: ExtractedStatus | None = Field(
+        None,
+        description=(
+            "ok — значение принято; low_confidence — проверить по документу; missing — значение не найдено; "
+            "conflict — источники дают разные значения. С версии 1.2"
+        ),
+    )
     source: SourceRef | None = None
 
 
@@ -184,6 +195,11 @@ class TreeNode(Model):
 
 class Discrepancy(Model):
     id: str
+    rule_id: str | None = Field(
+        None,
+        pattern=r"^[A-Z][A-Z0-9]*\.[A-Z][A-Z0-9_]*\.\d{3}$",
+        description="Правило, которое нашло расхождение: B1.NAME.001… С версии 1.2",
+    )
     type: DiscrepancyType
     severity: Severity = "medium"
     designation: str | None = None
@@ -292,6 +308,9 @@ class Report(Model):
     critical_parameters: list[CriticalParameter] = []
     quality: QualityReport | None = None
     log: list[LogEntry] = []
+    extensions: dict[str, Any] = Field(
+        {}, description="Данные внешних конвейеров: ключ — имя конвейера или команды. С версии 1.2"
+    )
 
 
 def report_json_schema() -> str:

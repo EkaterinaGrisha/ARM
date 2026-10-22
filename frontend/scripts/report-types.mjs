@@ -13,8 +13,6 @@ const BANNER = "// Generated from docs/report.schema.json by scripts/report-type
 function adapt(node) {
   if (Array.isArray(node)) return node.forEach(adapt);
   if (!node || typeof node !== "object") return;
-  // Models accept unknown keys, the web ignores them; an index signature would hide typos in field names.
-  if (node.additionalProperties === true) delete node.additionalProperties;
   // The generator reads tuples in the draft-07 form only.
   if (node.prefixItems) {
     node.items = node.prefixItems;

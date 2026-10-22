@@ -4,7 +4,9 @@ import {
   CircleCheck,
   CircleX,
   Crosshair,
+  FileLock,
   FileQuestion,
+  Files,
   FileText,
   FileWarning,
   FileX,
@@ -34,6 +36,8 @@ const DOC_STATUS_TONE: Record<DocumentStatus, { tone: string; icon: ReactNode }>
   unreadable: { tone: "serious", icon: <ScanLine size={13} /> },
   foreign: { tone: "", icon: <FileQuestion size={13} /> },
   unsupported: { tone: "", icon: <Ban size={13} /> },
+  encrypted: { tone: "serious", icon: <FileLock size={13} /> },
+  duplicate_file: { tone: "", icon: <Files size={13} /> },
 };
 
 export function DocStatusBadge({ status }: { status: DocumentStatus }) {
@@ -54,6 +58,8 @@ export function DocStatusIcon({ status, size = 16 }: { status: DocumentStatus; s
     unreadable: <ScanLine size={size} />,
     foreign: <FileQuestion size={size} />,
     unsupported: <Ban size={size} />,
+    encrypted: <FileLock size={size} />,
+    duplicate_file: <Files size={size} />,
   };
   return <>{map[status]}</>;
 }
