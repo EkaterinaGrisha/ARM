@@ -62,6 +62,8 @@ def test_bad_files_get_statuses(tmp_path, settings):
     canvas = Canvas(str(tmp_path / "secret.pdf"), encrypt="x")
     canvas.drawString(72, 770, "АРМ.303411.001")
     canvas.save()
+    spec = (KIT / "Спецификации" / "АРМ.303411.000 Редуктор колёсный.pdf").read_bytes()
+    (tmp_path / "cut.pdf").write_bytes(spec[: len(spec) // 2])  # an interrupted download
     report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
     statuses = {d.file_name: d.status for d in report.documents}
     assert statuses == {
@@ -70,6 +72,7 @@ def test_bad_files_get_statuses(tmp_path, settings):
         "fake.jpg": "damaged",
         "notes.docx": "unsupported",
         "secret.pdf": "encrypted",
+        "cut.pdf": "damaged",
     }
     assert all(d.problem for d in report.documents)
     assert {e.document_id for e in report.log if e.document_id} == {d.id for d in report.documents}
@@ -128,3 +131,31 @@ def test_values_to_check_are_marked(settings):
     for ex in found:
         by_method.setdefault(ex.source.method if ex.source else None, set()).add(ex.status)
     assert by_method == {"text_layer": {"ok"}, "filename": {"low_confidence"}}
+
+
+def test_a_lost_page_leaves_the_rest_of_the_file_in_the_report(tmp_path, settings, broken_page):
+    shutil.copy(KIT / "Спецификации" / "АРМ.303411.000 Редуктор колёсный.pdf", tmp_path / "spec.pdf")
+    pipeline = BaselinePipeline(settings)
+    pipeline.pdf = broken_page(1)
+    report = pipeline.run(tmp_path, kit_id="t", kit_name="t")
+    [doc], [spec] = report.documents, report.specifications
+    assert (doc.kind, doc.status) == ("specification", "warning")
+    assert doc.problem == "Ошибка на странице 2 из 2: остальные страницы обработаны"
+    assert [p.problem for p in doc.pages] == [None, "ошибка чтения: Failed to load page."]
+    assert spec.rows and {r.source.page for r in spec.rows if r.source} == {1}
+    assert [e.message for e in report.log if e.level == "error"] == ["Страница 2: ошибка чтения: Failed to load page."]
+
+
+def test_a_page_that_fails_to_parse_keeps_the_rest_of_the_drawing(tmp_path, settings, monkeypatch):
+    shutil.copy(KIT / "Чертежи" / "АРМ.303411.002 Водило.pdf", tmp_path / "drawing.pdf")
+    pipeline = BaselinePipeline(settings)
+
+    def broken(*args, **kwargs):
+        raise ValueError("сбой разбора")
+
+    monkeypatch.setattr(pipeline.parameters, "annotation", broken)
+    report = pipeline.run(tmp_path, kit_id="t", kit_name="t")
+    [doc], [part] = report.documents, report.parts
+    assert doc.status == "warning" and doc.pages[0].problem == "ошибка разбора параметров: сбой разбора"
+    assert part.title_block.designation and part.title_block.designation.value == "АРМ.303411.002"
+    assert part.requirements and part.parameters  # the technical requirements were parsed before the page failed

@@ -31,6 +31,7 @@ from kdcheck.schemas import (
     Extracted,
     KitInfo,
     LogEntry,
+    Parameter,
     PartRecord,
     Report,
     SourceRef,
@@ -95,6 +96,8 @@ class BaselinePipeline:
                 doc.info.status = "warning"
                 doc.info.problem = f"Ошибка разбора: {exc}"
                 report_log.append(LogEntry(level="error", message=f"Ошибка разбора: {exc}", document_id=doc.id))
+        for doc in docs:
+            report_log += _page_problems(doc)
 
         progress("Проверка комплектности", 0.87, None)
         drawing_refs = [
@@ -258,15 +261,22 @@ class BaselinePipeline:
         sheet = forms.sheet
         top, right = sheet.general_roughness_zone
         for pg in doc.pages:
-            for ln in pg.lines:
-                if ln.vertical or id(ln) in skip:
-                    continue
-                if pg is page and ln.cx >= tb_x0 and ln.cy >= tb_y0:
-                    continue  # title block
-                if ln.bbox[0] < sheet.binding_margin * pg.mm:
-                    continue  # binding margin
-                general_zone = ln.cy < top * pg.mm and ln.cx > pg.width - right * pg.mm
-                part.parameters += self.parameters.annotation(doc, pg, ln, next_id, general_zone=general_zone)
+            found: list[Parameter] = []
+            try:
+                for ln in pg.lines:
+                    if ln.vertical or id(ln) in skip:
+                        continue
+                    if pg is page and ln.cx >= tb_x0 and ln.cy >= tb_y0:
+                        continue  # title block
+                    if ln.bbox[0] < sheet.binding_margin * pg.mm:
+                        continue  # binding margin
+                    general_zone = ln.cy < top * pg.mm and ln.cx > pg.width - right * pg.mm
+                    found += self.parameters.annotation(doc, pg, ln, next_id, general_zone=general_zone)
+            except Exception as exc:  # a page that fails to parse never costs the parameters of the others
+                log.exception("Ошибка разбора страницы %s в %s", pg.number, info.path)
+                doc.page_failed(pg, f"ошибка разбора параметров: {exc}")
+                continue
+            part.parameters += found
         return part
 
     def _scan_without_text(self, doc: LoadedDocument, parts: list[PartRecord]) -> None:
@@ -323,6 +333,21 @@ def _str(ex: Extracted | None) -> str | None:
     if ex is None or ex.value in (None, ""):
         return None
     return str(ex.value)
+
+
+def _page_problems(doc: LoadedDocument) -> list[LogEntry]:
+    """Pages not read or parsed go to the log; the file gets ``warning`` unless its status already says more."""
+    failed = [p for p in doc.pages if p.problem]
+    if not failed:
+        return []
+    numbers = ", ".join(str(p.number) for p in failed)
+    where = f"Ошибка на странице {numbers}" if len(failed) == 1 else f"Ошибки на страницах {numbers}"
+    text = f"{where} из {len(doc.pages)}: остальные страницы обработаны"
+    if doc.info.status == "ok":
+        doc.info.status, doc.info.problem = "warning", text
+    else:
+        doc.info.notes.append(text)
+    return [LogEntry(level="error", message=f"Страница {p.number}: {p.problem}", document_id=doc.id) for p in failed]
 
 
 def _count_nodes(nodes: Iterable[TreeNode], pred: Callable[[TreeNode], bool] = lambda n: True) -> int:

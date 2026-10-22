@@ -9,7 +9,7 @@ from kdcheck.config import load_settings
 from kdcheck.ingest.document import load_document, sniff_media_type
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 from kdcheck.render import RenderError, render_page
-from PIL import Image
+from PIL import Image, ImageDraw
 from reportlab.pdfgen.canvas import Canvas
 
 
@@ -72,6 +72,45 @@ def test_file_without_read_access_is_damaged(tmp_path, settings):
         path.chmod(0o644)
     assert (doc.info.status, doc.info.problem) == ("damaged", "Файл не читается: нет прав на чтение")
     assert doc.info.sha256 is None and doc.pages == []
+
+
+def _tiff_with_a_broken_frame(path: Path) -> Path:
+    frames = [Image.new("L", (400, 300), 255) for _ in range(3)]
+    for i, frame in enumerate(frames):
+        ImageDraw.Draw(frame).text((20, 20), f"page {i + 1}", fill=0)
+    buf = io.BytesIO()
+    frames[0].save(buf, "TIFF", save_all=True, append_images=frames[1:], compression="tiff_lzw", dpi=(150, 150))
+    data = bytearray(buf.getvalue())
+    probe = Image.open(io.BytesIO(bytes(data)))
+    probe.seek(1)
+    start, length = probe.tag_v2[273][0], probe.tag_v2[279][0]  # the first strip of the second frame
+    data[start : start + length] = b"\xff" * length
+    path.write_bytes(bytes(data))
+    return path
+
+
+def test_a_broken_frame_costs_only_its_page(tmp_path, settings):
+    doc = load_document(_tiff_with_a_broken_frame(tmp_path / "scan.tif"), tmp_path, settings)
+    assert doc.info.status == "ok"
+    first, broken, third = doc.info.pages
+    assert broken.problem.startswith("ошибка чтения:") and (broken.width, broken.height) == (0, 0)
+    assert (first.problem, third.problem) == (None, None) and (third.width, third.height) == (400, 300)
+
+
+def test_a_page_that_fails_to_open_keeps_its_problem(tmp_path, settings, broken_page):
+    path = _pdf(tmp_path / "a.pdf", text="ABC", pages=3)
+    doc = load_document(path, tmp_path, settings, pdf_backend=broken_page(1))
+    assert (doc.info.status, doc.info.origin) == ("ok", "vector")
+    assert [p.problem for p in doc.info.pages] == [None, "ошибка чтения: Failed to load page.", None]
+    assert [[ln.text for ln in p.lines] for p in doc.pages] == [["ABC"], [], ["ABC"]]
+
+
+def test_a_file_with_no_page_read_is_damaged(tmp_path, settings, broken_page):
+    doc = load_document(_pdf(tmp_path / "a.pdf"), tmp_path, settings, pdf_backend=broken_page(0))
+    assert doc.info.status == "damaged" and doc.pages == []
+    assert doc.info.problem == (
+        "Файл повреждён или не открывается: не прочитана ни одна страница, первая — ошибка чтения: Failed to load page."
+    )
 
 
 def test_pages_past_the_limit_are_skipped_with_a_note(tmp_path):
