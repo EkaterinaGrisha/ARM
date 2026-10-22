@@ -22,8 +22,10 @@ def test_run_writes_three_report_forms(tmp_path, capsys):
     assert report.kit.name == "Демо"
     assert report.kit.root_designation == "АРМ.303411.000"
     assert report.summary.documents_total == 22
+    assert report.discrepancies and all(d.rule_id for d in report.discrepancies)
     assert (tmp_path / "report.xlsx").stat().st_size > 0
-    assert "АРМ.303411.000" in (tmp_path / "report.html").read_text(encoding="utf-8")
+    html = (tmp_path / "report.html").read_text(encoding="utf-8")
+    assert "АРМ.303411.000" in html and report.discrepancies[0].rule_id in html
     assert "Отчёт:" in capsys.readouterr().out
 
 

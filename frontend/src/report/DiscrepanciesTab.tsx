@@ -37,7 +37,9 @@ export function DiscrepanciesTab() {
       report.discrepancies
         .filter((d) => (!type || d.type === type) && (severity === "all" || d.severity === severity))
         .filter((d) => !nodeId || d.tree_node_ids.includes(nodeId))
-        .filter((d) => matchesQuery(query, d.designation, d.message, d.title, ...d.document_ids.map((id) => index.docs.get(id)?.path)))
+        .filter((d) =>
+          matchesQuery(query, d.designation, d.message, d.title, d.rule_id, ...d.document_ids.map((id) => index.docs.get(id)?.path)),
+        )
         .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]),
     [report.discrepancies, type, severity, nodeId, query, index],
   );
@@ -67,7 +69,7 @@ export function DiscrepanciesTab() {
 
       <div className="card">
         <div className="toolbar">
-          <SearchInput value={query} onChange={setQuery} placeholder="Обозначение, файл, текст" />
+          <SearchInput value={query} onChange={setQuery} placeholder="Обозначение, файл, текст, правило" />
           <select className="select" value={severity} onChange={(e) => setSeverity(e.target.value as Severity | "all")} aria-label="Важность">
             <option value="all">Любая важность</option>
             {(Object.keys(SEVERITY) as Severity[]).map((s) => (
@@ -109,6 +111,11 @@ export function DiscrepanciesTab() {
                 <span className="subtle" style={{ fontSize: 12.5 }}>
                   {d.title}
                 </span>
+                {d.rule_id && (
+                  <span className="mono subtle" style={{ fontSize: 11.5 }} title="Правило проверки">
+                    {d.rule_id}
+                  </span>
+                )}
               </div>
               <div className="msg">{d.message}</div>
               {(d.expected || d.actual) && (

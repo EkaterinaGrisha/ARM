@@ -1,22 +1,25 @@
 """Block 1: completeness checks over the product tree.
 
-Input: the product tree of :mod:`kdcheck.tree.product` and its indexes. Output: the discrepancies, classified by
-type, linked to the tree nodes and to the documents and page regions they come from.
+Input: the product tree of :mod:`kdcheck.tree.product` and its indexes. Output: the discrepancies, each found by a
+rule of :mod:`kdcheck.checks.rules`, classified by type and linked to the tree nodes and to the documents and page
+regions they come from. A rule turned off in ``configs/checks.yaml`` reports nothing.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
 
+from kdcheck.checks.rules import ActiveRule
 from kdcheck.normalize.designations import Designations, base_designation, doc_code
-from kdcheck.schemas import Discrepancy, DiscrepancyType, DocumentInfo, Severity, SourceRef, SpecRow, TreeNode
+from kdcheck.schemas import Discrepancy, DocumentInfo, SourceRef, SpecRow, TreeNode
 from kdcheck.tree.product import ProductTree, text
 
 
 class Checker:
-    def __init__(self, tree: ProductTree, eskd: Designations) -> None:
+    def __init__(self, tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule]) -> None:
         self.tree = tree
         self.eskd = eskd
+        self.rules = rules
         self.sb = eskd.words.assembly_drawing_code
         self.discrepancies: list[Discrepancy] = []
         self._ids = 0
@@ -27,10 +30,8 @@ class Checker:
 
     def add(
         self,
-        type_: DiscrepancyType,
-        severity: Severity,
+        rule_id: str,
         designation: str | None,
-        title: str,
         message: str,
         *,
         expected: str | None = None,
@@ -38,13 +39,17 @@ class Checker:
         docs: list[str] | None = None,
         nodes: list[TreeNode] | None = None,
         sources: list[SourceRef | None] | None = None,
-    ) -> Discrepancy:
+    ) -> None:
+        active = self.rules[rule_id]
+        if not active.settings.enabled:
+            return
         disc = Discrepancy(
             id=self._next_id(),
-            type=type_,
-            severity=severity,
+            rule_id=rule_id,
+            type=active.rule.type,
+            severity=active.settings.severity,
             designation=designation,
-            title=title,
+            title=active.rule.title,
             message=message,
             expected=expected,
             actual=actual,
@@ -57,7 +62,6 @@ class Checker:
             if n.status == "ok":
                 n.status = "warning"
         self.discrepancies.append(disc)
-        return disc
 
     def run(self) -> list[Discrepancy]:
         self._check_missing()
@@ -75,10 +79,8 @@ class Checker:
             row = self.tree.rows.get(node.id)
             if node.kind == "assembly":
                 self.add(
-                    "missing_specification",
-                    "high",
+                    "B1.SPEC.001",
                     node.designation,
-                    "Нет спецификации сборочной единицы",
                     f"Сборочная единица {node.designation} указана в спецификации, но её спецификация в комплекте "
                     "отсутствует"
                     + (
@@ -92,12 +94,11 @@ class Checker:
                 )
                 continue
             parent = self.tree.parents[node.id]
-            what = "Документ" if node.kind == "document" else "Чертёж детали"
+            document = node.kind == "document"
+            what = "Документ" if document else "Чертёж детали"
             self.add(
-                "missing_drawing",
-                "high",
+                "B1.MISSING.002" if document else "B1.MISSING.001",
                 node.designation,
-                f"{what} отсутствует",
                 f"{what} {node.designation} «{node.name or '—'}» указан в спецификации {parent.designation}, "
                 "но в комплекте не найден",
                 expected=node.designation,
@@ -116,10 +117,8 @@ class Checker:
                 continue
             for ref in refs:
                 self.add(
-                    "orphan_drawing",
-                    "medium",
+                    "B1.ORPHAN.001",
                     des,
-                    "Чертёж не входит ни в одну спецификацию",
                     f"Документ {des} «{ref.doc.name or '—'}» ({ref.doc.path}) есть в комплекте, "
                     "но не указан ни в одной спецификации",
                     actual=ref.doc.path,
@@ -137,10 +136,8 @@ class Checker:
                 continue  # a multi-sheet document split into files
             files = ", ".join(r.doc.path for r in refs)
             self.add(
-                "duplicate_designation",
-                "high",
+                "B1.DUP.001",
                 des,
-                "Обозначение встречается в нескольких документах",
                 f"Обозначение {des} присвоено {len(refs)} документам: {files}",
                 actual=files,
                 docs=[r.doc.id for r in refs],
@@ -155,10 +152,8 @@ class Checker:
                     for r in refs
                 ]
                 self.add(
-                    "revision_mismatch",
-                    "medium",
+                    "B1.VERSION.001",
                     des,
-                    "Разные версии одного документа",
                     f"В комплекте несколько версий {des} с разным номером изменения или литерой: " + "; ".join(parts),
                     actual="; ".join(parts),
                     docs=[r.doc.id for r in refs],
@@ -175,10 +170,8 @@ class Checker:
             if len(by_name) > 1:
                 variants = [f"«{text(rows[0][1].name)}» ({rows[0][0].path})" for rows in by_name.values()]
                 self.add(
-                    "duplicate_designation",
-                    "high",
+                    "B1.DUP.002",
                     des,
-                    "Одно обозначение у разных позиций",
                     f"Обозначение {des} указано в спецификациях с разными наименованиями: " + ", ".join(variants),
                     docs=[d.id for rows in by_name.values() for d, _ in rows],
                     nodes=tree.node_index.get(des, []),
@@ -188,10 +181,8 @@ class Checker:
             if len(items) > 1:
                 files = ", ".join(d.path for d, _ in items)
                 self.add(
-                    "duplicate_designation",
-                    "high",
+                    "B1.DUP.003",
                     des,
-                    "Несколько спецификаций с одним обозначением",
                     f"Обозначение {des} присвоено {len(items)} спецификациям: {files}",
                     docs=[d.id for d, _ in items],
                     sources=[s.designation.source if s.designation else None for _, s in items],
@@ -212,10 +203,8 @@ class Checker:
                     if not actual or self.eskd.normalize_name(str(actual)) == self.eskd.normalize_name(expected):
                         continue
                     self.add(
-                        "name_mismatch",
-                        "medium",
+                        "B1.NAME.001",
                         des,
-                        "Наименование на чертеже не совпадает со спецификацией",
                         f"{des}: в спецификации «{expected}», на чертеже «{actual}»",
                         expected=expected,
                         actual=str(actual),
@@ -228,10 +217,8 @@ class Checker:
                         own = text(spec.name)
                         if own and self.eskd.normalize_name(own) != self.eskd.normalize_name(expected):
                             self.add(
-                                "name_mismatch",
-                                "medium",
+                                "B1.NAME.002",
                                 des,
-                                "Наименование спецификации не совпадает с позицией",
                                 f"{des}: в вышестоящей спецификации «{expected}», в собственной спецификации «{own}»",
                                 expected=expected,
                                 actual=own,
@@ -251,10 +238,8 @@ class Checker:
                 sb_lit = ref.tb_value("litera")
                 if spec_lit and sb_lit and spec_lit != sb_lit:
                     self.add(
-                        "revision_mismatch",
-                        "medium",
+                        "B1.LITERA.001",
                         des,
-                        "Литера спецификации и сборочного чертежа различается",
                         f"{des}: литера спецификации «{spec_lit}», сборочного чертежа «{sb_lit}»",
                         expected=spec_lit,
                         actual=str(sb_lit),
@@ -278,10 +263,8 @@ class Checker:
                     crank = self.eskd.litera_rank(str(lit) if lit else None)
                     if crank is not None and crank < rank:
                         self.add(
-                            "revision_mismatch",
-                            "medium",
+                            "B1.LITERA.002",
                             child,
-                            "Литера составной части ниже литеры изделия",
                             f"{child}: литера «{lit}» ниже литеры сборочной единицы {des} «{spec_lit}»",
                             expected=f"не ниже {spec_lit}",
                             actual=str(lit),
@@ -291,6 +274,6 @@ class Checker:
                         )
 
 
-def check(tree: ProductTree, eskd: Designations) -> list[Discrepancy]:
+def check(tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule]) -> list[Discrepancy]:
     """Discrepancies of the kit; the tree nodes they concern get their ids and the ``warning`` status."""
-    return Checker(tree, eskd).run()
+    return Checker(tree, eskd, rules).run()

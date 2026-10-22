@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 
+from kdcheck.checks import rules
 from kdcheck.checks.completeness import check
 from kdcheck.config import Settings, settings_sha256
 from kdcheck.extract import specification, tech_requirements, title_block
@@ -62,6 +63,7 @@ class BaselinePipeline:
         self.settings = settings
         self.pdf = get_backend(settings.models.pdf.backend)
         self.eskd = Designations(settings.dictionaries)
+        self.rules = rules.configured(settings.checks)
         self.parameters = parameters.Parser(settings.dictionaries)
 
     # ------------------------------------------------------------------ run
@@ -97,7 +99,7 @@ class BaselinePipeline:
             if d.info.kind in ("part_drawing", "assembly_drawing", "drawing") and d.info.designation
         ]
         tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd)
-        discrepancies = check(tree, self.eskd)
+        discrepancies = check(tree, self.eskd, self.rules)
         report_log += [LogEntry(level="warning", message=m) for m in tree.log]
 
         progress("Анализ требований", 0.93, None)

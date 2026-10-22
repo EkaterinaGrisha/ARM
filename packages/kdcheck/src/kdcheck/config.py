@@ -19,7 +19,7 @@ from typing import Annotated, Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from kdcheck.schemas import NodeKind
+from kdcheck.schemas import NodeKind, Severity
 
 CONFIG_DIR_ENV = "ARM_CONFIG_DIR"
 
@@ -247,6 +247,18 @@ class Dictionaries(Section):
         return value
 
 
+# ---------------------------------------------------------------- checks.yaml
+
+
+class RuleSettings(Section):
+    enabled: bool
+    severity: Severity
+
+
+class Checks(Section):
+    rules: dict[str, RuleSettings]  # by rule id; kdcheck.checks.rules checks that every rule has its settings
+
+
 # ---------------------------------------------------------------- criticality.yaml
 
 
@@ -322,6 +334,7 @@ class Settings(Section):
     forms: Forms
     ingest: Ingest
     dictionaries: Dictionaries
+    checks: Checks
     criticality: Criticality
     models: Engines
 
