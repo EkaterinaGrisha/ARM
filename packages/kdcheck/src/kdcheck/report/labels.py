@@ -16,6 +16,8 @@ DOCUMENT_STATUS = {
     "unreadable": "Нечитаемый скан",
     "foreign": "Посторонний документ",
     "unsupported": "Неподдерживаемый формат",
+    "encrypted": "Защищён паролем",
+    "duplicate_file": "Копия файла",
 }
 DOCUMENT_KIND = {
     "specification": "Спецификация",

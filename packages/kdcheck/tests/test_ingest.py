@@ -33,10 +33,32 @@ def test_vector_pdf_reads_text_layer(tmp_path, settings):
     assert source.confidence == settings.ingest.confidence.text_layer
 
 
-def test_encrypted_pdf_is_damaged_with_reason(tmp_path, settings):
+def test_encrypted_pdf_gets_its_own_status(tmp_path, settings):
     doc = load_document(_pdf(tmp_path / "secret.pdf", password="x"), tmp_path, settings)
-    assert doc.info.status == "damaged"
-    assert doc.info.problem == "Файл повреждён или не открывается: документ защищён паролем"
+    assert (doc.info.status, doc.info.problem) == (
+        "encrypted",
+        "PDF защищён паролем: без пароля содержимое не прочитать",
+    )
+    assert doc.pages == [] and doc.info.pages == []
+
+
+def test_byte_copy_of_a_known_file_is_not_read_again(tmp_path, settings):
+    first = load_document(_pdf(tmp_path / "a.pdf"), tmp_path, settings)
+    (tmp_path / "b.pdf").write_bytes((tmp_path / "a.pdf").read_bytes())
+    known = {first.info.sha256: "a.pdf"}
+    copy = load_document(tmp_path / "b.pdf", tmp_path, settings, known=known)
+    assert (copy.info.status, copy.info.problem) == (
+        "duplicate_file",
+        "Побайтовая копия файла a.pdf: повторно не разбирается",
+    )
+    assert copy.pages == [] and copy.info.media_type == "application/pdf"
+    other = load_document(_pdf(tmp_path / "c.pdf", text="ARM.303411.002"), tmp_path, settings, known=known)
+    assert other.info.status == "ok"
+    empty = [tmp_path / name for name in ("e1.pdf", "e2.pdf")]
+    for path in empty:
+        path.write_bytes(b"")
+    known = {load_document(empty[0], tmp_path, settings).info.sha256: "e1.pdf"}
+    assert load_document(empty[1], tmp_path, settings, known=known).info.status == "damaged"  # empty first
 
 
 def test_pages_past_the_limit_are_skipped_with_a_note(tmp_path):

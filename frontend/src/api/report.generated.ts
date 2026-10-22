@@ -12,6 +12,12 @@ export interface Report {
   critical_parameters: CriticalParameter[];
   quality?: QualityReport | null;
   log: LogEntry[];
+  /**
+   * Данные внешних конвейеров: ключ — имя конвейера или команды. С версии 1.2
+   */
+  extensions: {
+    [k: string]: unknown;
+  };
 }
 export interface KitInfo {
   id: string;
@@ -75,7 +81,7 @@ export interface DocumentInfo {
   pages: PageInfo[];
   kind: "specification" | "assembly_drawing" | "part_drawing" | "drawing" | "other" | "unknown";
   origin: "vector" | "scan" | "mixed" | "unknown";
-  status: "ok" | "warning" | "damaged" | "unreadable" | "foreign" | "unsupported";
+  status: "ok" | "warning" | "damaged" | "unreadable" | "foreign" | "unsupported" | "encrypted" | "duplicate_file";
   /**
    * Пояснение для проблемных файлов
    */
@@ -106,6 +112,10 @@ export interface Extracted {
   value?: string | number | null;
   raw?: string | null;
   confidence?: number | null;
+  /**
+   * ok — значение принято; low_confidence — проверить по документу; missing — значение не найдено; conflict — источники дают разные значения. С версии 1.2
+   */
+  status?: ("ok" | "low_confidence" | "missing" | "conflict") | null;
   source?: SourceRef | null;
 }
 /**
@@ -168,6 +178,10 @@ export interface TreeNode {
 }
 export interface Discrepancy {
   id: string;
+  /**
+   * Правило, которое нашло расхождение: B1.NAME.001… С версии 1.2
+   */
+  rule_id?: string | null;
   type:
     | "missing_drawing"
     | "orphan_drawing"

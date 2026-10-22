@@ -17,9 +17,10 @@ from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 
-from kdcheck.checks.completeness import DrawingRef, check
+from kdcheck.checks import rules
+from kdcheck.checks.completeness import check
 from kdcheck.config import Settings, settings_sha256
-from kdcheck.extract import specification, tech_requirements, title_block
+from kdcheck.extract import review, specification, tech_requirements, title_block
 from kdcheck.ingest.document import LoadedDocument, Page, load_document
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.normalize.designations import Designations
@@ -38,6 +39,7 @@ from kdcheck.schemas import (
     TitleBlock,
     TreeNode,
 )
+from kdcheck.tree.product import DrawingRef, build_tree
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +63,7 @@ class BaselinePipeline:
         self.settings = settings
         self.pdf = get_backend(settings.models.pdf.backend)
         self.eskd = Designations(settings.dictionaries)
+        self.rules = rules.configured(settings.checks)
         self.parameters = parameters.Parser(settings.dictionaries)
 
     # ------------------------------------------------------------------ run
@@ -70,9 +73,13 @@ class BaselinePipeline:
         files = sorted(p for p in input_dir.rglob("*") if p.is_file())
         progress("Чтение файлов", 0.0, f"Файлов в комплекте: {len(files)}")
         docs: list[LoadedDocument] = []
+        known: dict[str, str] = {}  # SHA-256 → the first file with these bytes
         for i, path in enumerate(files):
             progress("Чтение файлов", 0.6 * i / max(1, len(files)), path.relative_to(input_dir).as_posix())
-            docs.append(load_document(path, input_dir, self.settings, pdf_backend=self.pdf))
+            doc = load_document(path, input_dir, self.settings, pdf_backend=self.pdf, known=known)
+            if doc.info.sha256:
+                known.setdefault(doc.info.sha256, doc.info.path)
+            docs.append(doc)
 
         progress("Разбор документов", 0.6, None)
         specs: list[tuple[LoadedDocument, Specification]] = []
@@ -95,22 +102,25 @@ class BaselinePipeline:
             for d in docs
             if d.info.kind in ("part_drawing", "assembly_drawing", "drawing") and d.info.designation
         ]
-        result = check([(d.info, s) for d, s in specs], drawing_refs, self.eskd)
-        report_log += [LogEntry(level="warning", message=m) for m in result.log]
+        tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd)
+        discrepancies = check(tree, self.eskd, self.rules)
+        report_log += [LogEntry(level="warning", message=m) for m in tree.log]
 
         progress("Анализ требований", 0.93, None)
         criticals = critical.select(parts, self.settings.criticality)
 
         progress("Формирование отчёта", 0.97, None)
+        for model in [*parts, *(s for _, s in specs)]:
+            review.mark(model, self.settings.ingest.review)
         infos = [d.info for d in docs]
         for d in infos:
-            if d.status in ("damaged", "unsupported", "unreadable", "foreign"):
+            if d.status in ("damaged", "encrypted", "unsupported", "unreadable", "foreign", "duplicate_file"):
                 report_log.append(LogEntry(level="warning", message=d.problem or d.status, document_id=d.id))
-        tree_items = _count_nodes(result.tree)
+        tree_items = _count_nodes(tree.roots)
         need = _count_nodes(
-            result.tree, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document")
+            tree.roots, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document")
         )
-        have = _count_nodes(result.tree, lambda n: n.kind in ("part", "document") and bool(n.drawing_document_ids))
+        have = _count_nodes(tree.roots, lambda n: n.kind in ("part", "document") and bool(n.drawing_document_ids))
         summary = Summary(
             documents_total=len(infos),
             documents_by_status=dict(Counter(d.status for d in infos)),
@@ -120,16 +130,16 @@ class BaselinePipeline:
             tree_items=tree_items,
             parts=len(parts),
             parameters=sum(len(p.parameters) for p in parts),
-            discrepancies_total=len(result.discrepancies),
-            discrepancies_by_type=dict(Counter(x.type for x in result.discrepancies)),
+            discrepancies_total=len(discrepancies),
+            discrepancies_by_type=dict(Counter(x.type for x in discrepancies)),
             critical_parameters=len(criticals),
             completeness_ratio=round(have / need, 4) if need else None,
         )
         kit = KitInfo(
             id=kit_id,
             name=kit_name,
-            root_designation=result.root_designation,
-            root_name=result.root_name,
+            root_designation=tree.root_designation,
+            root_name=tree.root_name,
             processed_at=_now(),
             duration_sec=round(time.monotonic() - started, 2),
             pipeline_name=self.name,
@@ -143,8 +153,8 @@ class BaselinePipeline:
             summary=summary,
             documents=infos,
             specifications=[s for _, s in specs],
-            tree=result.tree,
-            discrepancies=result.discrepancies,
+            tree=tree.roots,
+            discrepancies=discrepancies,
             parts=parts,
             critical_parameters=criticals,
             log=report_log,

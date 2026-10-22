@@ -78,6 +78,7 @@ forbidden_modules = [
   "kdcheck.ocr",
   "kdcheck.extract",
   "kdcheck.normalize",
+  "kdcheck.tree",
   "kdcheck.checks",
   "kdcheck.params",
   "kdcheck.pipeline",
@@ -86,9 +87,22 @@ forbidden_modules = [
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "Block 1 (checks) and Block 2 (params) do not import each other"
-type = "independence"
-modules = ["kdcheck.checks", "kdcheck.params"]
+name = "Block 1 (tree, checks) does not import Block 2 (params)"
+type = "forbidden"
+source_modules = ["kdcheck.tree", "kdcheck.checks"]
+forbidden_modules = ["kdcheck.params"]
+
+[[tool.importlinter.contracts]]
+name = "Block 2 (params) does not import Block 1 (tree, checks)"
+type = "forbidden"
+source_modules = ["kdcheck.params"]
+forbidden_modules = ["kdcheck.tree", "kdcheck.checks"]
+
+[[tool.importlinter.contracts]]
+name = "The product tree does not depend on the checks over it"
+type = "forbidden"
+source_modules = ["kdcheck.tree"]
+forbidden_modules = ["kdcheck.checks"]
 
 [[tool.importlinter.contracts]]
 name = "The report contract depends on no other core module"
@@ -99,6 +113,7 @@ forbidden_modules = [
   "kdcheck.ocr",
   "kdcheck.extract",
   "kdcheck.normalize",
+  "kdcheck.tree",
   "kdcheck.checks",
   "kdcheck.params",
   "kdcheck.pipeline",

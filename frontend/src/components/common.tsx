@@ -4,7 +4,9 @@ import {
   CircleCheck,
   CircleX,
   Crosshair,
+  FileLock,
   FileQuestion,
+  Files,
   FileText,
   FileWarning,
   FileX,
@@ -34,6 +36,8 @@ const DOC_STATUS_TONE: Record<DocumentStatus, { tone: string; icon: ReactNode }>
   unreadable: { tone: "serious", icon: <ScanLine size={13} /> },
   foreign: { tone: "", icon: <FileQuestion size={13} /> },
   unsupported: { tone: "", icon: <Ban size={13} /> },
+  encrypted: { tone: "serious", icon: <FileLock size={13} /> },
+  duplicate_file: { tone: "", icon: <Files size={13} /> },
 };
 
 export function DocStatusBadge({ status }: { status: DocumentStatus }) {
@@ -54,6 +58,8 @@ export function DocStatusIcon({ status, size = 16 }: { status: DocumentStatus; s
     unreadable: <ScanLine size={size} />,
     foreign: <FileQuestion size={size} />,
     unsupported: <Ban size={size} />,
+    encrypted: <FileLock size={size} />,
+    duplicate_file: <Files size={size} />,
   };
   return <>{map[status]}</>;
 }
@@ -112,28 +118,25 @@ export function SourceButton({ source }: { source?: SourceRef | null }) {
   );
 }
 
-const LOW_CONFIDENCE = 0.6;
+/** Значение требует проверки: так его отметило ядро (статус значения, с версии 1.2 отчёта). */
+export function needsReview(ex?: Extracted | null): boolean {
+  return ex?.status === "low_confidence" || ex?.status === "conflict";
+}
 
-/** Значение требует проверки: низкая уверенность или получено распознаванием скана / из имени файла. */
-export function isLowConfidence(src?: SourceRef | null, ex?: Extracted | null): boolean {
-  const method = src?.method ?? ex?.source?.method;
-  if (method === "ocr" || method === "filename") return true;
-  const c = ex?.confidence ?? src?.confidence;
-  return c !== null && c !== undefined && c < LOW_CONFIDENCE;
+function reviewHint(ex: Extracted): string {
+  if (ex.status === "conflict") return "Источники дают разные значения — проверьте по документу";
+  const method = ex.source?.method;
+  return `Получено: ${method ? METHOD[method] : "с низкой уверенностью"} — проверьте по документу`;
 }
 
 /** Извлечённое значение + ссылка на источник; сомнительные значения подчёркнуты. */
 export function ValueCell({ ex, mono = false, empty = "—" }: { ex?: Extracted | null; mono?: boolean; empty?: string }) {
   const text = extractedText(ex);
-  if (!text) return <span className="subtle">{empty}</span>;
-  const low = isLowConfidence(ex?.source, ex);
-  const method = ex?.source?.method;
+  if (!ex || !text) return <span className="subtle">{empty}</span>;
+  const low = needsReview(ex);
   return (
     <span className="value-cell">
-      <span
-        className={`v ${mono ? "mono" : ""} ${low ? "lowconf" : ""}`}
-        title={low ? `Получено: ${method ? METHOD[method] : "с низкой уверенностью"} — проверьте по документу` : undefined}
-      >
+      <span className={`v ${mono ? "mono" : ""} ${low ? "lowconf" : ""}`} title={low ? reviewHint(ex) : undefined}>
         {text}
       </span>
       <SourceButton source={ex?.source} />

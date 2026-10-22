@@ -1,7 +1,8 @@
 """Doc set file intake: format detection, integrity check, text extraction.
 
 Each file becomes a :class:`LoadedDocument` with pages and text lines with coordinates. A read error never stops
-the run: the file gets the ``damaged``, ``unsupported`` or ``unreadable`` status and its own report category.
+the run: the file gets the ``damaged``, ``encrypted``, ``unsupported`` or ``unreadable`` status and its own report
+category. A byte copy of a file read before gets ``duplicate_file`` and is not read again.
 """
 
 from __future__ import annotations
@@ -9,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import io
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -16,7 +18,7 @@ from typing import Literal
 from PIL import Image, ImageFilter, ImageStat
 
 from kdcheck.config import ScanQuality, Settings
-from kdcheck.ingest.pdf import PdfBackend, PdfPage, get_backend
+from kdcheck.ingest.pdf import EncryptedPdfError, PdfBackend, PdfPage, get_backend
 from kdcheck.ingest.text import BBox, Line
 from kdcheck.ocr import tesseract
 from kdcheck.schemas import DocumentInfo, PageInfo, SourceRef
@@ -116,22 +118,27 @@ def sniff_media_type(head: bytes) -> str | None:
 
 
 def load_document(
-    path: Path, root: Path, settings: Settings, *, pdf_backend: PdfBackend | None = None
+    path: Path,
+    root: Path,
+    settings: Settings,
+    *,
+    pdf_backend: PdfBackend | None = None,
+    known: Mapping[str, str] | None = None,
 ) -> LoadedDocument:
+    """Read one file of the kit. ``known`` maps the SHA-256 of the files read before to their paths."""
     rel = path.relative_to(root).as_posix()
     data = path.read_bytes()
-    info = DocumentInfo(
-        id=document_id(rel),
-        file_name=path.name,
-        path=rel,
-        size_bytes=len(data),
-        sha256=hashlib.sha256(data).hexdigest(),
-    )
+    digest = hashlib.sha256(data).hexdigest()
+    info = DocumentInfo(id=document_id(rel), file_name=path.name, path=rel, size_bytes=len(data), sha256=digest)
     doc = LoadedDocument(info=info, abs_path=path)
     if not data:
         info.status, info.problem = "damaged", "Пустой файл (0 байт)"
         return doc
     info.media_type = sniff_media_type(data[:2048])
+    if known and digest in known:
+        info.status = "duplicate_file"
+        info.problem = f"Побайтовая копия файла {known[digest]}: повторно не разбирается"
+        return doc
     if info.media_type is None:
         info.status = "unsupported"
         info.problem = (
@@ -147,9 +154,12 @@ def load_document(
         else:
             _load_image(doc, data, settings)
     except Exception as exc:  # a damaged file must not stop the doc set
-        log.info("Не удалось прочитать %s: %s", rel, exc)
-        info.status = "damaged"
-        info.problem = f"Файл повреждён или не открывается: {_short(exc)}"
+        if isinstance(exc, EncryptedPdfError):
+            info.status, info.problem = "encrypted", "PDF защищён паролем: без пароля содержимое не прочитать"
+        else:
+            log.info("Не удалось прочитать %s: %s", rel, exc)
+            info.status = "damaged"
+            info.problem = f"Файл повреждён или не открывается: {_short(exc)}"
         doc.pages = []
         info.pages = []
     return doc

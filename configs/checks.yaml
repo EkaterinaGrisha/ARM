@@ -1,0 +1,16 @@
+# Block 1: the completeness rules. Their logic, texts and tests are in kdcheck.checks; here each rule is turned on
+# or off and gets the severity of the discrepancies it reports: high, medium or low.
+
+rules:
+  B1.MISSING.001: {enabled: true, severity: high}    # a part named in a specification has no drawing in the kit
+  B1.MISSING.002: {enabled: true, severity: high}    # a document of the «Документация» section is not in the kit
+  B1.SPEC.001: {enabled: true, severity: high}       # an assembly has no specification of its own
+  B1.ORPHAN.001: {enabled: true, severity: medium}   # a document of the kit is in no specification
+  B1.NAME.001: {enabled: true, severity: medium}     # the name on a drawing differs from the specification
+  B1.NAME.002: {enabled: true, severity: medium}     # the own specification of an assembly names it differently
+  B1.DUP.001: {enabled: true, severity: high}        # one designation on several documents
+  B1.DUP.002: {enabled: true, severity: high}        # one designation on positions with different names
+  B1.DUP.003: {enabled: true, severity: high}        # one designation on several specifications
+  B1.VERSION.001: {enabled: true, severity: medium}  # copies of a document differ in change number or litera
+  B1.LITERA.001: {enabled: true, severity: medium}   # a specification and its assembly drawing differ in litera
+  B1.LITERA.002: {enabled: true, severity: medium}   # a component has a lower litera than its assembly (GOST 2.103)

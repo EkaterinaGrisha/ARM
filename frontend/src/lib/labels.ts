@@ -38,8 +38,18 @@ export const DOCUMENT_STATUS: Record<DocumentStatus, { label: string; hint: stri
   unreadable: { label: "Нечитаемый скан", hint: "Качество изображения не позволяет распознать текст" },
   foreign: { label: "Посторонний", hint: "Не является чертежом или спецификацией" },
   unsupported: { label: "Неподдерживаемый формат", hint: "Ожидаются PDF или изображения" },
+  encrypted: { label: "Защищён паролем", hint: "PDF открывается только с паролем" },
+  duplicate_file: { label: "Копия файла", hint: "Побайтовая копия другого файла комплекта, повторно не разбирается" },
 };
-export const PROBLEM_STATUSES: DocumentStatus[] = ["damaged", "unreadable", "foreign", "unsupported", "warning"];
+export const PROBLEM_STATUSES: DocumentStatus[] = [
+  "damaged",
+  "encrypted",
+  "unreadable",
+  "foreign",
+  "unsupported",
+  "duplicate_file",
+  "warning",
+];
 
 export const DOCUMENT_KIND: Record<DocumentKind, string> = {
   specification: "Спецификация",

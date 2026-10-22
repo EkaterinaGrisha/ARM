@@ -34,3 +34,7 @@ confidence:                      # of a value, by how it was read
   ocr: 0.7                       # when the OCR confidence of the lines is not known
   filename: 0.5                  # a designation taken from the file name
   filename_name: 0.4             # a name taken from the file name
+
+review:                          # values the report marks for a check against the document: status low_confidence
+  methods: [ocr, filename]       # every value read this way, while the OCR confidence is not calibrated (plan, stage 6)
+  min_confidence: 0.6            # and any value with a lower confidence

@@ -1,1 +1,1 @@
-"""Block 1 checks: product tree and doc set completeness."""
+"""Block 1 checks: completeness rules over the product tree."""

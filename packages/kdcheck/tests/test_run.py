@@ -9,8 +9,10 @@ from pathlib import Path
 
 from kdcheck.cli import main
 from kdcheck.config import settings_sha256
+from kdcheck.extract import review
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.schemas import Report
+from reportlab.pdfgen.canvas import Canvas
 
 ROOT = Path(__file__).resolve().parents[3]
 KIT = ROOT / "samples" / "demo_kit"
@@ -22,8 +24,10 @@ def test_run_writes_three_report_forms(tmp_path, capsys):
     assert report.kit.name == "Демо"
     assert report.kit.root_designation == "АРМ.303411.000"
     assert report.summary.documents_total == 22
+    assert report.discrepancies and all(d.rule_id for d in report.discrepancies)
     assert (tmp_path / "report.xlsx").stat().st_size > 0
-    assert "АРМ.303411.000" in (tmp_path / "report.html").read_text(encoding="utf-8")
+    html = (tmp_path / "report.html").read_text(encoding="utf-8")
+    assert "АРМ.303411.000" in html and report.discrepancies[0].rule_id in html
     assert "Отчёт:" in capsys.readouterr().out
 
 
@@ -55,6 +59,9 @@ def test_bad_files_get_statuses(tmp_path, settings):
     (tmp_path / "broken.pdf").write_bytes(b"%PDF-1.7\n" + b"\x00garbage" * 50)
     (tmp_path / "fake.jpg").write_bytes(b"\xff\xd8\xff" + b"not a jpeg" * 10)
     (tmp_path / "notes.docx").write_bytes(b"PK\x03\x04 zip")
+    canvas = Canvas(str(tmp_path / "secret.pdf"), encrypt="x")
+    canvas.drawString(72, 770, "АРМ.303411.001")
+    canvas.save()
     report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
     statuses = {d.file_name: d.status for d in report.documents}
     assert statuses == {
@@ -62,9 +69,28 @@ def test_bad_files_get_statuses(tmp_path, settings):
         "broken.pdf": "damaged",
         "fake.jpg": "damaged",
         "notes.docx": "unsupported",
+        "secret.pdf": "encrypted",
     }
     assert all(d.problem for d in report.documents)
+    assert {e.document_id for e in report.log if e.document_id} == {d.id for d in report.documents}
     assert report.tree == []
+
+
+def test_byte_copy_is_read_once_and_is_no_duplicate_designation(tmp_path, settings):
+    drawing = KIT / "Чертежи" / "АРМ.303411.002 Водило.pdf"
+    (tmp_path / "архив").mkdir()
+    for target in (tmp_path / "Водило.pdf", tmp_path / "архив" / "Водило.pdf"):
+        shutil.copy(drawing, target)
+    report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
+    statuses = {d.path: (d.status, d.problem) for d in report.documents}
+    assert statuses["Водило.pdf"][0] == "ok"
+    assert statuses["архив/Водило.pdf"] == (
+        "duplicate_file",
+        "Побайтовая копия файла Водило.pdf: повторно не разбирается",
+    )
+    assert [p.designation for p in report.parts] == ["АРМ.303411.002"]
+    assert report.discrepancies == []
+    assert report.summary.documents_by_status == {"ok": 1, "duplicate_file": 1}
 
 
 def test_empty_kit(tmp_path, settings):
@@ -92,3 +118,13 @@ def test_run_stops_on_broken_settings(tmp_path, capsys):
     assert main(["run", str(KIT), "-o", str(tmp_path / "out"), "--config", str(config)]) == 2
     assert "criticality.yaml: tight_fit.score" in capsys.readouterr().err
     assert not (tmp_path / "out").exists()
+
+
+def test_values_to_check_are_marked(settings):
+    report = BaselinePipeline(settings).run(KIT, kit_id="t", kit_name="t")  # OCR off: scans keep file names
+    found = list(review.values(report))
+    assert found and all(ex.status for ex in found)
+    by_method: dict[str | None, set[str | None]] = {}
+    for ex in found:
+        by_method.setdefault(ex.source.method if ex.source else None, set()).add(ex.status)
+    assert by_method == {"text_layer": {"ok"}, "filename": {"low_confidence"}}

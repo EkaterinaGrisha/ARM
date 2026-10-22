@@ -19,7 +19,7 @@ from typing import Annotated, Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from kdcheck.schemas import NodeKind
+from kdcheck.schemas import ExtractionMethod, NodeKind, Severity
 
 CONFIG_DIR_ENV = "ARM_CONFIG_DIR"
 
@@ -193,6 +193,11 @@ class MethodConfidence(Section):
     filename_name: Share
 
 
+class Review(Section):
+    methods: tuple[ExtractionMethod, ...]
+    min_confidence: Share
+
+
 class Ingest(Section):
     max_pages_per_file: int = Field(ge=0)
     render_dpi: float
@@ -202,6 +207,7 @@ class Ingest(Section):
     page_scale: PageScale
     text: TextLayout
     confidence: MethodConfidence
+    review: Review
 
 
 # ---------------------------------------------------------------- dictionaries.yaml
@@ -245,6 +251,18 @@ class Dictionaries(Section):
     def _hints_compile(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         re.compile("|".join(value))
         return value
+
+
+# ---------------------------------------------------------------- checks.yaml
+
+
+class RuleSettings(Section):
+    enabled: bool
+    severity: Severity
+
+
+class Checks(Section):
+    rules: dict[str, RuleSettings]  # by rule id; kdcheck.checks.rules checks that every rule has its settings
 
 
 # ---------------------------------------------------------------- criticality.yaml
@@ -322,6 +340,7 @@ class Settings(Section):
     forms: Forms
     ingest: Ingest
     dictionaries: Dictionaries
+    checks: Checks
     criticality: Criticality
     models: Engines
 

@@ -104,11 +104,23 @@ def to_xlsx(report: Report) -> bytes:
     _sheet(
         wb,
         "Расхождения",
-        ["№", "Тип", "Важность", "Обозначение", "Описание", "Ожидалось", "Фактически", "Документы", "Источник"],
+        [
+            "№",
+            "Тип",
+            "Правило",
+            "Важность",
+            "Обозначение",
+            "Описание",
+            "Ожидалось",
+            "Фактически",
+            "Документы",
+            "Источник",
+        ],
         [
             [
                 i,
                 L.DISCREPANCY_TYPES.get(x.type, x.type),
+                x.rule_id,
                 L.SEVERITY.get(x.severity, x.severity),
                 x.designation,
                 x.message,
@@ -119,7 +131,7 @@ def to_xlsx(report: Report) -> bytes:
             ]
             for i, x in enumerate(report.discrepancies, start=1)
         ],
-        [5, 26, 11, 22, 60, 20, 20, 40, 40],
+        [5, 26, 16, 11, 22, 60, 20, 20, 40, 40],
     )
 
     tree_rows = []
@@ -358,10 +370,14 @@ def to_html(report: Report) -> str:
 
     out.append("<h2>Расхождения</h2>")
     if report.discrepancies:
-        out.append("<table><tr><th>№</th><th>Тип</th><th>Обозначение</th><th>Описание</th><th>Документы</th></tr>")
+        out.append(
+            "<table><tr><th>№</th><th>Тип</th><th>Правило</th><th>Обозначение</th><th>Описание</th>"
+            "<th>Документы</th></tr>"
+        )
         for i, x in enumerate(report.discrepancies, start=1):
             out.append(
                 f"<tr><td>{i}</td><td class='{x.severity}'>{_e(L.DISCREPANCY_TYPES.get(x.type, x.type))}</td>"
+                f"<td class='mono'>{_e(x.rule_id)}</td>"
                 f"<td class='mono'>{_e(x.designation)}</td><td>{_e(x.message)}</td>"
                 f"<td>{'<br>'.join(_e(paths.get(d, d)) for d in x.document_ids)}</td></tr>"
             )
