@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 
-from kdcheck.checks.completeness import DrawingRef, check
+from kdcheck.checks.completeness import check
 from kdcheck.config import Settings, settings_sha256
 from kdcheck.extract import specification, tech_requirements, title_block
 from kdcheck.ingest.document import LoadedDocument, Page, load_document
@@ -38,6 +38,7 @@ from kdcheck.schemas import (
     TitleBlock,
     TreeNode,
 )
+from kdcheck.tree.product import DrawingRef, build_tree
 
 log = logging.getLogger(__name__)
 
@@ -95,8 +96,9 @@ class BaselinePipeline:
             for d in docs
             if d.info.kind in ("part_drawing", "assembly_drawing", "drawing") and d.info.designation
         ]
-        result = check([(d.info, s) for d, s in specs], drawing_refs, self.eskd)
-        report_log += [LogEntry(level="warning", message=m) for m in result.log]
+        tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd)
+        discrepancies = check(tree, self.eskd)
+        report_log += [LogEntry(level="warning", message=m) for m in tree.log]
 
         progress("Анализ требований", 0.93, None)
         criticals = critical.select(parts, self.settings.criticality)
@@ -106,11 +108,11 @@ class BaselinePipeline:
         for d in infos:
             if d.status in ("damaged", "unsupported", "unreadable", "foreign"):
                 report_log.append(LogEntry(level="warning", message=d.problem or d.status, document_id=d.id))
-        tree_items = _count_nodes(result.tree)
+        tree_items = _count_nodes(tree.roots)
         need = _count_nodes(
-            result.tree, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document")
+            tree.roots, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document")
         )
-        have = _count_nodes(result.tree, lambda n: n.kind in ("part", "document") and bool(n.drawing_document_ids))
+        have = _count_nodes(tree.roots, lambda n: n.kind in ("part", "document") and bool(n.drawing_document_ids))
         summary = Summary(
             documents_total=len(infos),
             documents_by_status=dict(Counter(d.status for d in infos)),
@@ -120,16 +122,16 @@ class BaselinePipeline:
             tree_items=tree_items,
             parts=len(parts),
             parameters=sum(len(p.parameters) for p in parts),
-            discrepancies_total=len(result.discrepancies),
-            discrepancies_by_type=dict(Counter(x.type for x in result.discrepancies)),
+            discrepancies_total=len(discrepancies),
+            discrepancies_by_type=dict(Counter(x.type for x in discrepancies)),
             critical_parameters=len(criticals),
             completeness_ratio=round(have / need, 4) if need else None,
         )
         kit = KitInfo(
             id=kit_id,
             name=kit_name,
-            root_designation=result.root_designation,
-            root_name=result.root_name,
+            root_designation=tree.root_designation,
+            root_name=tree.root_name,
             processed_at=_now(),
             duration_sec=round(time.monotonic() - started, 2),
             pipeline_name=self.name,
@@ -143,8 +145,8 @@ class BaselinePipeline:
             summary=summary,
             documents=infos,
             specifications=[s for _, s in specs],
-            tree=result.tree,
-            discrepancies=result.discrepancies,
+            tree=tree.roots,
+            discrepancies=discrepancies,
             parts=parts,
             critical_parameters=criticals,
             log=report_log,

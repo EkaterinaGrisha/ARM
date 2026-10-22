@@ -1,16 +1,34 @@
-"""Block 1 on synthetic structures: no PDFs, only the check logic."""
+"""Block 1 on synthetic structures: no PDFs, only the tree and the check logic."""
 
-from kdcheck.checks.completeness import DrawingRef, Result
+from typing import NamedTuple
+
 from kdcheck.checks.completeness import check as run_check
 from kdcheck.config import load_settings
 from kdcheck.normalize.designations import Designations
-from kdcheck.schemas import DocumentInfo, Extracted, PartRecord, Specification, SpecRow, TitleBlock
+from kdcheck.schemas import (
+    Discrepancy,
+    DocumentInfo,
+    Extracted,
+    PartRecord,
+    Specification,
+    SpecRow,
+    TitleBlock,
+    TreeNode,
+)
+from kdcheck.tree.product import DrawingRef, build_tree
 
 ESKD = Designations(load_settings().dictionaries)
 
 
+class Result(NamedTuple):
+    tree: list[TreeNode]
+    discrepancies: list[Discrepancy]
+    log: list[str]
+
+
 def check(specs, drawings) -> Result:
-    return run_check(specs, drawings, ESKD)
+    tree = build_tree(specs, drawings, ESKD)
+    return Result(tree.roots, run_check(tree, ESKD), tree.log)
 
 
 def row(i: int, section: str, des: str = "", name: str = "", qty: float | None = 1, note: str = "") -> SpecRow:
