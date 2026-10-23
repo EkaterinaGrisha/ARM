@@ -874,39 +874,57 @@
   "discrepancies": [
     {
       "type": "missing_drawing",
-      "designation": "АРМ.303411.004"
+      "designation": "АРМ.303411.004",
+      "rule_id": "B1.MISSING.001",
+      "mutation": null
     },
     {
       "type": "missing_drawing",
-      "designation": "АРМ.303411.103"
+      "designation": "АРМ.303411.103",
+      "rule_id": "B1.MISSING.001",
+      "mutation": null
     },
     {
       "type": "missing_specification",
-      "designation": "АРМ.303411.300"
+      "designation": "АРМ.303411.300",
+      "rule_id": "B1.SPEC.001",
+      "mutation": null
     },
     {
       "type": "orphan_drawing",
-      "designation": "АРМ.303412.007"
+      "designation": "АРМ.303412.007",
+      "rule_id": "B1.ORPHAN.001",
+      "mutation": null
     },
     {
       "type": "name_mismatch",
-      "designation": "АРМ.303411.002"
+      "designation": "АРМ.303411.002",
+      "rule_id": "B1.NAME.001",
+      "mutation": null
     },
     {
       "type": "duplicate_designation",
-      "designation": "АРМ.303411.201"
+      "designation": "АРМ.303411.201",
+      "rule_id": "B1.DUP.001",
+      "mutation": null
     },
     {
       "type": "revision_mismatch",
-      "designation": "АРМ.303411.201"
+      "designation": "АРМ.303411.201",
+      "rule_id": "B1.VERSION.001",
+      "mutation": null
     },
     {
       "type": "revision_mismatch",
-      "designation": "АРМ.303411.000"
+      "designation": "АРМ.303411.000",
+      "rule_id": "B1.LITERA.001",
+      "mutation": null
     },
     {
       "type": "revision_mismatch",
-      "designation": "АРМ.303411.101"
+      "designation": "АРМ.303411.101",
+      "rule_id": "B1.LITERA.002",
+      "mutation": null
     }
   ],
   "problem_files": {
@@ -914,5 +932,7 @@
     "скан_0034.jpg": "unreadable",
     "Акт приёмки КД.pdf": "foreign",
     "Thumbs.db": "unsupported"
-  }
+  },
+  "seed": 7,
+  "mutations": []
 }

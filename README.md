@@ -85,6 +85,8 @@ uv run kdcheck run ПАПКА --no-ocr                               # без р
 uv run kdcheck run ПАПКА --max-pages 50                         # не больше 50 страниц на файл (по умолчанию из ingest.yaml)
 uv run kdcheck run ПАПКА --config мои_настройки                 # свои пороги и словари: копия configs/ с правками
 uv run python -m synth.demo_kit samples/demo_kit                # пересоздать демо-комплект и эталон к нему
+uv run python -m synth.kits data/synth/kits --kits 20 --seed 1    # синтетические комплекты с заложенными ошибками
+uv run python eval/synth_kits.py                                  # Блок 1 на этих комплектах: eval/results/synth-kits.md
 
 cd backend
 python -m arm_web process ../samples/demo_kit -o out            # то же, но с внешним конвейером из ARM_PIPELINE_CMD
@@ -245,7 +247,10 @@ synth/src/synth/
   scans.py                   сканы листов: рендер PDFium, наклон и шум от сида
   truth.py                   модели разметки: поля документов, ожидаемые расхождения, проблемные файлы
   demo_kit.py                демо-комплект: данные и сборка
-synth/tests/                 pytest: комплект и разметка в samples/ совпадают с выводом генератора
+  product.py, vocab.py       случайное дерево изделия, обозначения, наименования, материалы, техтребования
+  kits.py, mutations.py      синтетические комплекты и 18 мутаций с ожидаемыми расхождениями
+synth/tests/                 pytest: демо-комплект совпадает с выводом генератора, сид повторяет комплект, мутации оставляют след
+eval/                        замеры: движки PDF, Блок 1 на синтетических комплектах; результаты — в eval/results/
 configs/                     пороги, шаблоны форм ГОСТ, словари, правила, движки, лимиты
 samples/                     демо-комплект и эталон к нему
 docs/                        формат отчёта, JSON Schema, иллюстрации
