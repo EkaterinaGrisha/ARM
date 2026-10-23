@@ -2,7 +2,8 @@
 
 Each file becomes a :class:`LoadedDocument` with pages and text lines with coordinates. A read error never stops
 the run: the file gets the ``damaged``, ``encrypted``, ``unsupported`` or ``unreadable`` status and its own report
-category. A byte copy of a file read before gets ``duplicate_file`` and is not read again.
+category. A byte copy of a file read before gets ``duplicate_file`` and is not read again. A page that fails to
+read keeps its problem and the other pages of the file are read; a file with no page read is ``damaged``.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from typing import Literal
 
 from PIL import Image, ImageFilter, ImageStat
 
-from kdcheck.config import ScanQuality, Settings
+from kdcheck.config import ScanQuality, Settings, Sheet
 from kdcheck.ingest.pdf import EncryptedPdfError, PdfBackend, PdfPage, get_backend
 from kdcheck.ingest.text import BBox, Line
 from kdcheck.ocr import tesseract
@@ -45,6 +46,8 @@ class Page:
     engine: str | None = None  # what read the text, and its version
     engine_version: str | None = None
     confidence: float | None = None  # of values read by ``method`` when the lines give none
+    format: str | None = None  # GOST 2.301 sheet format by the size of the page
+    problem: str | None = None  # why the page was not read or parsed; the other pages were
 
     @property
     def mm(self) -> float:
@@ -83,6 +86,13 @@ class LoadedDocument:
     @property
     def has_text(self) -> bool:
         return any(p.lines for p in self.pages)
+
+    def page_failed(self, page: Page, problem: str) -> None:
+        """Keep why ``page`` was not read or parsed, here and in the report; the other pages stay."""
+        page.problem = problem
+        for info in self.info.pages:
+            if info.number == page.number:
+                info.problem = problem
 
     def source(
         self, page: Page, bbox: BBox | None, text: str | None = None, confidence: float | None = None
@@ -127,7 +137,12 @@ def load_document(
 ) -> LoadedDocument:
     """Read one file of the kit. ``known`` maps the SHA-256 of the files read before to their paths."""
     rel = path.relative_to(root).as_posix()
-    data = path.read_bytes()
+    try:
+        data = path.read_bytes()
+    except OSError as exc:  # no access, or the file is gone: the kit goes on
+        info = DocumentInfo(id=document_id(rel), file_name=path.name, path=rel, status="damaged")
+        info.problem = f"Файл не читается: {_read_error(exc)}"
+        return LoadedDocument(info=info, abs_path=path)
     digest = hashlib.sha256(data).hexdigest()
     info = DocumentInfo(id=document_id(rel), file_name=path.name, path=rel, size_bytes=len(data), sha256=digest)
     doc = LoadedDocument(info=info, abs_path=path)
@@ -165,6 +180,14 @@ def load_document(
     return doc
 
 
+def _read_error(exc: OSError) -> str:
+    if isinstance(exc, PermissionError):
+        return "нет прав на чтение"
+    if isinstance(exc, FileNotFoundError):
+        return "файл удалён во время обработки"
+    return _short(exc)
+
+
 def _short(exc: Exception) -> str:
     text = str(exc).strip() or exc.__class__.__name__
     return text if len(text) < 160 else text[:157] + "…"
@@ -198,15 +221,17 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
         raise ValueError("в документе нет страниц")
     count = _pages_to_read(doc, pdf.page_count, ingest.max_pages_per_file)
     version = backend.versions()[backend.name]
-    text_pages = 0
     for index in range(count):
-        pg = pdf.page(index)
-        page = Page(number=index + 1, width=pg.width, height=pg.height, unit="pt")
-        page.lines = pg.lines(ingest.text)
-        if page.lines:
-            page.read_by("text_layer", backend.name, version, ingest.confidence.text_layer)
-            text_pages += 1
-        else:
+        page = Page(number=index + 1, width=0.0, height=0.0, unit="pt")
+        doc.pages.append(page)
+        try:
+            pg = pdf.page(index)
+            page.width, page.height = pg.width, pg.height
+            page.format = sheet_format(pg.width / MM_PT, pg.height / MM_PT, settings.forms.sheet)
+            page.lines = pg.lines(ingest.text)
+            if page.lines:
+                page.read_by("text_layer", backend.name, version, ingest.confidence.text_layer)
+                continue
             page.image_only = pg.has_images()
             image, origin, scale = _page_image(pg, settings)
             if index == 0:
@@ -214,8 +239,11 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
                 doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
             if use_ocr and not doc.unreadable:
                 _ocr(page, image, settings, scale, origin)
-        doc.pages.append(page)
-    doc.info.origin = "vector" if text_pages == count else "scan" if text_pages == 0 else "mixed"
+        except Exception as exc:  # one bad page never costs the others
+            _read_failed(page, exc)
+    read = _pages_read(doc)
+    text_pages = sum(1 for p in read if p.method == "text_layer")
+    doc.info.origin = "vector" if text_pages == len(read) else "scan" if text_pages == 0 else "mixed"
     _fill_page_info(doc)
 
 
@@ -245,23 +273,50 @@ def _load_image(doc: LoadedDocument, data: bytes, settings: Settings) -> None:
     dpi = float(raw_dpi[0]) if raw_dpi and raw_dpi[0] and float(raw_dpi[0]) > ingest.min_image_dpi else None
     doc.info.origin = "scan"
     for index in range(frames):
-        image.seek(index)
-        frame = image.convert("L")
-        page = Page(
-            number=index + 1,
-            width=frame.width,
-            height=frame.height,
-            unit="px",
-            image_only=True,
-            dpi=dpi or estimated_dpi(frame.width, frame.height, settings),
-        )
-        if index == 0:
-            doc.quality = image_quality(frame, ingest.quality.sample_width)
-            doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
-        if use_ocr and not doc.unreadable:
-            _ocr(page, frame, settings, 1.0, (0.0, 0.0))
+        page = Page(number=index + 1, width=0.0, height=0.0, unit="px", image_only=True)
         doc.pages.append(page)
+        try:
+            image.seek(index)
+            frame = image.convert("L")
+            page.width, page.height = frame.width, frame.height
+            page.dpi = dpi or estimated_dpi(frame.width, frame.height, settings)
+            if dpi:  # an estimated resolution assumes a format, so only a known one tells it
+                size = (frame.width / dpi * MM_PER_INCH, frame.height / dpi * MM_PER_INCH)
+                page.format = sheet_format(*size, settings.forms.sheet)
+            if index == 0:
+                doc.quality = image_quality(frame, ingest.quality.sample_width)
+                doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
+            if use_ocr and not doc.unreadable:
+                _ocr(page, frame, settings, 1.0, (0.0, 0.0))
+        except Exception as exc:  # one bad frame never costs the others
+            _read_failed(page, exc)
+    _pages_read(doc)
     _fill_page_info(doc)
+
+
+def _read_failed(page: Page, exc: Exception) -> None:
+    log.info("Страница %s не прочитана: %s", page.number, exc)
+    page.lines, page.method, page.engine, page.engine_version, page.confidence = [], None, None, None, None
+    page.problem = f"ошибка чтения: {_short(exc)}"
+
+
+def _pages_read(doc: LoadedDocument) -> list[Page]:
+    """The pages read without a problem; with none of them the file is damaged."""
+    read = [p for p in doc.pages if p.problem is None]
+    if not read:
+        raise ValueError(f"не прочитана ни одна страница, первая — {doc.pages[0].problem}")
+    return read
+
+
+def sheet_format(width_mm: float, height_mm: float, sheet: Sheet) -> str | None:
+    """The GOST 2.301 format of a sheet this size in either orientation, the closest one within the tolerance."""
+    short, long_ = sorted((width_mm, height_mm))
+    best, best_err = None, sheet.format_tolerance
+    for name, (f_short, f_long) in sheet.formats.items():
+        err = max(abs(short - f_short) / f_short, abs(long_ - f_long) / f_long)
+        if err <= best_err:
+            best, best_err = name, err
+    return best
 
 
 def estimated_dpi(width: float, height: float, settings: Settings) -> float:
@@ -282,7 +337,13 @@ def estimated_dpi(width: float, height: float, settings: Settings) -> float:
 def _fill_page_info(doc: LoadedDocument) -> None:
     doc.info.pages = [
         PageInfo(
-            number=p.number, width=round(p.width, 2), height=round(p.height, 2), unit=p.unit, has_text=bool(p.lines)
+            number=p.number,
+            width=round(p.width, 2),
+            height=round(p.height, 2),
+            unit=p.unit,
+            has_text=bool(p.lines),
+            format=p.format,
+            problem=p.problem,
         )
         for p in doc.pages
     ]

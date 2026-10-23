@@ -1,14 +1,15 @@
 import io
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 from kdcheck.config import load_settings
-from kdcheck.ingest.document import load_document, sniff_media_type
+from kdcheck.ingest.document import load_document, sheet_format, sniff_media_type
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 from kdcheck.render import RenderError, render_page
-from PIL import Image
+from PIL import Image, ImageDraw
 from reportlab.pdfgen.canvas import Canvas
 
 
@@ -28,6 +29,7 @@ def test_vector_pdf_reads_text_layer(tmp_path, settings):
     assert doc.info.origin == "vector"
     assert doc.pages[0].method == "text_layer"
     assert [ln.text for ln in doc.pages[0].lines] == ["ABC 123"]
+    assert doc.info.pages[0].format == "A4"
     source = doc.source(doc.pages[0], (0, 0, 10, 10))
     assert source.engine == "pdfium" and source.engine_version
     assert source.confidence == settings.ingest.confidence.text_layer
@@ -61,6 +63,57 @@ def test_byte_copy_of_a_known_file_is_not_read_again(tmp_path, settings):
     assert load_document(empty[1], tmp_path, settings, known=known).info.status == "damaged"  # empty first
 
 
+@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() == 0, reason="file permissions do not bind root")
+def test_file_without_read_access_is_damaged(tmp_path, settings):
+    path = _pdf(tmp_path / "locked.pdf")
+    path.chmod(0)
+    try:
+        doc = load_document(path, tmp_path, settings)
+    finally:
+        path.chmod(0o644)
+    assert (doc.info.status, doc.info.problem) == ("damaged", "Файл не читается: нет прав на чтение")
+    assert doc.info.sha256 is None and doc.pages == []
+
+
+def _tiff_with_a_broken_frame(path: Path) -> Path:
+    frames = [Image.new("L", (400, 300), 255) for _ in range(3)]
+    for i, frame in enumerate(frames):
+        ImageDraw.Draw(frame).text((20, 20), f"page {i + 1}", fill=0)
+    buf = io.BytesIO()
+    frames[0].save(buf, "TIFF", save_all=True, append_images=frames[1:], compression="tiff_lzw", dpi=(150, 150))
+    data = bytearray(buf.getvalue())
+    probe = Image.open(io.BytesIO(bytes(data)))
+    probe.seek(1)
+    start, length = probe.tag_v2[273][0], probe.tag_v2[279][0]  # the first strip of the second frame
+    data[start : start + length] = b"\xff" * length
+    path.write_bytes(bytes(data))
+    return path
+
+
+def test_a_broken_frame_costs_only_its_page(tmp_path, settings):
+    doc = load_document(_tiff_with_a_broken_frame(tmp_path / "scan.tif"), tmp_path, settings)
+    assert doc.info.status == "ok"
+    first, broken, third = doc.info.pages
+    assert broken.problem.startswith("ошибка чтения:") and (broken.width, broken.height) == (0, 0)
+    assert (first.problem, third.problem) == (None, None) and (third.width, third.height) == (400, 300)
+
+
+def test_a_page_that_fails_to_open_keeps_its_problem(tmp_path, settings, broken_page):
+    path = _pdf(tmp_path / "a.pdf", text="ABC", pages=3)
+    doc = load_document(path, tmp_path, settings, pdf_backend=broken_page(1))
+    assert (doc.info.status, doc.info.origin) == ("ok", "vector")
+    assert [p.problem for p in doc.info.pages] == [None, "ошибка чтения: Failed to load page.", None]
+    assert [[ln.text for ln in p.lines] for p in doc.pages] == [["ABC"], [], ["ABC"]]
+
+
+def test_a_file_with_no_page_read_is_damaged(tmp_path, settings, broken_page):
+    doc = load_document(_pdf(tmp_path / "a.pdf"), tmp_path, settings, pdf_backend=broken_page(0))
+    assert doc.info.status == "damaged" and doc.pages == []
+    assert doc.info.problem == (
+        "Файл повреждён или не открывается: не прочитана ни одна страница, первая — ошибка чтения: Failed to load page."
+    )
+
+
 def test_pages_past_the_limit_are_skipped_with_a_note(tmp_path):
     path = _pdf(tmp_path / "long.pdf", text="ABC", pages=3)
     doc = load_document(path, tmp_path, load_settings(use_ocr=False, max_pages=2))
@@ -70,6 +123,30 @@ def test_pages_past_the_limit_are_skipped_with_a_note(tmp_path):
     for limit in (3, 0):  # 0: no limit
         full = load_document(path, tmp_path, load_settings(use_ocr=False, max_pages=limit))
         assert len(full.info.pages) == 3 and full.info.notes == []
+
+
+@pytest.mark.parametrize(
+    ("size", "expected"),
+    [
+        ((210, 297), "A4"),
+        ((297, 210), "A4"),  # landscape
+        ((303, 428), "A3"),  # 2 % larger: a plotter margin
+        ((215.9, 279.4), None),  # US Letter is no GOST format
+        ((148, 210), "A5"),
+        ((297, 630), "A4x3"),
+        ((841, 1783), "A1x3"),
+    ],
+)
+def test_sheet_format_by_size(settings, size, expected):
+    assert sheet_format(*size, settings.forms.sheet) == expected
+
+
+def test_image_format_needs_its_resolution(tmp_path, settings):
+    a4 = Image.new("L", (1241, 1754), 255)  # A4 at 150 dpi
+    a4.save(tmp_path / "with.png", dpi=(150, 150))
+    a4.save(tmp_path / "without.png")
+    assert load_document(tmp_path / "with.png", tmp_path, settings).info.pages[0].format == "A4"
+    assert load_document(tmp_path / "without.png", tmp_path, settings).info.pages[0].format is None
 
 
 def test_media_type_by_signature_not_extension():

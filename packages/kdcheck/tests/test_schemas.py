@@ -45,6 +45,10 @@ def test_reports_of_earlier_versions_stay_valid():
         data["kit"].pop(key, None)
     for item in data["discrepancies"]:
         item.pop("rule_id", None)
+    for doc in data["documents"]:
+        for page in doc["pages"]:
+            page.pop("format", None)
+            page.pop("problem", None)
     data.pop("extensions", None)
     assert Report.model_validate(data).schema_version == "1.0"
 

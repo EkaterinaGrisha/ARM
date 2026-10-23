@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Parameter, Report, TreeNode } from "../api/types";
 import { formatBytes, parameterValue, plural } from "./format";
-import { branchIds, buildIndex, filterTree, matchesQuery, sameBox } from "./report";
+import { branchIds, buildIndex, filterTree, matchesQuery, sameBox, sheetFormats } from "./report";
 
 const demo = JSON.parse(readFileSync(new URL("../../public/demo/report.json", import.meta.url), "utf-8")) as Report;
 
@@ -76,5 +76,15 @@ describe("форматирование", () => {
   it("сравнение областей с допуском", () => {
     expect(sameBox([0.1, 0.1, 0.2, 0.2], [0.1001, 0.1, 0.2, 0.2])).toBe(true);
     expect(sameBox([0.1, 0.1, 0.2, 0.2], [0.2, 0.1, 0.3, 0.2])).toBe(false);
+  });
+});
+
+describe("форматы листов", () => {
+  const page = (number: number, format?: string | null) => ({ number, width: 595, height: 842, unit: "pt" as const, has_text: true, format });
+  const doc = { ...demo.documents[0], pages: [page(1, "A3"), page(2, "A4"), page(3, "A3"), page(4, null)] };
+
+  it("перечисляет форматы страниц по одному разу", () => {
+    expect(sheetFormats(doc)).toBe("A3, A4");
+    expect(sheetFormats({ ...doc, pages: [page(1)] })).toBe("");
   });
 });

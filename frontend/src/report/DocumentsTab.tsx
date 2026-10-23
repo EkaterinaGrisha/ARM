@@ -4,7 +4,7 @@ import { DocStatusBadge, DocStatusIcon, SearchInput } from "../components/common
 import { DataTable } from "../components/DataTable";
 import { formatBytes } from "../lib/format";
 import { DOCUMENT_KIND, DOCUMENT_STATUS, ORIGIN, PROBLEM_STATUSES } from "../lib/labels";
-import { matchesQuery } from "../lib/report";
+import { matchesQuery, sheetFormats } from "../lib/report";
 import { useReport } from "./ReportContext";
 
 type Filter = "all" | "problems" | DocumentStatus;
@@ -99,6 +99,7 @@ export function DocumentsTab() {
               },
             },
             { key: "pages", header: "Стр.", className: "num", sort: (d) => d.pages.length, render: (d) => d.pages.length || "—" },
+            { key: "format", header: "Формат", sort: (d) => sheetFormats(d), render: (d) => <span className="nowrap">{sheetFormats(d) || "—"}</span> },
             { key: "size", header: "Размер", className: "num", sort: (d) => d.size_bytes, render: (d) => <span className="nowrap">{formatBytes(d.size_bytes)}</span> },
             { key: "des", header: "Обозначение", sort: (d) => d.designation, render: (d) => <span className="mono nowrap">{d.designation ?? "—"}</span> },
             { key: "name", header: "Наименование", sort: (d) => d.name, render: (d) => d.name ?? "—" },

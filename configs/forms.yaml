@@ -2,7 +2,9 @@
 # Lengths are millimetres unless a comment says otherwise; shares are fractions of the sheet width or height.
 
 sheet:
-  formats:                       # paper formats, GOST 2.301: short and long side
+  # Paper formats of GOST 2.301: short and long side. An image without its resolution that fits two formats equally
+  # is taken for the first one, so the main formats come first.
+  formats:
     A4: [210, 297]
     A3: [297, 420]
     A2: [420, 594]
@@ -10,6 +12,25 @@ sheet:
     A0: [841, 1189]
     A4x3: [297, 630]
     A4x4: [297, 841]
+    A5: [148, 210]
+    A4x5: [297, 1051]
+    A4x6: [297, 1261]
+    A4x7: [297, 1471]
+    A4x8: [297, 1682]
+    A4x9: [297, 1892]
+    A3x3: [420, 891]
+    A3x4: [420, 1189]
+    A3x5: [420, 1486]
+    A3x6: [420, 1783]
+    A3x7: [420, 2080]
+    A2x3: [594, 1261]
+    A2x4: [594, 1682]
+    A2x5: [594, 2102]
+    A1x3: [841, 1783]
+    A1x4: [841, 2378]
+    A0x2: [1189, 1682]
+    A0x3: [1189, 2523]
+  format_tolerance: 0.03         # a sheet is of a format when each side differs from it by at most this share
   frame_margin: 5                # the frame from the right and bottom edges of the sheet
   binding_margin: 21             # text closer to the left edge lies in the 20 mm binding field
   general_roughness_zone: [30, 90]  # the general roughness sign: within 30 mm of the top, 90 mm of the right edge
