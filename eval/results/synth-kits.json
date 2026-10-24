@@ -1,19 +1,20 @@
 {
-  "date": "2026-10-22",
+  "date": "2026-10-24",
   "machine": "Darwin arm64, Python 3.11.15",
   "tesseract": "5.5.2",
   "corpus": {
     "kits": 20,
     "seed": 1,
     "clean": 4,
-    "planted": 78,
-    "problem_files": 20,
+    "planted": 79,
+    "problem_files": 21,
     "mutations": [
       "byte_copy",
       "damage_file",
       "drop_assembly_drawing",
       "drop_assembly_spec",
       "drop_part_drawing",
+      "drop_sheet",
       "duplicate_designation",
       "duplicate_position",
       "encrypt_file",
@@ -33,11 +34,11 @@
     {
       "ocr": false,
       "total": {
-        "expected": 78,
-        "found": 71,
-        "extra": 54,
-        "precision": 0.568,
-        "recall": 0.91
+        "expected": 79,
+        "found": 67,
+        "extra": 40,
+        "precision": 0.626,
+        "recall": 0.848
       },
       "rules": [
         {
@@ -51,8 +52,8 @@
         },
         {
           "rule": "B1.DUP.002",
-          "expected": 3,
-          "found": 3,
+          "expected": 4,
+          "found": 4,
           "missed": 0,
           "extra": 0,
           "precision": 1.0,
@@ -61,28 +62,28 @@
         {
           "rule": "B1.LITERA.001",
           "expected": 4,
-          "found": 2,
-          "missed": 2,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 0.5
-        },
-        {
-          "rule": "B1.LITERA.002",
-          "expected": 3,
-          "found": 3,
+          "found": 4,
           "missed": 0,
           "extra": 0,
           "precision": 1.0,
           "recall": 1.0
         },
         {
+          "rule": "B1.LITERA.002",
+          "expected": 3,
+          "found": 2,
+          "missed": 1,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 0.667
+        },
+        {
           "rule": "B1.MISSING.001",
-          "expected": 13,
-          "found": 13,
+          "expected": 14,
+          "found": 14,
           "missed": 0,
-          "extra": 47,
-          "precision": 0.217,
+          "extra": 37,
+          "precision": 0.275,
           "recall": 1.0
         },
         {
@@ -90,18 +91,18 @@
           "expected": 4,
           "found": 4,
           "missed": 0,
-          "extra": 7,
-          "precision": 0.364,
+          "extra": 2,
+          "precision": 0.667,
           "recall": 1.0
         },
         {
           "rule": "B1.NAME.001",
-          "expected": 6,
-          "found": 5,
+          "expected": 7,
+          "found": 6,
           "missed": 1,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 0.833
+          "extra": 1,
+          "precision": 0.857,
+          "recall": 0.857
         },
         {
           "rule": "B1.NAME.002",
@@ -114,17 +115,17 @@
         },
         {
           "rule": "B1.ORPHAN.001",
-          "expected": 23,
-          "found": 23,
-          "missed": 0,
+          "expected": 19,
+          "found": 16,
+          "missed": 3,
           "extra": 0,
           "precision": 1.0,
-          "recall": 1.0
+          "recall": 0.842
         },
         {
           "rule": "B1.SPEC.001",
-          "expected": 4,
-          "found": 4,
+          "expected": 3,
+          "found": 3,
           "missed": 0,
           "extra": 0,
           "precision": 1.0,
@@ -132,12 +133,12 @@
         },
         {
           "rule": "B1.VERSION.001",
-          "expected": 3,
+          "expected": 4,
           "found": 3,
-          "missed": 0,
+          "missed": 1,
           "extra": 0,
           "precision": 1.0,
-          "recall": 1.0
+          "recall": 0.75
         },
         {
           "rule": "format_mismatch",
@@ -147,51 +148,64 @@
           "extra": 0,
           "precision": null,
           "recall": 0.0
+        },
+        {
+          "rule": "sheets_missing",
+          "expected": 2,
+          "found": 0,
+          "missed": 2,
+          "extra": 0,
+          "precision": null,
+          "recall": 0.0
         }
       ],
       "mutations": {
         "damage_file": {
-          "found": 3,
-          "expected": 3
+          "found": 4,
+          "expected": 4
         },
         "drop_assembly_drawing": {
           "found": 4,
           "expected": 4
         },
         "drop_assembly_spec": {
-          "found": 23,
-          "expected": 23
+          "found": 16,
+          "expected": 19
         },
         "drop_part_drawing": {
-          "found": 4,
-          "expected": 4
+          "found": 3,
+          "expected": 3
+        },
+        "drop_sheet": {
+          "found": 0,
+          "expected": 2
         },
         "duplicate_designation": {
-          "found": 4,
-          "expected": 4
+          "found": 3,
+          "expected": 3
         },
         "duplicate_position": {
-          "found": 6,
-          "expected": 6
+          "found": 7,
+          "expected": 8
         },
         "encrypt_file": {
           "found": 3,
           "expected": 3
         },
         "extra_drawing": {
-          "found": 4,
-          "expected": 4
+          "found": 3,
+          "expected": 3
         },
         "format_in_spec": {
           "found": 0,
           "expected": 4
         },
         "litera_assembly_drawing": {
-          "found": 2,
+          "found": 4,
           "expected": 4
         },
         "litera_component": {
-          "found": 3,
+          "found": 2,
           "expected": 3
         },
         "rename_assembly_spec": {
@@ -199,16 +213,16 @@
           "expected": 4
         },
         "rename_on_drawing": {
-          "found": 2,
+          "found": 3,
           "expected": 3
         },
         "second_version": {
-          "found": 6,
-          "expected": 6
+          "found": 7,
+          "expected": 8
         },
         "unreadable_scan": {
-          "found": 3,
-          "expected": 3
+          "found": 4,
+          "expected": 4
         }
       },
       "clean_kits": 4,
@@ -216,57 +230,29 @@
         {
           "kit": "kit_005",
           "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ТЕХМ.381146.001 СБ",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_005",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ТЕХМ.304125.002 СБ",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.731311.001",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
         },
         {
           "kit": "kit_010",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "МАШН.731112.001",
+          "designation": "МАШН.715311.001",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_010",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "МАШН.721321.002",
+          "designation": "МАШН.711141.002",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
-          "kit": "kit_010",
+          "kit": "kit_015",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "МАШН.711321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.741321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711141.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.745131.004",
+          "designation": "ЛМКР.741321.001",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
@@ -280,31 +266,53 @@
           "kit": "kit_020",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.305312.106",
+          "designation": "ТЕХМ.305312.105",
           "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
         }
       ],
       "problem_files": {
-        "right": 20,
-        "total": 20
+        "right": 21,
+        "total": 21
       },
       "other_statuses": {
-        "warning": 51
+        "warning": 39
       },
       "causes": {
-        "лишнее: «БЧ» в графе «Формат»: ядро ищет её только в примечании": 39,
-        "лишнее: скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение": 8,
-        "лишнее: скан без OCR: обозначение — из имени файла, остальных полей нет": 7,
-        "пропуск: у ядра нет правила для этого типа": 4,
-        "пропуск: скан без OCR: обозначение — из имени файла, остальных полей нет": 3
+        "лишнее: «БЧ» в графе «Формат»: ядро ищет её только в примечании": 27,
+        "лишнее: скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение": 9,
+        "пропуск: скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение": 5,
+        "пропуск: у ядра нет правила для этого типа": 5,
+        "лишнее: скан без OCR: обозначение — из имени файла, остальных полей нет": 3,
+        "пропуск: скан без OCR: обозначение — из имени файла, остальных полей нет": 2
       },
       "errors": [
+        {
+          "kit": "kit_001",
+          "kind": "пропуск",
+          "rule": "B1.ORPHAN.001",
+          "designation": "ВЕДС.758422.001",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
+        {
+          "kit": "kit_001",
+          "kind": "пропуск",
+          "rule": "B1.ORPHAN.001",
+          "designation": "ВЕДС.721321.001",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
         {
           "kit": "kit_001",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "ВЕДС.721321.002",
           "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
+        {
+          "kit": "kit_002",
+          "kind": "пропуск",
+          "rule": "sheets_missing",
+          "designation": "МАШН.711321.002",
+          "cause": "у ядра нет правила для этого типа"
         },
         {
           "kit": "kit_002",
@@ -317,14 +325,14 @@
           "kit": "kit_002",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "МАШН.732211.001",
+          "designation": "МАШН.715311.001",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_002",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "МАШН.741124.001",
+          "designation": "МАШН.711141.002",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
@@ -345,776 +353,36 @@
           "kit": "kit_003",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.713111.001",
+          "designation": "ВЕДС.715211.003",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_003",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.722155.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_003",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.711141.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_003",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.758422.002",
+          "designation": "ВЕДС.758422.003",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_004",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "МАШН.305312.100 СБ",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_004",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.305312.111",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_004",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.305312.102",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_004",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.305312.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_005",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ТЕХМ.381146.001 СБ",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_005",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ТЕХМ.304125.002 СБ",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_006",
           "kind": "пропуск",
-          "rule": "format_mismatch",
-          "designation": "ЛМКР.301411.212",
-          "cause": "у ядра нет правила для этого типа"
-        },
-        {
-          "kit": "kit_006",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ЛМКР.301411.110 СБ",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_006",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.301411.202",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_007",
-          "kind": "пропуск",
-          "rule": "B1.LITERA.001",
-          "designation": "МАШН.302231.001",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.715422.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.732211.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.758411.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.711321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.715211.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_009",
-          "kind": "пропуск",
-          "rule": "format_mismatch",
-          "designation": "КТРМ.381146.001",
-          "cause": "у ядра нет правила для этого типа"
-        },
-        {
-          "kit": "kit_009",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "КТРМ.381146.104",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.731112.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.721321.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.741321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711141.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.745131.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_012",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.302231.121",
-          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
-        },
-        {
-          "kit": "kit_012",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.302231.222",
-          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
-        },
-        {
-          "kit": "kit_012",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.302231.223",
-          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
-        },
-        {
-          "kit": "kit_012",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ТЕХМ.302231.310 СБ",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_012",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.302231.313",
-          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
-        },
-        {
-          "kit": "kit_012",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.302231.325",
-          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
-        },
-        {
-          "kit": "kit_012",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.302231.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_013",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ПМЛС.715311.003",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_014",
-          "kind": "пропуск",
-          "rule": "B1.NAME.001",
-          "designation": "АБВГ.715211.002",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_014",
-          "kind": "пропуск",
-          "rule": "format_mismatch",
-          "designation": "АБВГ.722155.001",
-          "cause": "у ядра нет правила для этого типа"
-        },
-        {
-          "kit": "kit_014",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "АБВГ.711321.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_014",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "АБВГ.721411.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_014",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "АБВГ.721321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_015",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.758411.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_016",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "СПРН.758422.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_016",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "СПРН.758422.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_016",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "СПРН.711141.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_016",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "СПРН.722155.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_017",
-          "kind": "пропуск",
-          "rule": "format_mismatch",
-          "designation": "ТЕХМ.722155.002",
-          "cause": "у ядра нет правила для этого типа"
-        },
-        {
-          "kit": "kit_017",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ТЕХМ.304125.001 СБ",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_017",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.758422.003",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_017",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.758411.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_018",
-          "kind": "пропуск",
-          "rule": "B1.LITERA.001",
-          "designation": "ТЕХМ.381146.001",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_018",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.722155.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_019",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "КТРМ.302231.000 СБ",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_019",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "КТРМ.302231.101",
-          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
-        },
-        {
-          "kit": "kit_019",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "КТРМ.302231.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_020",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.305312.106",
-          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
-        }
-      ]
-    },
-    {
-      "ocr": true,
-      "total": {
-        "expected": 78,
-        "found": 70,
-        "extra": 62,
-        "precision": 0.53,
-        "recall": 0.897
-      },
-      "rules": [
-        {
-          "rule": "B1.DUP.001",
-          "expected": 7,
-          "found": 7,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.DUP.002",
-          "expected": 3,
-          "found": 3,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.LITERA.001",
-          "expected": 4,
-          "found": 2,
-          "missed": 2,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 0.5
-        },
-        {
           "rule": "B1.LITERA.002",
-          "expected": 3,
-          "found": 3,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.MISSING.001",
-          "expected": 13,
-          "found": 13,
-          "missed": 0,
-          "extra": 53,
-          "precision": 0.197,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.MISSING.002",
-          "expected": 4,
-          "found": 4,
-          "missed": 0,
-          "extra": 5,
-          "precision": 0.444,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.NAME.001",
-          "expected": 6,
-          "found": 5,
-          "missed": 1,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 0.833
-        },
-        {
-          "rule": "B1.NAME.002",
-          "expected": 4,
-          "found": 4,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.ORPHAN.001",
-          "expected": 23,
-          "found": 22,
-          "missed": 1,
-          "extra": 4,
-          "precision": 0.846,
-          "recall": 0.957
-        },
-        {
-          "rule": "B1.SPEC.001",
-          "expected": 4,
-          "found": 4,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.VERSION.001",
-          "expected": 3,
-          "found": 3,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
-          "rule": "format_mismatch",
-          "expected": 4,
-          "found": 0,
-          "missed": 4,
-          "extra": 0,
-          "precision": null,
-          "recall": 0.0
-        }
-      ],
-      "mutations": {
-        "damage_file": {
-          "found": 3,
-          "expected": 3
-        },
-        "drop_assembly_drawing": {
-          "found": 4,
-          "expected": 4
-        },
-        "drop_assembly_spec": {
-          "found": 22,
-          "expected": 23
-        },
-        "drop_part_drawing": {
-          "found": 4,
-          "expected": 4
-        },
-        "duplicate_designation": {
-          "found": 4,
-          "expected": 4
-        },
-        "duplicate_position": {
-          "found": 6,
-          "expected": 6
-        },
-        "encrypt_file": {
-          "found": 3,
-          "expected": 3
-        },
-        "extra_drawing": {
-          "found": 4,
-          "expected": 4
-        },
-        "format_in_spec": {
-          "found": 0,
-          "expected": 4
-        },
-        "litera_assembly_drawing": {
-          "found": 2,
-          "expected": 4
-        },
-        "litera_component": {
-          "found": 3,
-          "expected": 3
-        },
-        "rename_assembly_spec": {
-          "found": 4,
-          "expected": 4
-        },
-        "rename_on_drawing": {
-          "found": 2,
-          "expected": 3
-        },
-        "second_version": {
-          "found": 6,
-          "expected": 6
-        },
-        "unreadable_scan": {
-          "found": 3,
-          "expected": 3
-        }
-      },
-      "clean_kits": 4,
-      "clean_false": [
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.715422.001",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711141.003",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.731112.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.721321.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.741321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.722155.001",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711321.006",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711141.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.745131.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.715211.004",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_015",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.758411.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        }
-      ],
-      "problem_files": {
-        "right": 20,
-        "total": 20
-      },
-      "other_statuses": {
-        "warning": 16
-      },
-      "causes": {
-        "лишнее: «БЧ» в графе «Формат»: ядро ищет её только в примечании": 39,
-        "лишнее: скан: OCR прочитал основную надпись с ошибкой": 19,
-        "лишнее: такого обозначения в комплекте нет: OCR исказил его на скане": 4,
-        "пропуск: у ядра нет правила для этого типа": 4,
-        "пропуск: скан: OCR прочитал основную надпись с ошибкой": 4
-      },
-      "errors": [
-        {
-          "kit": "kit_001",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.721321.002",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_002",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "МАШН.301411.001 СБ",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_002",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.758411.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_002",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.732211.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_002",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.741124.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_002",
-          "kind": "лишнее",
-          "rule": "B1.ORPHAN.001",
-          "designation": "МАLUН.301411.001 СБ",
-          "cause": "такого обозначения в комплекте нет: OCR исказил его на скане"
-        },
-        {
-          "kit": "kit_003",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.745131.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_003",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.715422.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_003",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.713111.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_003",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.722155.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_003",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.711141.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_003",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ВЕДС.758422.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_004",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "МАШН.305312.100 СБ",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+          "designation": "МАШН.305312.115",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
         },
         {
           "kit": "kit_004",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "МАШН.305312.111",
+          "designation": "МАШН.305312.113",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_004",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "МАШН.305312.102",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+          "designation": "МАШН.305312.115",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
         },
         {
           "kit": "kit_004",
@@ -1124,39 +392,25 @@
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
+          "kit": "kit_005",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.731311.001",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
+        {
           "kit": "kit_006",
           "kind": "пропуск",
           "rule": "format_mismatch",
-          "designation": "ЛМКР.301411.212",
+          "designation": "ЛМКР.301411.103",
           "cause": "у ядра нет правила для этого типа"
         },
         {
           "kit": "kit_006",
           "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ЛМКР.301411.110 СБ",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_006",
-          "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.301411.202",
+          "designation": "ЛМКР.301411.211",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_006",
-          "kind": "лишнее",
-          "rule": "B1.ORPHAN.001",
-          "designation": "JIМКР.301411.110 СБ",
-          "cause": "такого обозначения в комплекте нет: OCR исказил его на скане"
-        },
-        {
-          "kit": "kit_007",
-          "kind": "пропуск",
-          "rule": "B1.LITERA.001",
-          "designation": "МАШН.302231.001",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
         },
         {
           "kit": "kit_008",
@@ -1168,36 +422,15 @@
         {
           "kit": "kit_008",
           "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ЛМКР.381146.003 СБ",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.732211.001",
+          "designation": "ЛМКР.731112.001",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_008",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.758411.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.711321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ЛМКР.715211.004",
+          "designation": "ЛМКР.721321.004",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
@@ -1205,147 +438,77 @@
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "ЛМКР.758422.004",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.ORPHAN.001",
-          "designation": "JIМКР.758422.004",
-          "cause": "такого обозначения в комплекте нет: OCR исказил его на скане"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.ORPHAN.001",
-          "designation": "JIМКР.381146.003",
-          "cause": "такого обозначения в комплекте нет: OCR исказил его на скане"
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_009",
           "kind": "пропуск",
           "rule": "format_mismatch",
-          "designation": "КТРМ.381146.001",
+          "designation": "КТРМ.381146.003",
           "cause": "у ядра нет правила для этого типа"
         },
         {
-          "kit": "kit_009",
+          "kit": "kit_010",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "КТРМ.381146.104",
+          "designation": "МАШН.715311.001",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_010",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "МАШН.715422.001",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711141.003",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.731112.001",
+          "designation": "МАШН.711141.002",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.721321.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.741321.001",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.722155.001",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711321.006",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.711141.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.745131.004",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_010",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "МАШН.715211.004",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
         },
         {
           "kit": "kit_011",
           "kind": "пропуск",
-          "rule": "B1.ORPHAN.001",
-          "designation": "ТЕХМ.302231.215",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+          "rule": "sheets_missing",
+          "designation": "ТЕХМ.302231.112",
+          "cause": "у ядра нет правила для этого типа"
         },
         {
-          "kit": "kit_011",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.302231.122",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_011",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.302231.105",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+          "kit": "kit_012",
+          "kind": "пропуск",
+          "rule": "B1.NAME.001",
+          "designation": "ТЕХМ.302231.001",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
         },
         {
           "kit": "kit_012",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.302231.002",
+          "designation": "ТЕХМ.302231.113",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
+        {
+          "kit": "kit_012",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.302231.001",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
+        {
+          "kit": "kit_012",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.302231.201",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_013",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ПМЛС.381146.002 СБ",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+          "kind": "пропуск",
+          "rule": "B1.VERSION.001",
+          "designation": "ПМЛС.721321.002",
+          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_013",
+          "kind": "пропуск",
+          "rule": "format_mismatch",
+          "designation": "ПМЛС.758411.006",
+          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_013",
@@ -1357,57 +520,676 @@
         {
           "kit": "kit_013",
           "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "ПМЛС.715211.001",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_014",
-          "kind": "пропуск",
           "rule": "B1.NAME.001",
-          "designation": "АБВГ.715211.002",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+          "designation": "ПМЛС.721321.002",
+          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
-          "kit": "kit_014",
+          "kit": "kit_015",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.741321.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_015",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.758411.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "пропуск",
+          "rule": "B1.ORPHAN.001",
+          "designation": "СПРН.732211.001",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "СПРН.758422.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.002",
+          "designation": "СПРН.301411.001 СБ",
+          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "СПРН.722155.001",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "СПРН.721321.002",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.002",
+          "designation": "СПРН.304125.002 СБ",
+          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "СПРН.758411.003",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "СПРН.715211.002",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "СПРН.711321.002",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        },
+        {
+          "kit": "kit_017",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.758422.003",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_017",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.715422.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_018",
           "kind": "пропуск",
           "rule": "format_mismatch",
-          "designation": "АБВГ.722155.001",
+          "designation": "ТЕХМ.711141.002",
           "cause": "у ядра нет правила для этого типа"
         },
         {
-          "kit": "kit_014",
+          "kit": "kit_018",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "АБВГ.715422.002",
+          "designation": "ТЕХМ.722155.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_019",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "КТРМ.302231.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_020",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.305312.105",
+          "cause": "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        }
+      ]
+    },
+    {
+      "ocr": true,
+      "total": {
+        "expected": 79,
+        "found": 68,
+        "extra": 40,
+        "precision": 0.63,
+        "recall": 0.861
+      },
+      "rules": [
+        {
+          "rule": "B1.DUP.001",
+          "expected": 7,
+          "found": 6,
+          "missed": 1,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 0.857
+        },
+        {
+          "rule": "B1.DUP.002",
+          "expected": 4,
+          "found": 4,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.LITERA.001",
+          "expected": 4,
+          "found": 4,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.LITERA.002",
+          "expected": 3,
+          "found": 2,
+          "missed": 1,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 0.667
+        },
+        {
+          "rule": "B1.MISSING.001",
+          "expected": 14,
+          "found": 14,
+          "missed": 0,
+          "extra": 37,
+          "precision": 0.275,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.MISSING.002",
+          "expected": 4,
+          "found": 4,
+          "missed": 0,
+          "extra": 1,
+          "precision": 0.8,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.NAME.001",
+          "expected": 7,
+          "found": 7,
+          "missed": 0,
+          "extra": 2,
+          "precision": 0.778,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.NAME.002",
+          "expected": 4,
+          "found": 4,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.ORPHAN.001",
+          "expected": 19,
+          "found": 17,
+          "missed": 2,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 0.895
+        },
+        {
+          "rule": "B1.SPEC.001",
+          "expected": 3,
+          "found": 3,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.VERSION.001",
+          "expected": 4,
+          "found": 3,
+          "missed": 1,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 0.75
+        },
+        {
+          "rule": "format_mismatch",
+          "expected": 4,
+          "found": 0,
+          "missed": 4,
+          "extra": 0,
+          "precision": null,
+          "recall": 0.0
+        },
+        {
+          "rule": "sheets_missing",
+          "expected": 2,
+          "found": 0,
+          "missed": 2,
+          "extra": 0,
+          "precision": null,
+          "recall": 0.0
+        }
+      ],
+      "mutations": {
+        "damage_file": {
+          "found": 4,
+          "expected": 4
+        },
+        "drop_assembly_drawing": {
+          "found": 4,
+          "expected": 4
+        },
+        "drop_assembly_spec": {
+          "found": 17,
+          "expected": 19
+        },
+        "drop_part_drawing": {
+          "found": 3,
+          "expected": 3
+        },
+        "drop_sheet": {
+          "found": 0,
+          "expected": 2
+        },
+        "duplicate_designation": {
+          "found": 3,
+          "expected": 3
+        },
+        "duplicate_position": {
+          "found": 8,
+          "expected": 8
+        },
+        "encrypt_file": {
+          "found": 3,
+          "expected": 3
+        },
+        "extra_drawing": {
+          "found": 3,
+          "expected": 3
+        },
+        "format_in_spec": {
+          "found": 0,
+          "expected": 4
+        },
+        "litera_assembly_drawing": {
+          "found": 4,
+          "expected": 4
+        },
+        "litera_component": {
+          "found": 2,
+          "expected": 3
+        },
+        "rename_assembly_spec": {
+          "found": 4,
+          "expected": 4
+        },
+        "rename_on_drawing": {
+          "found": 3,
+          "expected": 3
+        },
+        "second_version": {
+          "found": 6,
+          "expected": 8
+        },
+        "unreadable_scan": {
+          "found": 4,
+          "expected": 4
+        }
+      },
+      "clean_kits": 4,
+      "clean_false": [
+        {
+          "kit": "kit_010",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.715311.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_010",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.745131.002",
           "cause": "скан: OCR прочитал основную надпись с ошибкой"
         },
         {
-          "kit": "kit_014",
+          "kit": "kit_010",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "АБВГ.715211.002",
+          "designation": "МАШН.721321.004",
           "cause": "скан: OCR прочитал основную надпись с ошибкой"
         },
         {
-          "kit": "kit_014",
+          "kit": "kit_010",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.002",
+          "designation": "МАШН.303411.001 СБ",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_010",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "АБВГ.711321.002",
+          "designation": "МАШН.711141.002",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_015",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.741321.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_015",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.758411.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_020",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.305312.105",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        }
+      ],
+      "problem_files": {
+        "right": 21,
+        "total": 21
+      },
+      "other_statuses": {
+        "warning": 14
+      },
+      "causes": {
+        "лишнее: «БЧ» в графе «Формат»: ядро ищет её только в примечании": 27,
+        "лишнее: скан: OCR прочитал основную надпись с ошибкой": 13,
+        "пропуск: скан: OCR прочитал основную надпись с ошибкой": 6,
+        "пропуск: у ядра нет правила для этого типа": 5
+      },
+      "errors": [
+        {
+          "kit": "kit_001",
+          "kind": "пропуск",
+          "rule": "B1.ORPHAN.001",
+          "designation": "ВЕДС.758422.001",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_001",
+          "kind": "пропуск",
+          "rule": "B1.ORPHAN.001",
+          "designation": "ВЕДС.721321.001",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_001",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ВЕДС.721321.002",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_002",
+          "kind": "пропуск",
+          "rule": "sheets_missing",
+          "designation": "МАШН.711321.002",
+          "cause": "у ядра нет правила для этого типа"
+        },
+        {
+          "kit": "kit_002",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.758411.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_002",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.715311.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_002",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.711141.002",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_002",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.711141.003",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_003",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ВЕДС.745131.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_003",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ВЕДС.715422.002",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_003",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ВЕДС.715211.003",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_003",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ВЕДС.758422.003",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_003",
+          "kind": "лишнее",
+          "rule": "B1.NAME.001",
+          "designation": "ВЕДС.715211.002",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_004",
+          "kind": "пропуск",
+          "rule": "B1.LITERA.002",
+          "designation": "МАШН.305312.115",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_004",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.305312.113",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_004",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.305312.115",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_004",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.305312.004",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_006",
+          "kind": "пропуск",
+          "rule": "format_mismatch",
+          "designation": "ЛМКР.301411.103",
+          "cause": "у ядра нет правила для этого типа"
+        },
+        {
+          "kit": "kit_006",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.301411.211",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_008",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.715422.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_008",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.731112.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_008",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.721321.004",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_008",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.758422.004",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_009",
+          "kind": "пропуск",
+          "rule": "format_mismatch",
+          "designation": "КТРМ.381146.003",
+          "cause": "у ядра нет правила для этого типа"
+        },
+        {
+          "kit": "kit_010",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.715311.001",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_010",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.745131.002",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_010",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.721321.004",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_010",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.002",
+          "designation": "МАШН.303411.001 СБ",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_010",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.711141.002",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_011",
+          "kind": "пропуск",
+          "rule": "sheets_missing",
+          "designation": "ТЕХМ.302231.112",
+          "cause": "у ядра нет правила для этого типа"
+        },
+        {
+          "kit": "kit_012",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.302231.201",
+          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_012",
+          "kind": "лишнее",
+          "rule": "B1.NAME.001",
+          "designation": "ТЕХМ.302231.113",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_013",
+          "kind": "пропуск",
+          "rule": "B1.DUP.001",
+          "designation": "ПМЛС.721321.002",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_013",
+          "kind": "пропуск",
+          "rule": "B1.VERSION.001",
+          "designation": "ПМЛС.721321.002",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_013",
+          "kind": "пропуск",
+          "rule": "format_mismatch",
+          "designation": "ПМЛС.758411.006",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_013",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ПМЛС.721321.002",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_013",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ПМЛС.715311.003",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_014",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "АБВГ.721411.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+          "designation": "АБВГ.731311.001",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
         },
         {
           "kit": "kit_014",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "АБВГ.721321.001",
+          "designation": "АБВГ.715422.003",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+        },
+        {
+          "kit": "kit_015",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.741321.001",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
@@ -1428,36 +1210,15 @@
           "kit": "kit_016",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "СПРН.758422.002",
+          "designation": "СПРН.721321.002",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_016",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "СПРН.711141.001",
+          "designation": "СПРН.758411.003",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_016",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "СПРН.722155.002",
-          "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-        },
-        {
-          "kit": "kit_016",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.001",
-          "designation": "СПРН.715311.002",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
-        },
-        {
-          "kit": "kit_017",
-          "kind": "пропуск",
-          "rule": "format_mismatch",
-          "designation": "ТЕХМ.722155.002",
-          "cause": "у ядра нет правила для этого типа"
         },
         {
           "kit": "kit_017",
@@ -1470,15 +1231,15 @@
           "kit": "kit_017",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "ТЕХМ.758411.004",
+          "designation": "ТЕХМ.715422.001",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
           "kit": "kit_018",
           "kind": "пропуск",
-          "rule": "B1.LITERA.001",
-          "designation": "ТЕХМ.381146.001",
-          "cause": "скан: OCR прочитал основную надпись с ошибкой"
+          "rule": "format_mismatch",
+          "designation": "ТЕХМ.711141.002",
+          "cause": "у ядра нет правила для этого типа"
         },
         {
           "kit": "kit_018",
@@ -1488,10 +1249,10 @@
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
         },
         {
-          "kit": "kit_019",
+          "kit": "kit_018",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
-          "designation": "КТРМ.302231.101",
+          "designation": "ТЕХМ.715422.002",
           "cause": "скан: OCR прочитал основную надпись с ошибкой"
         },
         {
@@ -1500,6 +1261,13 @@
           "rule": "B1.MISSING.001",
           "designation": "КТРМ.302231.001",
           "cause": "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        },
+        {
+          "kit": "kit_020",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "ТЕХМ.305312.105",
+          "cause": "скан: OCR прочитал основную надпись с ошибкой"
         }
       ]
     }
