@@ -260,6 +260,22 @@ def format_in_spec(kit: Kit) -> bool:
     return True
 
 
+@_mutation("documents", "Удалить последний лист многолистового чертежа")
+def drop_sheet(kit: Kit) -> bool:
+    """The title block still counts the sheet, and the parameters drawn on it are gone with it."""
+    free = [(part, drawing) for _, part, drawing in kit.free_parts(vector=True) if drawing.more_sheets]
+    if not free:
+        return False
+    part, drawing = kit.rng.choice(free)
+    drawing.missing_sheets = 1
+    gone = f"sheet{drawing.sheets}:"
+    kept = [(p, k) for p, k in zip(drawing.expected_params, drawing.param_keys, strict=True) if not k.startswith(gone)]
+    drawing.expected_params, drawing.param_keys = [p for p, _ in kept], [k for _, k in kept]
+    kit.touched.add(part.designation)
+    kit.expect("sheets_missing", part.designation, None, "drop_sheet")
+    return True
+
+
 # ---------------------------------------------------------------------------------------- files
 
 
