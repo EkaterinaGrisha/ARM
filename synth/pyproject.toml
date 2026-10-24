@@ -5,10 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "synth"
 version = "0.1.0"
-description = "Synthetic design documentation (ESKD) with ground truth: the demo kit generator"
+description = "Synthetic design documentation (ESKD) with ground truth: the demo kit and the kit generators"
 requires-python = ">=3.11"
 dependencies = [
   "pillow>=10.0",
+  # MIT; the ground truth models (ADR-0013)
+  "pydantic>=2.6",
   # BSD-3-Clause or Apache-2.0; renders the scans
   "pypdfium2>=5.14",
   # BSD
