@@ -64,7 +64,7 @@ def _cause(key: Key, truth: KitTruth, *, missed: bool, use_ocr: bool) -> str:
     known = {doc.designation for doc in truth.documents.values()} | {r.designation for r in rows}
     if not missed and designation not in known and base not in known:
         return "такого обозначения в комплекте нет: OCR исказил его на скане"
-    if rule == "format_mismatch":
+    if not rule.startswith("B1."):
         return "у ядра нет правила для этого типа"
     return "—"
 
