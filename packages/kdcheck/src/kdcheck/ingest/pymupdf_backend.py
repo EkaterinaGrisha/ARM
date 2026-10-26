@@ -11,7 +11,7 @@ from PIL import Image
 
 from kdcheck.config import ScanRules, TextLayout
 from kdcheck.ingest.pdf import EncryptedPdfError
-from kdcheck.ingest.text import BBox, Line, Word, split_wide_lines
+from kdcheck.ingest.text import BBox, Line, Word, no_surrogates, split_wide_lines
 
 pymupdf.TOOLS.mupdf_display_errors(False)
 
@@ -42,7 +42,7 @@ class PyMuPdfPage:
                         if ch["c"].isspace():
                             _flush_word(chars, words)
                         else:
-                            chars.append((ch["c"], self._box(ch["bbox"])))
+                            chars.append((no_surrogates(ch["c"]), self._box(ch["bbox"])))
                 _flush_word(chars, words)
                 if not words:
                     continue

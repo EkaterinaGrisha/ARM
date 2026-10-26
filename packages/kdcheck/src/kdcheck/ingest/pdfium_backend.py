@@ -2,11 +2,15 @@
 
 PDFium reports characters in unrotated PDF user space. They are moved to the page as displayed, the same space as
 the page size and the rendered image, so title block geometry and source highlights work on rotated sheets too.
+
+A character PDFium cannot map to Unicode comes as its code. KOMPAS-3D exports keep text as UTF-8 bytes, which are
+decoded; a code that is no character becomes U+FFFD, so one such character never costs the page.
 """
 
 from __future__ import annotations
 
 import math
+import sys
 from dataclasses import dataclass
 
 import pypdfium2 as pdfium
@@ -16,7 +20,7 @@ from pypdfium2.version import PDFIUM_INFO, PYPDFIUM_INFO
 
 from kdcheck.config import ScanRules, TextLayout
 from kdcheck.ingest.pdf import EncryptedPdfError
-from kdcheck.ingest.text import BBox, Line, Word, split_wide_lines
+from kdcheck.ingest.text import BBox, Line, Word, no_surrogates, split_wide_lines
 
 
 @dataclass
@@ -59,14 +63,15 @@ class PdfiumPage:
     def _chars(self, layout: TextLayout) -> list[_Char]:
         textpage = self._page.get_textpage()
         low, high = layout.vertical_angle
+        codes = [pdfium_c.FPDFText_GetUnicode(textpage, i) for i in range(textpage.count_chars())]
+        utf8 = _utf8_page(codes)
         chars: list[_Char] = []
-        for i in range(textpage.count_chars()):
-            code = pdfium_c.FPDFText_GetUnicode(textpage, i)
+        for i, code in enumerate(codes):
             angle = pdfium_c.FPDFText_GetCharAngle(textpage, i)
             displayed = (math.degrees(angle) + self._rotation) % 180 if angle >= 0 else 0.0
             chars.append(
                 _Char(
-                    text=chr(code) if code else "",
+                    text=_char_text(code, utf8),
                     box=self._display(*textpage.get_charbox(i, loose=True)),
                     size=float(pdfium_c.FPDFText_GetFontSize(textpage, i)),
                     vertical=low <= displayed <= high,
@@ -132,6 +137,41 @@ class PdfiumPage:
     def render(self, scale: float) -> Image.Image:
         image: Image.Image = self._page.render(scale=scale, grayscale=True).to_pil()
         return image
+
+
+def _utf8_char(code: int) -> str | None:
+    """The non-ASCII character whose UTF-8 bytes are the bytes of ``code``, or None.
+
+    KOMPAS-3D writes PDFs with the Haru library: text is UTF-8 and the ToUnicode entry repeats the encoding CMap, so
+    PDFium finds no Unicode and reports the code itself, «О» as 0xD09E and «№» as 0xE28496.
+    """
+    try:
+        text = bytes.fromhex(f"{code:x}").decode("utf-8")
+    except ValueError:  # an odd number of hex digits, or bytes that are not UTF-8
+        return None
+    return text if len(text) == 1 and not text.isascii() else None
+
+
+def _utf8_page(codes: list[int]) -> bool:
+    """Whether the page reports UTF-8 bytes instead of characters.
+
+    A code beyond Unicode that is UTF-8 says so. Two UTF-8 bytes also read as one code point, a Hangul syllable for a
+    Cyrillic letter, so without such a code every non-ASCII code of the page must be UTF-8: Korean text stays as is.
+    """
+    wide = [code for code in codes if code > sys.maxunicode or not chr(code).isascii()]
+    if any(code > sys.maxunicode and _utf8_char(code) for code in wide):
+        return True
+    return bool(wide) and all(_utf8_char(code) for code in wide)
+
+
+def _char_text(code: int, utf8: bool) -> str:
+    """Text of a character code from PDFium; a code beyond Unicode, or a lone surrogate, becomes U+FFFD."""
+    if not code:
+        return ""
+    char = _utf8_char(code) if utf8 or code > sys.maxunicode else None
+    if char:
+        return char
+    return "\ufffd" if code > sys.maxunicode else no_surrogates(chr(code))
 
 
 def _breaks(run: list[_Char], ch: _Char, layout: TextLayout) -> bool:

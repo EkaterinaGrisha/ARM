@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 BBox = tuple[float, float, float, float]
+
+
+def no_surrogates(text: str) -> str:
+    """``text`` with each lone surrogate as U+FFFD: a broken ToUnicode map can give one, and UTF-8 cannot hold it."""
+    return "".join("\ufffd" if unicodedata.category(ch) == "Cs" else ch for ch in text)
 
 
 @dataclass
