@@ -1,0 +1,298 @@
+{
+  "command": "--model google/gemma-4-e4b --model qwen/qwen3.6-27b --verify google/gemma-4-e4b",
+  "date": "2026-10-26",
+  "url": "http://127.0.0.1:1234/v1",
+  "kits": 10,
+  "seed": 2,
+  "environment": {
+    "machine": "Darwin arm64",
+    "python": "3.11.15",
+    "tesseract": "5.5.2"
+  },
+  "runs": [
+    {
+      "name": "OCR",
+      "model": null,
+      "prompt": null,
+      "verify": false,
+      "scans": 117,
+      "accuracy": 0.378,
+      "fields": {
+        "designation": {
+          "total": 117,
+          "right": 81,
+          "wrong": 10,
+          "missing": 26,
+          "accuracy": 0.692,
+          "by_model": 0,
+          "by_model_right": 0
+        },
+        "name": {
+          "total": 117,
+          "right": 57,
+          "wrong": 3,
+          "missing": 57,
+          "accuracy": 0.487,
+          "by_model": 0,
+          "by_model_right": 0
+        },
+        "material": {
+          "total": 93,
+          "right": 4,
+          "wrong": 11,
+          "missing": 78,
+          "accuracy": 0.043,
+          "by_model": 0,
+          "by_model_right": 0
+        },
+        "mass": {
+          "total": 117,
+          "right": 58,
+          "wrong": 3,
+          "missing": 56,
+          "accuracy": 0.496,
+          "by_model": 0,
+          "by_model_right": 0
+        },
+        "scale": {
+          "total": 117,
+          "right": 22,
+          "wrong": 0,
+          "missing": 95,
+          "accuracy": 0.188,
+          "by_model": 0,
+          "by_model_right": 0
+        },
+        "litera": {
+          "total": 117,
+          "right": 34,
+          "wrong": 0,
+          "missing": 83,
+          "accuracy": 0.291,
+          "by_model": 0,
+          "by_model_right": 0
+        }
+      },
+      "model_values": 0,
+      "model_values_right": 0,
+      "model_calls": 0,
+      "conflicts": {},
+      "seconds": 33.6,
+      "problems": []
+    },
+    {
+      "name": "OCR + google/gemma-4-e4b",
+      "model": "google/gemma-4-e4b",
+      "prompt": "title_block_cell.v1 sha256:6052401c9576",
+      "verify": false,
+      "scans": 117,
+      "accuracy": 0.709,
+      "fields": {
+        "designation": {
+          "total": 117,
+          "right": 82,
+          "wrong": 10,
+          "missing": 25,
+          "accuracy": 0.701,
+          "by_model": 1,
+          "by_model_right": 1
+        },
+        "name": {
+          "total": 117,
+          "right": 84,
+          "wrong": 8,
+          "missing": 25,
+          "accuracy": 0.718,
+          "by_model": 32,
+          "by_model_right": 27
+        },
+        "material": {
+          "total": 93,
+          "right": 49,
+          "wrong": 20,
+          "missing": 24,
+          "accuracy": 0.527,
+          "by_model": 54,
+          "by_model_right": 45
+        },
+        "mass": {
+          "total": 117,
+          "right": 89,
+          "wrong": 3,
+          "missing": 25,
+          "accuracy": 0.761,
+          "by_model": 31,
+          "by_model_right": 31
+        },
+        "scale": {
+          "total": 117,
+          "right": 92,
+          "wrong": 0,
+          "missing": 25,
+          "accuracy": 0.786,
+          "by_model": 70,
+          "by_model_right": 70
+        },
+        "litera": {
+          "total": 117,
+          "right": 85,
+          "wrong": 6,
+          "missing": 26,
+          "accuracy": 0.726,
+          "by_model": 57,
+          "by_model_right": 51
+        }
+      },
+      "model_values": 245,
+      "model_values_right": 225,
+      "model_calls": 254,
+      "conflicts": {},
+      "seconds": 434.5,
+      "problems": []
+    },
+    {
+      "name": "OCR + qwen/qwen3.6-27b",
+      "model": "qwen/qwen3.6-27b",
+      "prompt": "title_block_cell.v1 sha256:6052401c9576",
+      "verify": false,
+      "scans": 117,
+      "accuracy": 0.727,
+      "fields": {
+        "designation": {
+          "total": 117,
+          "right": 82,
+          "wrong": 10,
+          "missing": 25,
+          "accuracy": 0.701,
+          "by_model": 1,
+          "by_model_right": 1
+        },
+        "name": {
+          "total": 117,
+          "right": 89,
+          "wrong": 3,
+          "missing": 25,
+          "accuracy": 0.761,
+          "by_model": 32,
+          "by_model_right": 32
+        },
+        "material": {
+          "total": 93,
+          "right": 50,
+          "wrong": 19,
+          "missing": 24,
+          "accuracy": 0.538,
+          "by_model": 54,
+          "by_model_right": 46
+        },
+        "mass": {
+          "total": 117,
+          "right": 89,
+          "wrong": 3,
+          "missing": 25,
+          "accuracy": 0.761,
+          "by_model": 31,
+          "by_model_right": 31
+        },
+        "scale": {
+          "total": 117,
+          "right": 92,
+          "wrong": 0,
+          "missing": 25,
+          "accuracy": 0.786,
+          "by_model": 70,
+          "by_model_right": 70
+        },
+        "litera": {
+          "total": 117,
+          "right": 91,
+          "wrong": 0,
+          "missing": 26,
+          "accuracy": 0.778,
+          "by_model": 57,
+          "by_model_right": 57
+        }
+      },
+      "model_values": 245,
+      "model_values_right": 237,
+      "model_calls": 254,
+      "conflicts": {},
+      "seconds": 1299.2,
+      "problems": []
+    },
+    {
+      "name": "OCR + google/gemma-4-e4b, проверка",
+      "model": "google/gemma-4-e4b",
+      "prompt": "title_block_cell.v1 sha256:6052401c9576",
+      "verify": true,
+      "scans": 117,
+      "accuracy": 0.709,
+      "fields": {
+        "designation": {
+          "total": 117,
+          "right": 82,
+          "wrong": 10,
+          "missing": 25,
+          "accuracy": 0.701,
+          "by_model": 1,
+          "by_model_right": 1
+        },
+        "name": {
+          "total": 117,
+          "right": 84,
+          "wrong": 8,
+          "missing": 25,
+          "accuracy": 0.718,
+          "by_model": 32,
+          "by_model_right": 27
+        },
+        "material": {
+          "total": 93,
+          "right": 49,
+          "wrong": 20,
+          "missing": 24,
+          "accuracy": 0.527,
+          "by_model": 54,
+          "by_model_right": 45
+        },
+        "mass": {
+          "total": 117,
+          "right": 89,
+          "wrong": 3,
+          "missing": 25,
+          "accuracy": 0.761,
+          "by_model": 31,
+          "by_model_right": 31
+        },
+        "scale": {
+          "total": 117,
+          "right": 92,
+          "wrong": 0,
+          "missing": 25,
+          "accuracy": 0.786,
+          "by_model": 70,
+          "by_model_right": 70
+        },
+        "litera": {
+          "total": 117,
+          "right": 85,
+          "wrong": 6,
+          "missing": 26,
+          "accuracy": 0.726,
+          "by_model": 57,
+          "by_model_right": 51
+        }
+      },
+      "model_values": 245,
+      "model_values_right": 225,
+      "model_calls": 552,
+      "conflicts": {
+        "total": 28,
+        "model_right": 27,
+        "kept_right": 1
+      },
+      "seconds": 896.9,
+      "problems": []
+    }
+  ]
+}
