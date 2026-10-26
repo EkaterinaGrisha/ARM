@@ -1,7 +1,8 @@
 """Ground truth of a synthetic kit: what each document holds, which discrepancies and problem files to expect.
 
 The evaluation compares a report with it (``backend/arm_web/evaluate.py`` reads the JSON these models write). Values
-are the text drawn on the sheet. Field names and the JSON layout follow the truth of the demo kit, so it stays valid.
+are the text drawn on the sheet, and ``boxes`` say where: the page and the box as shares of the page from its top
+left corner, as ``kdcheck.schemas.SourceRef`` gives them. A scan keeps the boxes of the sheet it was made from.
 """
 
 from __future__ import annotations
@@ -13,10 +14,27 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from synth.model import Change, Drawing, Row, Spec
+from synth.render import Box as DrawnBox
 
 
 class Truth(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class Box(Truth):
+    """Where a value is drawn: the page from 1, and x0, y0, x1, y1 as shares of the page from its top left corner."""
+
+    page: int
+    bbox: tuple[float, float, float, float]
+
+    @classmethod
+    def of(cls, drawn: DrawnBox | None) -> Box | None:
+        return None if drawn is None else cls(page=drawn[0], bbox=drawn[1])
+
+
+def _boxes(drawn: dict[str, DrawnBox], prefix: str = "") -> dict[str, Box]:
+    """The boxes whose key starts with ``prefix``, keyed by the rest of the key."""
+    return {k.removeprefix(prefix): Box(page=v[0], bbox=v[1]) for k, v in sorted(drawn.items()) if k.startswith(prefix)}
 
 
 class RowTruth(Truth):
@@ -29,17 +47,19 @@ class RowTruth(Truth):
     name: str = ""
     qty: str = ""
     note: str = ""
+    boxes: dict[str, Box] = Field({}, description="By column: fmt, pos, designation, name, qty, note")
 
     @classmethod
-    def of(cls, row: Row) -> RowTruth:
+    def of(cls, row: Row, drawn: dict[str, DrawnBox] | None = None, index: int = 0) -> RowTruth:
         return cls(
             section=row.section,
             fmt=row.fmt,
             pos=row.pos,
             designation=row.designation,
-            name=row.name,
+            name=row.name.replace("\n", " "),
             qty=row.qty,
             note=row.note,
+            boxes=_boxes(drawn or {}, f"row:{index}:"),
         )
 
 
@@ -50,15 +70,20 @@ class SpecTruth(Truth):
     litera: str
     revision: str | None
     rows: list[RowTruth]
+    sheets: int = 1
+    boxes: dict[str, Box] = Field({}, description="Fields of the title block and of the left margin columns")
 
     @classmethod
-    def of(cls, spec: Spec) -> SpecTruth:
+    def of(cls, spec: Spec, drawn: dict[str, DrawnBox] | None = None) -> SpecTruth:
+        drawn = drawn or {}
         return cls(
             designation=spec.designation,
             name=spec.name,
             litera=spec.litera,
             revision=last_change(spec.changes),
-            rows=[RowTruth.of(r) for r in spec.rows],
+            rows=[RowTruth.of(r, drawn, i) for i, r in enumerate(spec.rows)],
+            sheets=max((page for page, _ in drawn.values()), default=1),
+            boxes={k: v for k, v in _boxes(drawn).items() if not k.startswith("row:")},
         )
 
 
@@ -67,6 +92,23 @@ class ParameterTruth(Truth):
 
     category: str
     name: str
+    box: Box | None = None  # where the requirement or the annotation that holds it is drawn
+
+
+TITLE_FIELDS = (
+    "designation",
+    "name",
+    "material",
+    "mass",
+    "scale",
+    "litera",
+    "revision",
+    "sheet",
+    "sheets",
+    "archive_number",
+    "first_use",
+    "general_roughness",
+)
 
 
 class DrawingTruth(Truth):
@@ -83,14 +125,19 @@ class DrawingTruth(Truth):
     first_use: str | None
     requirements: list[str]
     parameters: list[ParameterTruth]
+    sheets: int = 1
+    boxes: dict[str, Box] = Field({}, description="Fields of the title block, the margin columns, general roughness")
+    requirement_boxes: list[Box | None] = []
 
     @classmethod
-    def of(cls, drawing: Drawing) -> DrawingTruth:
+    def of(cls, drawing: Drawing, drawn: dict[str, DrawnBox] | None = None) -> DrawingTruth:
+        drawn = drawn or {}
+        keys = drawing.param_keys or [""] * len(drawing.expected_params)
         return cls(
             kind="assembly_drawing" if drawing.assembly else "part_drawing",
             origin="vector" if drawing.output == "vector" else "scan",
             designation=drawing.designation,
-            name=drawing.name,
+            name=drawing.name.replace("\n", " "),
             material=drawing.material or None,
             mass=drawing.mass or None,
             scale=drawing.scale,
@@ -99,7 +146,13 @@ class DrawingTruth(Truth):
             archive_number=drawing.archive or None,
             first_use=drawing.first_use or None,
             requirements=drawing.requirements,
-            parameters=[ParameterTruth(category=c, name=n) for c, n in drawing.expected_params],
+            parameters=[
+                ParameterTruth(category=c, name=n, box=Box.of(drawn.get(key)))
+                for (c, n), key in zip(drawing.expected_params, keys, strict=True)
+            ],
+            sheets=drawing.sheets,
+            boxes={k: v for k, v in _boxes(drawn).items() if k in TITLE_FIELDS},
+            requirement_boxes=[Box.of(drawn.get(f"requirement:{i}")) for i in range(len(drawing.requirements))],
         )
 
 

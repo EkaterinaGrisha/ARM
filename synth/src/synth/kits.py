@@ -23,7 +23,7 @@ from pathlib import Path, PurePosixPath
 from synth import mutations, vocab
 from synth.model import Change, Drawing, Row, Spec
 from synth.product import Numbering, Part, Shape, Unit, grow
-from synth.render import draw_drawing, draw_spec
+from synth.render import Box, draw_drawing, draw_spec, wrap
 from synth.scans import scan, scan_pdf
 from synth.truth import DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
 
@@ -52,6 +52,7 @@ class Kit:
     expected: list[ExpectedDiscrepancy] = field(default_factory=list)
     problem_files: dict[str, str] = field(default_factory=dict)
     unread: set[str] = field(default_factory=set)  # paths of documents the check cannot read, so no fields to find
+    drawn: dict[str, dict[str, Box]] = field(default_factory=dict)  # where the values of each file are drawn
     mutations: list[str] = field(default_factory=list)
     touched: set[str] = field(default_factory=set)  # designations a mutation has used: one mutation each
     scan_rng: random.Random = field(default_factory=random.Random)
@@ -119,6 +120,7 @@ class Kit:
     def _spec(self, unit: Unit, sb_format: str, formats: dict[str, str]) -> Spec:
         rng = self.rng
         rows = [Row("Документация", vocab.FORMAT_NAMES[sb_format], "", f"{unit.designation} СБ", "Сборочный чертёж")]
+        # Long names take several lines, as a CAD system wraps them.
         positions = iter(range(1, 1000))
         for sub in unit.units:
             rows.append(Row("Сборочные единицы", "А4", str(next(positions)), sub.designation, sub.name, str(sub.qty)))
@@ -129,11 +131,11 @@ class Kit:
                 fmt, note = vocab.FORMAT_NAMES[formats[part.designation]], ""
             rows.append(Row("Детали", fmt, str(next(positions)), part.designation, part.name, str(part.qty), note))
         for item, qty in unit.standard:
-            rows.append(Row("Стандартные изделия", "", str(next(positions)), "", item, str(qty)))
+            rows.append(Row("Стандартные изделия", "", str(next(positions)), "", wrap(item), str(qty)))
         for item, qty in unit.other:
-            rows.append(Row("Прочие изделия", "", str(next(positions)), "", item, str(qty)))
+            rows.append(Row("Прочие изделия", "", str(next(positions)), "", wrap(item), str(qty)))
         for item, amount, measure in unit.materials:
-            rows.append(Row("Материалы", "", str(next(positions)), "", item, amount, measure))
+            rows.append(Row("Материалы", "", str(next(positions)), "", wrap(item), amount, measure))
         return Spec(
             self.path(unit, unit.designation, unit.name, ".pdf", specification=True),
             unit.designation,
@@ -181,8 +183,16 @@ class Kit:
             requirements.append(vocab.EDGES)
         annotations = rng.sample(kind.annotations, min(len(kind.annotations), rng.randint(3, 5)))
         roughness = rng.choice(kind.general_roughness)
-        params = [p for r in requirements for p in r.params] + [p for a in annotations for p in a.params]
+        keyed = [(p, f"requirement:{i}") for i, r in enumerate(requirements) for p in r.params]
+        keyed += [(p, f"annotation:{j}") for j, a in enumerate(annotations) for p in a.params]
+        keyed.append((("roughness", roughness), "general_roughness"))
         output = self._output()
+        more_sheets: list[list[str]] = []
+        if output == "vector" and rng.random() < 0.15:  # a scan takes the first page only, so these stay vector
+            for number in range(2, 2 + (1 if rng.random() < 0.7 else 2)):
+                notes = rng.sample(kind.annotations, min(len(kind.annotations), rng.randint(2, 3)))
+                keyed += [(p, f"sheet{number}:annotation:{j}") for j, a in enumerate(notes) for p in a.params]
+                more_sheets.append([a.text for a in notes])
         return Drawing(
             self.path(unit, part.designation, part.name, self._suffix(output)),
             part.designation,
@@ -200,7 +210,9 @@ class Kit:
             general_roughness=roughness,
             sketch=kind.sketch,
             output=output,
-            expected_params=[*params, ("roughness", roughness)],
+            expected_params=[p for p, _ in keyed],
+            param_keys=[k for _, k in keyed],
+            more_sheets=more_sheets,
         )
 
     def _changes(self) -> list[Change]:
@@ -224,12 +236,13 @@ class Kit:
     def draw(self) -> None:
         """Draw every document into ``files``; scans take their skew and noise from streams of their own."""
         for spec in self.specs.values():
-            self.files[spec.file] = draw_spec(spec)
+            self.files[spec.file] = draw_spec(spec, boxes=self.drawn.setdefault(spec.file, {}))
         for drawing in self.drawings:
-            self.files[drawing.file] = self.drawing_file(drawing)
+            self.files[drawing.file] = self.drawing_file(drawing, self.drawn.setdefault(drawing.file, {}))
 
-    def drawing_file(self, drawing: Drawing) -> bytes:
-        pdf = draw_drawing(drawing)
+    def drawing_file(self, drawing: Drawing, boxes: dict[str, Box] | None = None) -> bytes:
+        """The file of ``drawing``: the PDF, or a scan of its first page, which keeps the boxes of the PDF."""
+        pdf = draw_drawing(drawing, boxes=boxes)
         if drawing.output == "vector":
             return pdf
         image = scan(pdf, rng=self.scan_rng, noise=self.noise)
@@ -242,9 +255,11 @@ class Kit:
 
     def truth(self) -> KitTruth:
         documents: dict[str, SpecTruth | DrawingTruth] = {
-            s.file: SpecTruth.of(s) for s in self.specs.values() if s.file not in self.unread
+            s.file: SpecTruth.of(s, self.drawn.get(s.file)) for s in self.specs.values() if s.file not in self.unread
         }
-        documents |= {d.file: DrawingTruth.of(d) for d in self.drawings if d.file not in self.unread}
+        documents |= {
+            d.file: DrawingTruth.of(d, self.drawn.get(d.file)) for d in self.drawings if d.file not in self.unread
+        }
         return KitTruth(
             root=self.root.designation,
             documents=dict(sorted(documents.items())),
