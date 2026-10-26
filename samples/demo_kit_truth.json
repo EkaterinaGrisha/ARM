@@ -4026,55 +4026,73 @@
       "type": "missing_drawing",
       "designation": "АРМ.303411.004",
       "rule_id": "B1.MISSING.001",
-      "mutation": null
+      "mutation": null,
+      "name": null,
+      "comment": null
     },
     {
       "type": "missing_drawing",
       "designation": "АРМ.303411.103",
       "rule_id": "B1.MISSING.001",
-      "mutation": null
+      "mutation": null,
+      "name": null,
+      "comment": null
     },
     {
       "type": "missing_specification",
       "designation": "АРМ.303411.300",
       "rule_id": "B1.SPEC.001",
-      "mutation": null
+      "mutation": null,
+      "name": null,
+      "comment": null
     },
     {
       "type": "orphan_drawing",
       "designation": "АРМ.303412.007",
       "rule_id": "B1.ORPHAN.001",
-      "mutation": null
+      "mutation": null,
+      "name": null,
+      "comment": null
     },
     {
       "type": "name_mismatch",
       "designation": "АРМ.303411.002",
       "rule_id": "B1.NAME.001",
-      "mutation": null
+      "mutation": null,
+      "name": null,
+      "comment": null
     },
     {
       "type": "duplicate_designation",
       "designation": "АРМ.303411.201",
       "rule_id": "B1.DUP.001",
-      "mutation": null
+      "mutation": null,
+      "name": null,
+      "comment": null
     },
     {
       "type": "revision_mismatch",
       "designation": "АРМ.303411.201",
       "rule_id": "B1.VERSION.001",
-      "mutation": null
+      "mutation": null,
+      "name": null,
+      "comment": null
     },
     {
       "type": "revision_mismatch",
       "designation": "АРМ.303411.000",
       "rule_id": "B1.LITERA.001",
-      "mutation": null
+      "mutation": null,
+      "name": null,
+      "comment": null
     },
     {
       "type": "revision_mismatch",
       "designation": "АРМ.303411.101",
       "rule_id": "B1.LITERA.002",
-      "mutation": null
+      "mutation": null,
+      "name": null,
+      "comment": null
     }
   ],
   "problem_files": {
@@ -4084,5 +4102,6 @@
     "Thumbs.db": "unsupported"
   },
   "seed": 7,
-  "mutations": []
+  "mutations": [],
+  "notes": []
 }

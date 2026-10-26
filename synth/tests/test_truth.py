@@ -4,9 +4,10 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from synth.truth import DrawingTruth, KitTruth, SpecTruth
+from synth.truth import DrawingTruth, ExpectedDiscrepancy, KitTruth, OtherTruth, SpecTruth
 
-SAMPLES = Path(__file__).resolve().parents[2] / "samples"
+ROOT = Path(__file__).resolve().parents[2]
+SAMPLES = ROOT / "samples"
 
 
 def test_committed_truth_reads_back_as_written(tmp_path):
@@ -22,3 +23,25 @@ def test_a_typo_in_a_key_does_not_pass(tmp_path):
     (tmp_path / "truth.json").write_text(text, encoding="utf-8")
     with pytest.raises(ValidationError, match="litre"):
         KitTruth.read(tmp_path / "truth.json")
+
+
+def test_a_kit_labelled_by_hand_reads_back(tmp_path):
+    """A real kit: a scheme beside the drawings, a row without a designation, the reason and a disputed case."""
+    truth = KitTruth(
+        root="",
+        documents={"schematic.pdf": OtherTruth(designation="", name="Схема электрическая принципиальная")},
+        discrepancies=[
+            ExpectedDiscrepancy(
+                type="position_anomaly", designation="", name="Корпус-крышка", comment="в строке нет обозначения"
+            )
+        ],
+        notes=["позиции без обозначений сопоставляем по наименованию"],
+    )
+    truth.write(tmp_path / "gold.json")
+    assert KitTruth.read(tmp_path / "gold.json") == truth
+
+
+def test_gold_files_read_as_kit_truth():
+    """The Block 1 gold set and its drafts (eval/gold) keep the format the evaluation reads."""
+    for path in sorted((ROOT / "eval" / "gold").rglob("*.json")):
+        KitTruth.read(path)
