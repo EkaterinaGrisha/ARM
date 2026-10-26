@@ -54,6 +54,16 @@ def test_hung_job_times_out_and_the_next_job_runs(tmp_path):
     assert wait(store, second.id).status == "done"
 
 
+def test_relative_data_dir(tmp_path, monkeypatch):
+    # The default ARM_DATA_DIR is "data": the job process runs in its output folder and still finds both folders.
+    monkeypatch.chdir(tmp_path)
+    store = JobStore(Path("data"), pipeline, workers=1)
+    (tmp_path / "upload.pdf").write_bytes(b"%PDF-1.7\n")
+    with (tmp_path / "upload.pdf").open("rb") as f:
+        job = store.create("relative", [("a.pdf", f)])
+    assert wait(store, job.id).status == "done"
+
+
 def test_timeout_stops_child_processes(tmp_path):
     pid_file = tmp_path / "child.pid"
     code = (
