@@ -111,8 +111,12 @@ class VlmClient:
         self.calls += 1
         reply = self._request("/chat/completions", body)
         try:
-            text = json.loads(reply["choices"][0]["message"]["content"])["text"]
-        except (KeyError, IndexError, TypeError, ValueError):
+            message = reply["choices"][0]["message"]
+            # A server may file the answer of a reasoning model under its reasoning when the schema bounds the output:
+            # LM Studio does so for Qwen3.6. Only the whole JSON of the schema there counts as the answer.
+            answer = message.get("content") or message.get("reasoning_content") or ""
+            text = json.loads(answer)["text"]
+        except (KeyError, IndexError, TypeError, ValueError, AttributeError):
             raise VlmError('ответ модели не в виде JSON {"text": …}') from None
         if not isinstance(text, str):
             raise VlmError("в ответе модели поле text — не строка")

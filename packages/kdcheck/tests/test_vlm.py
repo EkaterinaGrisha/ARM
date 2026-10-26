@@ -33,11 +33,16 @@ class _Server(ThreadingHTTPServer):
 
 
 class StubServer:
-    """``/models`` lists ``MODEL``; ``/chat/completions`` answers ``answers[label]`` and keeps the requests."""
+    """``/models`` lists ``MODEL``; ``/chat/completions`` answers ``answers[label]`` and keeps the requests.
+
+    With ``in_reasoning`` the answer comes under ``reasoning_content`` and the content is empty, as LM Studio files
+    the answer of Qwen3.6 when a JSON schema bounds it.
+    """
 
     def __init__(self) -> None:
         self.answers: dict[str, str] = {}
         self.requests: list[dict] = []
+        self.in_reasoning = False
         stub = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -50,7 +55,10 @@ class StubServer:
                 prompt = body["messages"][0]["content"][0]["text"]
                 label = next((k for k in stub.answers if f"«{k}»" in prompt), None)
                 content = stub.answers.get(label, json.dumps({"text": ""}))
-                self._send({"choices": [{"index": 0, "message": {"role": "assistant", "content": content}}]})
+                message = {"role": "assistant", "content": content}
+                if stub.in_reasoning:
+                    message = {"role": "assistant", "content": "", "reasoning_content": content}
+                self._send({"choices": [{"index": 0, "message": message}]})
 
             def _send(self, payload: dict) -> None:
                 data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -125,6 +133,18 @@ def test_a_reply_in_another_form_is_no_reading(settings, server):
     with pytest.raises(VlmError) as caught:
         _client(settings, server.url).read(Image.new("L", (40, 20), 255), "Масса")
     assert not caught.value.fatal
+
+
+def test_an_answer_filed_under_reasoning_counts_only_as_the_whole_json(settings, server):
+    from PIL import Image
+
+    server.in_reasoning = True
+    server.say("Масса", "0,22")
+    client = _client(settings, server.url)
+    assert client.read(Image.new("L", (40, 20), 255), "Масса") == "0,22"
+    server.answers["Масса"] = 'Посмотрю на ячейку: там {"text": "0,22"}'  # reasoning, not the answer
+    with pytest.raises(VlmError):
+        client.read(Image.new("L", (40, 20), 255), "Масса")
 
 
 def test_a_server_that_does_not_answer_is_fatal(settings):
