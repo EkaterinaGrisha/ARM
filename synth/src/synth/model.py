@@ -33,6 +33,16 @@ class Drawing:
     assembly: bool = False
     # expected parameters (category, name) for the quality metrics
     expected_params: list[tuple[str, str]] = field(default_factory=list)
+    # where each expected parameter is drawn, as the renderer keys it: «requirement:0», «annotation:2»,
+    # «sheet2:annotation:0», «general_roughness»; none for parameters written by hand
+    param_keys: list[str] = field(default_factory=list)
+    more_sheets: list[list[str]] = field(default_factory=list)  # annotations of the sheets after the first
+    missing_sheets: int = 0  # last sheets left out of the file, though the title block counts them
+
+    @property
+    def sheets(self) -> int:
+        """Sheets of the document, as its title block says."""
+        return 1 + len(self.more_sheets)
 
 
 @dataclass

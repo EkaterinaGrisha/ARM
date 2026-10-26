@@ -4,7 +4,7 @@ Writes a folder of PDF and JPG documents in the ESKD style (specifications by GO
 block of GOST 2.104) with typical discrepancies planted, and ``<folder>_truth.json`` with the ground truth.
 
 The documents are described with :mod:`synth.model`, drawn by :mod:`synth.render` with reportlab (BSD) in the
-bundled DejaVu Sans, and scanned by :mod:`synth.scans`: rendered with PDFium (pypdfium2), with noise from the seeded
+bundled OpenGost Type A, and scanned by :mod:`synth.scans`: rendered with PDFium (pypdfium2), with noise from the seeded
 generator. So the kit does not depend on the fonts or the C library of the machine.
 
     uv run python -m synth.demo_kit samples/demo_kit
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 from synth.model import Change, Drawing, Row, Spec
-from synth.render import draw_drawing, draw_foreign, draw_spec
+from synth.render import Box, draw_drawing, draw_foreign, draw_spec
 from synth.scans import scan, scan_pdf
 from synth.truth import DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
 
@@ -460,10 +460,12 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> KitTruth:
     truth = KitTruth(root=ROOT, documents={}, seed=seed)
 
     for s in SPECS:
-        (spec_dir / s.file).write_bytes(draw_spec(s))
-        truth.documents[f"Спецификации/{s.file}"] = SpecTruth.of(s)
+        drawn: dict[str, Box] = {}
+        (spec_dir / s.file).write_bytes(draw_spec(s, boxes=drawn))
+        truth.documents[f"Спецификации/{s.file}"] = SpecTruth.of(s, drawn)
     for d in DRAWINGS:
-        pdf = draw_drawing(d)
+        drawn = {}
+        pdf = draw_drawing(d, boxes=drawn)
         target = draw_dir / d.file
         if d.output == "vector":
             target.write_bytes(pdf)
@@ -475,7 +477,7 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> KitTruth:
                 buf = io.BytesIO()
                 img.save(buf, "JPEG", quality=72)
                 target.write_bytes(scan_pdf(buf.getvalue(), d.fmt))
-        truth.documents[f"Чертежи/{d.file}"] = DrawingTruth.of(d)
+        truth.documents[f"Чертежи/{d.file}"] = DrawingTruth.of(d, drawn)
     # problem files
     (out / "Чертежи_архив.pdf").write_bytes(b"%PDF-1.7\n" + bytes(rng.randrange(256) for _ in range(4000)))
     unreadable = scan(draw_drawing(DRAWINGS[8]), rng=rng, noise=noise, unreadable=True)
