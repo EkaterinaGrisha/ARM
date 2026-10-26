@@ -156,20 +156,37 @@ class DrawingTruth(Truth):
         )
 
 
-DocumentTruth = Annotated[SpecTruth | DrawingTruth, Field(discriminator="kind")]
+class OtherTruth(Truth):
+    """A document of a real kit that is no specification and no drawing: a scheme, an element list, a general view.
+
+    The report calls this kind ``other``; the generators do not make such documents.
+    """
+
+    kind: Literal["other"] = "other"
+    designation: str
+    name: str
+    litera: str = ""
+    revision: str | None = None
+    sheets: int = 1
+
+
+DocumentTruth = Annotated[SpecTruth | DrawingTruth | OtherTruth, Field(discriminator="kind")]
 
 
 class ExpectedDiscrepancy(Truth):
     """A discrepancy the check should find: its type in the report and the designation it concerns.
 
     ``rule_id`` names the Block 1 rule that finds it, none when the core has no such rule yet; ``mutation`` names the
-    mutation of :mod:`synth.mutations` that planted it, none for a discrepancy planted by hand.
+    mutation of :mod:`synth.mutations` that planted it, none for a discrepancy planted by hand. A kit labelled by hand
+    gives ``name`` for a specification row without a designation and says in ``comment`` why the discrepancy is there.
     """
 
     type: str
     designation: str
     rule_id: str | None = None
     mutation: str | None = None
+    name: str | None = None
+    comment: str | None = None
 
 
 class KitTruth(Truth):
@@ -179,6 +196,7 @@ class KitTruth(Truth):
     problem_files: dict[str, str] = Field({}, description="Path of the file → the document status to expect")
     seed: int | None = None
     mutations: list[str] = Field([], description="Mutations applied to the kit, in order")
+    notes: list[str] = Field([], description="Disputed cases of a kit labelled by hand and how they were settled")
 
     def write(self, path: Path) -> None:
         path.write_text(json.dumps(self.model_dump(mode="json"), ensure_ascii=False, indent=2), encoding="utf-8")
