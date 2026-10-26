@@ -261,6 +261,22 @@ def _page_image(pg: PdfPage, settings: Settings) -> tuple[Image.Image, tuple[flo
     return image, (x0, y0), (x1 - x0) / image.width
 
 
+def page_raster(
+    doc: LoadedDocument, page: Page, settings: Settings, pdf_backend: PdfBackend
+) -> tuple[Image.Image, tuple[float, float], float]:
+    """The image the page was read from, read again: page = ``origin`` + pixels × ``scale``.
+
+    Pages are not kept in memory after reading, so a later stage that needs the pixels, such as a vision-language
+    model reading a cell, gets them here.
+    """
+    data = doc.abs_path.read_bytes()
+    if doc.info.media_type == "application/pdf":
+        return _page_image(pdf_backend.open(data).page(page.number - 1), settings)
+    image = Image.open(io.BytesIO(data))
+    image.seek(page.number - 1)
+    return image.convert("L"), (0.0, 0.0), 1.0
+
+
 def _load_image(doc: LoadedDocument, data: bytes, settings: Settings) -> None:
     ingest = settings.ingest
     use_ocr = _use_ocr(settings)

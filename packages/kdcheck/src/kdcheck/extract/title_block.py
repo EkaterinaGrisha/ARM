@@ -2,12 +2,14 @@
 
 The block is located by the column labels («Лит.», «Масса», «Масштаб», «Листов») and scaled by the distance
 between them. Values are then read from cells by the form geometry of ``forms.yaml``, so parsing works the same way
-for vector PDFs and recognized scans.
+for vector PDFs and recognized scans. :func:`cell_value` turns the text of a cell into its value by the same rules
+whoever read the text: the PDF text layer, OCR or a vision-language model (ADR-0014).
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Collection
 from dataclasses import dataclass
 
 from kdcheck.config import ChangesTable, Forms, MarginColumns, TitleBlockTemplate
@@ -144,9 +146,32 @@ def _extracted(
     )
 
 
-def _cell_text(lines: list[Line], labels: set[str]) -> str:
+def _cell_text(lines: list[Line], labels: Collection[str]) -> str:
     words = [w.text for ln in lines for w in ln.words if _key(w.text) not in labels]
     return " ".join(words).strip()
+
+
+def cell_value(field: str, text: str, eskd: Designations, labels: Collection[str] = ()) -> str | int | None:
+    """The value of the title block cell ``field`` in ``text``, without the column labels; None if there is none."""
+    text = " ".join(w for w in text.split() if _key(w) not in labels)
+    if field == "designation":
+        found = eskd.find_designations(text)
+        return found[0][0] if found else None
+    if field in ("name", "material"):
+        return text or None
+    if field == "mass":
+        m = re.search(r"\d+(?:[.,]\d+)?", text)
+        return m.group(0) if m else None
+    if field == "scale":
+        m = re.search(r"\d+(?:[.,]\d+)?\s?:\s?\d+(?:[.,]\d+)?", text)
+        return m.group(0).replace(" ", "") if m else None
+    if field == "litera":
+        m = re.search(r"[ПЭТОИАБ0OAБ]\s?\d?", text.upper())
+        return eskd.normalize_litera(m.group(0)) if m else None
+    if field in ("sheet", "sheets"):
+        m = re.search(r"\d+", text)
+        return int(m.group(0)) if m else None
+    raise ValueError(f"unknown title block field {field}")
 
 
 def parse(doc: LoadedDocument, page: Page, geom: Geometry, forms: Forms, eskd: Designations) -> TitleBlock:
@@ -167,27 +192,11 @@ def parse(doc: LoadedDocument, page: Page, geom: Geometry, forms: Forms, eskd: D
         tb.designation = _extracted(doc, page, [ln], d)
 
     name_lines = [ln for ln in got["name"] if not eskd.find_designations(ln.text)]
-    name = _cell_text(name_lines, labels)
-    name = re.sub(r"\s+", " ", name)
-    tb.name = _extracted(doc, page, name_lines, name or None)
-
-    if "material" in got:
-        mat = _cell_text(got["material"], labels)
-        tb.material = _extracted(doc, page, got["material"], mat or None)
-    if "mass" in got:
-        m = re.search(r"\d+(?:[.,]\d+)?", _cell_text(got["mass"], labels))
-        tb.mass = _extracted(doc, page, got["mass"], m.group(0) if m else None)
-    if "scale" in got:
-        m = re.search(r"\d+(?:[.,]\d+)?\s?:\s?\d+(?:[.,]\d+)?", _cell_text(got["scale"], labels))
-        tb.scale = _extracted(doc, page, got["scale"], m.group(0).replace(" ", "") if m else None)
-
-    lit = _cell_text(got["litera"], labels)
-    lit_m = re.search(r"[ПЭТОИАБ0OAБ]\s?\d?", lit.upper())
-    tb.litera = _extracted(doc, page, got["litera"], eskd.normalize_litera(lit_m.group(0)) if lit_m else None)
-
-    for key in ("sheet", "sheets"):
-        m = re.search(r"\d+", _cell_text(got[key], labels))
-        setattr(tb, key, _extracted(doc, page, got[key], int(m.group(0)) if m else None))
+    tb.name = _extracted(doc, page, name_lines, cell_value("name", _cell_text(name_lines, labels), eskd))
+    for key in ("material", "mass", "scale", "litera", "sheet", "sheets"):
+        if key in got:
+            value = cell_value(key, _cell_text(got[key], labels), eskd)
+            setattr(tb, key, _extracted(doc, page, got[key], value))
 
     tb.revision = _revision(doc, page, geom, template.changes, row)
     margin = template.margin

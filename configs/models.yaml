@@ -9,3 +9,22 @@ ocr:
   languages: rus+eng
   page_segmentation: 11          # Tesseract --psm: sparse text in any order
   min_word_confidence: 30        # 0–100: words recognized with less are dropped
+
+vlm:                             # a vision-language model reads title block cells (ADR-0014); off by default
+  enabled: false                 # ARM_VLM=1 or kdcheck run --vlm turn it on
+  base_url: http://127.0.0.1:1234/v1  # an OpenAI-compatible server: LM Studio, llama.cpp, Ollama, vLLM. ARM_VLM_URL overrides
+  model: google/gemma-4-e4b      # the model id on that server; ARM_VLM_MODEL overrides
+  allow_remote: false            # a server on another machine gets the customer's documents: only with ARM's consent
+  prompt: title_block_cell.v1    # prompts/<name>.txt; a changed prompt is a new file with a new version
+  methods: [ocr]                 # pages read this way get their title block cells read by the model too
+  verify: false                  # false: only the cells OCR left empty; true: every cell, and a different value is a conflict
+  fields:                        # the cells the model reads, as the prompt names them
+    designation: Обозначение документа
+    name: Наименование изделия
+    material: Материал
+    mass: Масса
+    scale: Масштаб
+    litera: Литера
+  timeout_sec: 120               # one cell; a model on a laptop may take a while to load and answer
+  max_tokens: 512                # the answer is JSON {"text": …}; a reasoning model may spend tokens before it
+  seed: 7                        # repeatable answers from the same server and model

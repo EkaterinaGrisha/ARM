@@ -42,6 +42,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             config=Path(args.config) if args.config else None,
             use_ocr=False if args.no_ocr else None,
             max_pages=args.max_pages,
+            use_vlm=True if args.vlm else None,
             progress=_progress_to_file(Path(args.progress_file)) if args.progress_file else _progress,
         )
     except ConfigError as exc:
@@ -66,6 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-o", "--output", help="папка отчёта (по умолчанию <папка>_report)")
     p.add_argument("--name", help="название комплекта в отчёте")
     p.add_argument("--no-ocr", action="store_true", help="не распознавать сканы")
+    p.add_argument("--vlm", action="store_true", help="дочитывать основные надписи сканов моделью (vlm в models.yaml)")
     p.add_argument("--max-pages", type=int, help="страниц на файл, не больше (по умолчанию — из ingest.yaml, 0 — все)")
     p.add_argument("--config", help="каталог настроек (по умолчанию — ARM_CONFIG_DIR, иначе configs/ рабочей копии)")
     p.add_argument("--kit-id", help="идентификатор комплекта в отчёте (по умолчанию случайный)")
