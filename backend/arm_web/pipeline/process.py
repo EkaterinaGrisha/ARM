@@ -46,6 +46,8 @@ class ProcessPipeline:
         self.poll_sec = poll_sec
 
     def run(self, input_dir: Path, *, kit_id: str, kit_name: str, progress: ProgressCallback = no_progress) -> Report:
+        # The process runs in its output folder, so a relative path, such as the default ARM_DATA_DIR, would miss.
+        input_dir = input_dir.resolve()
         output_dir = input_dir.parent / "pipeline_output"
         shutil.rmtree(output_dir, ignore_errors=True)  # a rerun must not pick up the previous report
         output_dir.mkdir(parents=True)
