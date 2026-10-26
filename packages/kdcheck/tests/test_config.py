@@ -44,6 +44,7 @@ KEPT: dict[str, dict[float, str]] = {
         4: "digits of the completeness ratio",
     },
     "render.py": {2048: "bytes read to detect the format", 16: "grey levels of a page image"},
+    "vlm/client.py": {12: "hex digits of a prompt hash in the report"},
 }
 SMALL = {0, 1, 2, 3}  # indices of a bbox (x0, y0, x1, y1), halves and pairs
 NOT_CHECKED = ("report/exports.py", "schemas/")  # the look of the exports; bounds of the contract
@@ -169,4 +170,25 @@ def test_environment_overrides_single_values(monkeypatch):
     monkeypatch.setenv("ARM_MAX_PAGES", "0")
     monkeypatch.setenv("ARM_PDF_BACKEND", "acrobat")
     with pytest.raises(ConfigError, match=r"models\.yaml: pdf\.backend"):
+        load_settings()
+
+
+def test_a_model_server_on_another_machine_needs_consent(tmp_path):
+    configs = _copy(tmp_path)
+    _rewrite(configs / "models.yaml", "base_url: http://127.0.0.1:1234/v1", "base_url: http://10.0.0.5:1234/v1")
+    with pytest.raises(ConfigError, match=r"models\.yaml: vlm: .*10\.0\.0\.5.*allow_remote: true"):
+        load_settings(configs)
+    _rewrite(configs / "models.yaml", "allow_remote: false", "allow_remote: true")
+    assert load_settings(configs).models.vlm.base_url == "http://10.0.0.5:1234/v1"
+
+
+def test_the_model_is_switched_on_from_the_environment(monkeypatch):
+    monkeypatch.setenv("ARM_VLM", "1")
+    monkeypatch.setenv("ARM_VLM_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("ARM_VLM_MODEL", "qwen3.6:27b")
+    vlm = load_settings().models.vlm
+    assert (vlm.enabled, vlm.base_url, vlm.model) == (True, "http://localhost:11434/v1", "qwen3.6:27b")
+    assert load_settings(use_vlm=False).models.vlm.enabled is False  # an argument wins
+    monkeypatch.setenv("ARM_VLM_URL", "https://models.example.com/v1")
+    with pytest.raises(ConfigError, match="allow_remote"):
         load_settings()

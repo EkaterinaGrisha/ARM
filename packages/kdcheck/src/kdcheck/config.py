@@ -3,8 +3,9 @@
 Each file is one section of :class:`Settings`. The files are checked against these models, so an unknown or missing
 key or a wrong value stops the run with the file and the field named. The directory comes from ``kdcheck run
 --config``, else from ``ARM_CONFIG_DIR``, else it is ``configs/`` of the repository checkout. ``ARM_OCR``,
-``ARM_PDF_BACKEND`` and ``ARM_MAX_PAGES`` override single values. The hash of the settings in effect goes into the
-report, so a result can be traced to the settings that gave it.
+``ARM_PDF_BACKEND``, ``ARM_MAX_PAGES``, ``ARM_VLM``, ``ARM_VLM_URL`` and ``ARM_VLM_MODEL`` override single values.
+The hash of the settings in effect goes into the report, so a result can be traced to the settings that gave it.
+Prompts of the models are versioned files in ``prompts/`` of the checkout, or in ``ARM_PROMPTS_DIR``.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import os
 import re
 from pathlib import Path
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -22,6 +24,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from kdcheck.schemas import ExtractionMethod, NodeKind, Severity
 
 CONFIG_DIR_ENV = "ARM_CONFIG_DIR"
+PROMPTS_DIR_ENV = "ARM_PROMPTS_DIR"
+# Addresses of this machine: a model server there keeps the customer's documents on it (ADR-0014).
+LOOPBACK = ("localhost", "127.0.0.1", "::1")
 
 Box = tuple[float, float, float, float]  # x0, y0, x1, y1
 Point = tuple[float, float]
@@ -192,6 +197,7 @@ class MethodConfidence(Section):
     ocr: Share
     filename: Share
     filename_name: Share
+    vlm: Share
 
 
 class Review(Section):
@@ -329,9 +335,39 @@ class OcrEngine(Section):
     min_word_confidence: float = Field(ge=0, le=100)
 
 
+TitleBlockField = Literal["designation", "name", "material", "mass", "scale", "litera", "sheet", "sheets"]
+
+
+class VlmEngine(Section):
+    """A vision-language model on an OpenAI-compatible server that reads title block cells (ADR-0014)."""
+
+    enabled: bool
+    base_url: str
+    model: str
+    allow_remote: bool
+    prompt: str
+    methods: tuple[Literal["text_layer", "ocr"], ...]
+    verify: bool
+    fields: dict[TitleBlockField, str]
+    timeout_sec: float = Field(gt=0)
+    max_tokens: int = Field(gt=0)
+    seed: int
+
+    @model_validator(mode="after")
+    def _stays_on_this_machine(self) -> VlmEngine:
+        host = urlsplit(self.base_url).hostname
+        if not self.allow_remote and host not in LOOPBACK:
+            raise ValueError(
+                f"base_url ведёт на другую машину ({host}): туда уйдут документы заказчика. "
+                "Это допустимо только с разрешения АРМ и с allow_remote: true"
+            )
+        return self
+
+
 class Engines(Section):
     pdf: PdfEngine
     ocr: OcrEngine
+    vlm: VlmEngine
 
 
 # ---------------------------------------------------------------- all files
@@ -372,12 +408,22 @@ def config_dir(path: Path | None = None) -> Path:
     return Path(__file__).resolve().parents[4] / "configs"
 
 
+def prompts_dir(path: Path | None = None) -> Path:
+    """``path``, else ``ARM_PROMPTS_DIR``, else ``prompts/`` of the checkout this package runs from."""
+    if path is not None:
+        return path
+    if env := os.environ.get(PROMPTS_DIR_ENV):
+        return Path(env)
+    return Path(__file__).resolve().parents[4] / "prompts"
+
+
 def load_settings(
     path: Path | None = None,
     *,
     use_ocr: bool | None = None,
     max_pages: int | None = None,
     pdf_backend: str | None = None,
+    use_vlm: bool | None = None,
 ) -> Settings:
     """Settings from :func:`config_dir` with the overrides in effect: the arguments, else the environment variables."""
     directory = config_dir(path)
@@ -394,6 +440,8 @@ def load_settings(
             raise ConfigError(f"Файл настроек {file} не читается: {exc}") from None
     if use_ocr is None and "ARM_OCR" in os.environ:
         use_ocr = os.environ["ARM_OCR"] != "0"
+    if use_vlm is None and "ARM_VLM" in os.environ:
+        use_vlm = os.environ["ARM_VLM"] != "0"
     if pdf_backend is None:
         pdf_backend = os.environ.get("ARM_PDF_BACKEND") or None
     if max_pages is None and (env_pages := os.environ.get("ARM_MAX_PAGES")):
@@ -404,6 +452,9 @@ def load_settings(
     _override(raw, ("models", "ocr", "enabled"), use_ocr)
     _override(raw, ("models", "pdf", "backend"), pdf_backend)
     _override(raw, ("ingest", "max_pages_per_file"), max_pages)
+    _override(raw, ("models", "vlm", "enabled"), use_vlm)
+    _override(raw, ("models", "vlm", "base_url"), os.environ.get("ARM_VLM_URL") or None)
+    _override(raw, ("models", "vlm", "model"), os.environ.get("ARM_VLM_MODEL") or None)
     try:
         return Settings.model_validate(raw)
     except ValidationError as exc:

@@ -2,7 +2,8 @@
 
 A reference implementation and an integration example: any stage can be replaced by a model (VLM, LLM, another OCR)
 while the report format stays the same. Thresholds, templates and dictionaries come from :class:`Settings`; the
-report records their hash and the engines with versions.
+report records their hash and the engines with versions. With ``vlm`` on, a vision-language model reads the title
+block cells of scans that the rules left empty (ADR-0014).
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from kdcheck.checks import rules
 from kdcheck.checks.completeness import check
 from kdcheck.config import Settings, settings_sha256
 from kdcheck.extract import review, specification, tech_requirements, title_block
-from kdcheck.ingest.document import LoadedDocument, Page, load_document
+from kdcheck.ingest.document import LoadedDocument, Page, load_document, page_raster
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.normalize.designations import Designations
 from kdcheck.ocr import tesseract
@@ -41,6 +42,8 @@ from kdcheck.schemas import (
     TreeNode,
 )
 from kdcheck.tree.product import DrawingRef, build_tree
+from kdcheck.vlm import title_block as vlm_title_block
+from kdcheck.vlm.client import VlmClient, VlmError, load_prompt
 
 log = logging.getLogger(__name__)
 
@@ -66,11 +69,17 @@ class BaselinePipeline:
         self.eskd = Designations(settings.dictionaries)
         self.rules = rules.configured(settings.checks)
         self.parameters = parameters.Parser(settings.dictionaries)
+        vlm = settings.models.vlm
+        self.vlm = VlmClient(vlm, load_prompt(vlm.prompt)) if vlm.enabled else None
+        self.vlm_problem: str | None = None  # why the model is not asked in this run
+        self.vlm_used = False
 
     # ------------------------------------------------------------------ run
     def run(self, input_dir: Path, *, kit_id: str, kit_name: str, progress: ProgressCallback = no_progress) -> Report:
         started = time.monotonic()
         report_log: list[LogEntry] = []
+        self.vlm_problem = self.vlm.unavailable() if self.vlm is not None else None
+        self.vlm_used = False
         files = sorted(p for p in input_dir.rglob("*") if p.is_file())
         progress("Чтение файлов", 0.0, f"Файлов в комплекте: {len(files)}")
         docs: list[LoadedDocument] = []
@@ -98,6 +107,10 @@ class BaselinePipeline:
                 report_log.append(LogEntry(level="error", message=f"Ошибка разбора: {exc}", document_id=doc.id))
         for doc in docs:
             report_log += _page_problems(doc)
+        if self.vlm is not None and self.vlm_problem:
+            message = f"Модель {self.vlm.engine.model} не ответила: {self.vlm_problem}. "
+            message += "Основные надписи сканов прочитаны без неё" if not self.vlm_used else "Часть ячеек она не прочла"
+            report_log.append(LogEntry(level="warning", message=message))
 
         progress("Проверка комплектности", 0.87, None)
         drawing_refs = [
@@ -169,6 +182,8 @@ class BaselinePipeline:
         ocr = self.settings.models.ocr
         if ocr.enabled and tesseract.available(ocr.languages):
             found.append(EngineInfo(name=ocr.engine, version=tesseract.version()))
+        if self.vlm is not None and self.vlm_used:
+            found.append(EngineInfo(name=self.vlm.engine.model, version=self.vlm.version))
         found.append(EngineInfo(name="pillow", version=metadata.version("pillow")))
         return found
 
@@ -223,6 +238,8 @@ class BaselinePipeline:
     def _parse_drawing(self, doc: LoadedDocument, page: Page, geom: title_block.Geometry) -> PartRecord:
         info, forms = doc.info, self.settings.forms
         tb = title_block.parse(doc, page, geom, forms, self.eskd)
+        if self.vlm is not None and self.vlm_problem is None and page.method in self.settings.models.vlm.methods:
+            self._read_cells(doc, page, geom, tb)
         if tb.designation is None:
             fname = self._filename_designation(info.file_name)
             if fname:
@@ -278,6 +295,20 @@ class BaselinePipeline:
                 continue
             part.parameters += found
         return part
+
+    def _read_cells(self, doc: LoadedDocument, page: Page, geom: title_block.Geometry, tb: TitleBlock) -> None:
+        """The title block cells the rules left empty, read by the vision-language model (ADR-0014)."""
+        assert self.vlm is not None
+        calls = self.vlm.calls
+        raster = page_raster(doc, page, self.settings, self.pdf)
+        try:
+            doc.info.notes += vlm_title_block.read_cells(
+                doc, page, geom, tb, client=self.vlm, raster=raster, settings=self.settings, eskd=self.eskd
+            )
+        except VlmError as exc:  # the server stopped answering: the other scans are read without the model
+            self.vlm_problem = str(exc)
+            doc.info.notes.append(f"Модель не прочитала основную надпись: {exc}")
+        self.vlm_used = self.vlm_used or self.vlm.calls > calls
 
     def _scan_without_text(self, doc: LoadedDocument, parts: list[PartRecord]) -> None:
         info = doc.info

@@ -82,6 +82,7 @@ docker run -p 8000:8000 -v arm-data:/data -v "$PWD/мои_настройки:/ap
 ```bash
 uv run kdcheck run samples/demo_kit -o out                      # out/report.json, report.xlsx, report.html
 uv run kdcheck run ПАПКА --no-ocr                               # без распознавания сканов
+uv run kdcheck run ПАПКА --vlm                                  # + мультимодальная модель дочитывает основные надписи сканов
 uv run kdcheck run ПАПКА --max-pages 50                         # не больше 50 страниц на файл (по умолчанию из ingest.yaml)
 uv run kdcheck run ПАПКА --config мои_настройки                 # свои пороги и словари: копия configs/ с правками
 uv run python -m synth.demo_kit samples/demo_kit                # пересоздать демо-комплект и эталон к нему
@@ -125,7 +126,7 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
 | [`dictionaries.yaml`](configs/dictionaries.yaml) | словари ЕСКД: разделы спецификации, коды документов, литеры, виды термообработки, допуски, символы, покрытия |
 | [`checks.yaml`](configs/checks.yaml) | правила Блока 1: какие включены и с какой важностью сообщают о расхождениях |
 | [`criticality.yaml`](configs/criticality.yaml) | пороги и оценки критичных параметров Блока 2 |
-| [`models.yaml`](configs/models.yaml) | движки: PDF, OCR и его языки |
+| [`models.yaml`](configs/models.yaml) | движки: PDF, OCR и его языки, мультимодальная модель — сервер, модель, промпт, ячейки |
 | [`api.yaml`](configs/api.yaml) | лимиты веб-сервиса: размер и число файлов загрузки, время и память задания |
 
 Файлы проверяются при запуске: неизвестный ключ или неверное значение останавливают обработку
@@ -138,6 +139,7 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
 | Переменная | Назначение |
 |---|---|
 | `ARM_CONFIG_DIR` | каталог настроек (по умолчанию `configs/` репозитория) |
+| `ARM_PROMPTS_DIR` | каталог промптов моделей (по умолчанию `prompts/` репозитория) |
 | `ARM_DATA_DIR` | каталог заданий (по умолчанию `backend/data`) |
 | `ARM_PIPELINE_CMD` | внешний конвейер команды |
 | `ARM_INPROCESS=1` | откат: обрабатывать в потоках процесса API, без тайм-аута и лимита памяти |
@@ -155,6 +157,9 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
 | `ARM_MAX_PAGES` | `max_pages_per_file`, `ingest.yaml` | страниц на файл (0 — все); остальные пропускаются с пометкой в документе |
 | `ARM_OCR=0` | `ocr.enabled`, `models.yaml` | не распознавать сканы |
 | `ARM_PDF_BACKEND` | `pdf.backend`, `models.yaml` | движок PDF: `pdfium` или `pymupdf` — откат под AGPL, ставится отдельно: `pip install "pymupdf>=1.24"` |
+| `ARM_VLM=1` | `vlm.enabled`, `models.yaml` | мультимодальная модель дочитывает основные надписи сканов |
+| `ARM_VLM_URL` | `vlm.base_url`, `models.yaml` | OpenAI-совместимый сервер модели; адрес вне этой машины — только с `allow_remote: true` |
+| `ARM_VLM_MODEL` | `vlm.model`, `models.yaml` | имя модели на этом сервере |
 
 ## Базовый конвейер
 
@@ -191,6 +196,29 @@ PDFium и Tesseract): расхождения — точность и полно�
 в формате [`samples/demo_kit_truth.json`](samples/demo_kit_truth.json).
 
 ![Метрики качества](docs/img/quality.png)
+
+## Мультимодальная модель
+
+Модель с открытыми весами дочитывает ячейки основной надписи сканов, которые OCR оставил пустыми
+([ADR-0014](docs/adr/0014-local-vlm.md)). Ячейку вырезают по шаблону ГОСТ, модель только читает её текст,
+значение нормализуют те же правила, что и для OCR. Поэтому у значения остаётся область-источник, а в отчёте —
+способ `vlm`, имя модели и версия промпта. Пока модель не откалибрована, её значения помечены «проверить».
+По умолчанию она выключена.
+
+Модель работает на OpenAI-совместимом сервере на этой же машине:
+
+1. [LM Studio](https://lmstudio.ai): скачать модель со зрением, например Gemma 4 E4B (около 6 ГБ) или
+   Qwen3.6-27B (около 18 ГБ), и включить сервер — `lms server start`, адрес `http://127.0.0.1:1234/v1`.
+   Так же подходят llama.cpp (`llama-server -m модель.gguf --mmproj mmproj.gguf --port 1234`), Ollama
+   (`http://127.0.0.1:11434/v1`) и vLLM на машине с GPU.
+2. В [`configs/models.yaml`](configs/models.yaml) в разделе `vlm` указать `model` — имя модели на сервере.
+3. Запуск: `uv run kdcheck run ПАПКА --vlm`, для веба — `ARM_VLM=1`.
+
+Сервер на другой машине получит документы заказчика, поэтому такой адрес — ошибка настроек, пока в разделе `vlm`
+нет `allow_remote: true`; ставится только с разрешения АРМ. Промпты — версионные файлы в [`prompts/`](prompts).
+Если сервер не отвечает, комплект обрабатывается без модели, а журнал отчёта говорит почему.
+Замер на сканах с моделью и без неё — [eval/results/vlm-title-block.md](eval/results/vlm-title-block.md),
+список моделей-кандидатов — [docs/RESEARCH.md](docs/RESEARCH.md#мультимодальные-модели-с-открытыми-весами).
 
 ## HTTP API
 

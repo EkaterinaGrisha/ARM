@@ -30,13 +30,14 @@ def run(
     config: Path | None = None,
     use_ocr: bool | None = None,
     max_pages: int | None = None,
+    use_vlm: bool | None = None,
     progress: ProgressCallback = no_progress,
 ) -> Report:
     """Process a doc set folder with the baseline pipeline and the settings in ``config`` (ADR-0012).
 
-    ``use_ocr`` and ``max_pages`` override the settings when given; ``max_pages=0`` reads every page.
+    ``use_ocr``, ``max_pages`` and ``use_vlm`` override the settings when given; ``max_pages=0`` reads every page.
     """
-    settings = load_settings(config, use_ocr=use_ocr, max_pages=max_pages)
+    settings = load_settings(config, use_ocr=use_ocr, max_pages=max_pages, use_vlm=use_vlm)
     return BaselinePipeline(settings).run(input_dir, kit_id=kit_id, kit_name=kit_name, progress=progress)
 
 
