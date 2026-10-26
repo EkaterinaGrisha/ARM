@@ -223,10 +223,12 @@ writer.write("drawing_page3.pdf")
 import requests
 from bs4 import BeautifulSoup
 
+
 def download_patent_pdf(patent_id, output_dir):
     url = f"https://patents.google.com/patent/{patent_id}"
     # ... логика скачивания PDF
     pass
+
 
 # Список патентов для скачивания
 patent_ids = ["RU2734567C1", "RU2745123C2", ...]
