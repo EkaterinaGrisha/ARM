@@ -4,7 +4,7 @@ Writes a folder of PDF and JPG documents in the ESKD style (specifications by GO
 block of GOST 2.104) with typical discrepancies planted, and ``<folder>_truth.json`` with the ground truth.
 
 The documents are described with :mod:`synth.model`, drawn by :mod:`synth.render` with reportlab (BSD) in the
-bundled DejaVu Sans, and scanned by :mod:`synth.scans`: rendered with PDFium (pypdfium2), with noise from the seeded
+bundled OpenGost Type A, and scanned by :mod:`synth.scans`: rendered with PDFium (pypdfium2), with noise from the seeded
 generator. So the kit does not depend on the fonts or the C library of the machine.
 
     uv run python -m synth.demo_kit samples/demo_kit

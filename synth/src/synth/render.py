@@ -1,11 +1,12 @@
 """Sheets of ESKD documents drawn with reportlab (BSD): the frame, the title block, specifications and drawings.
 
-Pages are drawn in the bundled DejaVu Sans with no timestamps, so the same document gives the same bytes on any
-machine. Coordinates are millimetres from the top left corner of the sheet.
+Pages are drawn in the bundled OpenGost Type A, the lettering of GOST 2.304, with no timestamps, so the same document
+gives the same bytes on any machine. Coordinates are millimetres from the top left corner of the sheet.
 """
 
 from __future__ import annotations
 
+import functools
 import io
 from itertools import pairwise
 from pathlib import Path
@@ -25,20 +26,33 @@ FORMATS = {"A4": (210, 297), "A3": (420, 297)}
 Box = tuple[int, tuple[float, float, float, float]]
 DESCENT = 0.3  # below the baseline, as a share of the height of capitals
 
-FONT = "DejaVuSans"
-# DejaVu Sans 2.37 from https://github.com/dejavu-fonts/dejavu-fonts/releases, license in fonts/LICENSE
-FONT_FILE = Path(__file__).parent / "fonts" / "DejaVuSans.ttf"
+FONT = "OpenGostTypeA"
+# OpenGost Type A 0.3 as the openSUSE package opengost-ttf-fonts 0.3-7.32 ships it, byte for byte; sources at
+# https://codeberg.org/nadevko/opengostfonts. SIL Open Font License 1.1, text in fonts/OFL.txt.
+FONT_FILE = Path(__file__).parent / "fonts" / "OpenGostTypeA-Regular.ttf"
+
+
+@functools.cache
+def _ttf() -> TTFont:
+    font = TTFont(FONT, str(FONT_FILE))
+    pdfmetrics.registerFont(font)
+    return font
 
 
 def _font() -> str:
-    if FONT not in pdfmetrics.getRegisteredFontNames():
-        pdfmetrics.registerFont(TTFont(FONT, str(FONT_FILE)))
+    _ttf()
     return FONT
+
+
+def font_size(size: float) -> float:
+    """Font size in points that makes capitals ``size`` mm high, by the capital height of the font."""
+    cap_height = float(_ttf().face.capHeight) / 1000  # TrueType metrics come per 1000 units of the size
+    return size * MM / cap_height
 
 
 def text_width(s: str, size: float = 3.5) -> float:
     """Width in mm of ``s`` in the drafting lettering, capitals ``size`` mm high."""
-    return pdfmetrics.stringWidth(s, _font(), size * MM * 1.35) * Sheet.CONDENSE / MM
+    return pdfmetrics.stringWidth(s, _font(), font_size(size)) / MM
 
 
 def new_canvas(password: str | None = None) -> Canvas:
@@ -63,8 +77,6 @@ class Sheet:
 
     Text drawn with a ``key`` leaves its box in ``boxes``; text drawn twice under one key on a page takes the union.
     """
-
-    CONDENSE = 0.85  # narrow lettering, like the drafting font of GOST 2.304
 
     def __init__(self, canvas: Canvas, fmt: str, *, page: int = 1, boxes: dict[str, Box] | None = None) -> None:
         self.w, self.h = FORMATS[fmt]
@@ -114,29 +126,27 @@ class Sheet:
         """
         if not s:
             return
-        fontsize = size * MM * 1.35
+        fontsize = font_size(size)
         sx = 1.0
         c = self.c
         c.saveState()
         c.translate(*self._pt(x, y))
         if rotate:
             c.rotate(rotate)
-        else:
-            sx = self.CONDENSE
-            if max_width:
-                natural = self.width(s, size)
-                if natural > max_width:
-                    k = max_width / natural
-                    sx *= max(k, 0.75)
-                    if k < 0.75:
-                        fontsize *= k / 0.75
+        elif max_width:
+            natural = self.width(s, size)
+            if natural > max_width:  # squeeze up to a quarter, then make it smaller
+                k = max_width / natural
+                sx = max(k, 0.75)
+                if k < 0.75:
+                    fontsize *= k / 0.75
             c.scale(sx, 1)
         c.setFont(FONT, fontsize)
         c.drawString(0, 0, s)
         c.restoreState()
         if key is not None and self.boxes is not None:
             width = pdfmetrics.stringWidth(s, FONT, fontsize) * sx / MM
-            self._keep(key, x, y, width, fontsize / (MM * 1.35), rotate)
+            self._keep(key, x, y, width, fontsize / font_size(1.0), rotate)
 
     def _keep(self, key: str, x: float, y: float, width: float, height: float, rotate: int) -> None:
         if rotate:  # runs up the page from (x, y), capitals to the left of the baseline
