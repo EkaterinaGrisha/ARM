@@ -2,11 +2,12 @@
 
 A kit is a folder of the open drawings corpus, data/open_drawings/<folder>, whose files the registry
 eval/open_drawings.csv lists. Its truth is a ``synth.truth.KitTruth``, the format of the synthetic kits, so the same
-code compares a report with both. Each labeller fills a draft from the documents alone, without the report of the core:
-eval/gold/drafts/<folder>.<labeller>.json. Two drafts of one kit are compared value by value; the disagreements are
-settled together, and the settled truth is eval/gold/<folder>.json. How to label: eval/gold/README.md.
+code compares a report with both. Each labelling is a draft made from the documents alone, without the report of the
+core: eval/gold/drafts/<folder>.<label>.json, the label a short tag such as ``a``. Two drafts of one kit are compared
+value by value, each disagreement is settled by the sheet, and the settled truth is eval/gold/<folder>.json. The
+labelling rules: eval/gold/README.md.
 
-    uv run python eval/gold.py template github/snowlue_ITMO_works --by katya
+    uv run python eval/gold.py template github/snowlue_ITMO_works --by a
     uv run python eval/gold.py check
     uv run python eval/gold.py agree
 """
@@ -21,6 +22,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import get_args
 
+from kdcheck.config import load_settings
 from kdcheck.schemas import DiscrepancyType
 from pydantic import ValidationError
 from synth.truth import DrawingTruth, KitTruth, OtherTruth, SpecTruth
@@ -44,6 +46,11 @@ NOT_DOCUMENTS = ("illustration", "text")  # a picture, a title page, a process s
 TITLE = ("designation", "name", "litera", "revision", "sheets")
 DRAWING = (*TITLE, "material", "mass", "scale", "archive_number", "first_use")
 ROW = ("section", "fmt", "pos", "designation", "name", "qty", "note")
+# What looks the same on the sheet but differs as typed: Latin letters like Cyrillic ones (configs/dictionaries.yaml),
+# dashes and quotes
+FOLD = str.maketrans(
+    load_settings().dictionaries.latin_lookalikes | dict.fromkeys("‐‑‒–—−", "-") | dict.fromkeys("«»“”„", '"')
+)
 
 
 def read_registry() -> list[dict[str, str]]:
@@ -52,10 +59,10 @@ def read_registry() -> list[dict[str, str]]:
 
 
 def norm(value: object) -> str:
-    """Values compare after case, «ё», decimal comma and spaces, as the evaluation compares them with a report."""
+    """Values compare after case, «ё», decimal comma, spaces, Latin letters like Cyrillic ones, dashes and quotes."""
     if value is None:
         return ""
-    text = str(value).lower().replace("ё", "е").replace(",", ".")
+    text = str(value).translate(FOLD).lower().replace("ё", "е").replace(",", ".")
     return re.sub(r"\s+", "", text)
 
 
@@ -178,13 +185,13 @@ def compare(a: KitTruth, b: KitTruth) -> tuple[int, int, list[tuple[str, str, st
 
 
 def agree() -> int:
-    """Compare the drafts of each kit that two labellers filled; write the result to eval/results/gold-agreement.md."""
+    """Compare the two drafts of each kit labelled twice; write the result to eval/results/gold-agreement.md."""
     lines = [
-        "# Эталон Блока 1: согласие разметчиков",
+        "# Эталон Блока 1: согласие разметок",
         "",
-        "Скрипт `eval/gold.py agree`: два черновика одного комплекта сравниваются значение за значением после",
-        "регистра, «ё», десятичной запятой и пробелов, как сравнивает оценка. Расхождения разбирают вместе,",
-        "решения записывают в протокол [eval/gold/README.md](../gold/README.md).",
+        "Скрипт `eval/gold.py agree`: два черновика одного комплекта сравниваются значение за значением без учёта",
+        "регистра, «ё», десятичной запятой, пробелов, тире, кавычек и латинских букв, похожих на русские.",
+        "Решение по каждому несовпадению — в протоколе [eval/gold/README.md](../gold/README.md).",
         "",
     ]
     pairs = 0
@@ -193,7 +200,7 @@ def agree() -> int:
             pairs += 1
             agreed, total, differ = compare(a, b)
             share = f"{agreed / total:.2f}".replace(".", ",") if total else "—"
-            lines += [f"## {folder}: {wa} и {wb}", "", f"Совпало {agreed} значений из {total}, доля {share}.", ""]
+            lines += [f"## {folder}: {wa} и {wb}", "", f"Совпало значений: {agreed} из {total}, доля {share}.", ""]
             if differ:
                 lines += [f"| Где | {wa} | {wb} |", "| --- | --- | --- |"]
                 lines += [f"| {k} | {x or '«»'} | {y or '«»'} |" for k, x, y in differ]
@@ -211,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("template", help="черновик разметки комплекта")
     p.add_argument("folder", help="папка комплекта в data/open_drawings, например github/snowlue_ITMO_works")
-    p.add_argument("--by", required=True, help="кто размечает: katya, anya")
+    p.add_argument("--by", required=True, help="метка разметки в имени черновика: a, b")
     sub.add_parser("check", help="формат файлов эталона и пути по реестру")
     sub.add_parser("agree", help="согласие двух черновиков одного комплекта")
     args = parser.parse_args(argv)
