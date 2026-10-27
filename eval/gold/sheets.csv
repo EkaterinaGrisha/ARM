@@ -1,0 +1,23 @@
+sheet,source,page,form,kind
+chiller_side_plate.pdf,github/samkola51_Chiller/Боковая пластина 2 шт..pdf,1,pdf,part
+chiller_top_skirt.pdf,github/samkola51_Chiller/Верхняя юбка 1 шт..pdf,1,pdf,part
+chiller_back_plate.pdf,github/samkola51_Chiller/Задняя пластина 1 шт..pdf,1,pdf,part
+chiller_front_plate.pdf,github/samkola51_Chiller/Передняя пластина 1 шт..pdf,1,pdf,part
+chiller_assembly.pdf,github/samkola51_Chiller/Сборка.pdf,1,pdf,assembly
+vl60_p025.pdf,archive_org/60-1963/vl60_1963.pdf,25,pdf,assembly
+vl60_p031.jpg,archive_org/60-1963/vl60_1963.pdf,31,jpg,assembly
+vl60_p037.pdf,archive_org/60-1963/vl60_1963.pdf,37,pdf,assembly
+vl60_p061.jpg,archive_org/60-1963/vl60_1963.pdf,61,jpg,part
+vl60_p067.pdf,archive_org/60-1963/vl60_1963.pdf,67,pdf,assembly
+vl60_p085.jpg,archive_org/60-1963/vl60_1963.pdf,85,jpg,assembly
+vl60_p091.pdf,archive_org/60-1963/vl60_1963.pdf,91,pdf,part
+vl60_p121.jpg,archive_org/60-1963/vl60_1963.pdf,121,jpg,assembly
+vl60_p151.pdf,archive_org/60-1963/vl60_1963.pdf,151,pdf,assembly
+vl60_p175.jpg,archive_org/60-1963/vl60_1963.pdf,175,jpg,assembly
+vl60_p217.pdf,archive_org/60-1963/vl60_1963.pdf,217,pdf,assembly
+izh250_p002.jpg,archive_org/250._20210808/izh250_drawings.pdf,2,jpg,part
+izh250_p005.jpg,archive_org/250._20210808/izh250_drawings.pdf,5,jpg,part
+izh250_p006.jpg,archive_org/250._20210808/izh250_drawings.pdf,6,jpg,part
+uep60_p043.pdf,archive_org/uep60_10/uep60_10_text.pdf,43,pdf,assembly
+uep60_p047.jpg,archive_org/uep60_10/uep60_10_text.pdf,47,jpg,assembly
+pribor_p051.pdf,archive_org/priborIP/priborIP_text.pdf,51,pdf,assembly

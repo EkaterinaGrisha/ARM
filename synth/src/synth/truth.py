@@ -112,14 +112,16 @@ TITLE_FIELDS = (
 
 
 class DrawingTruth(Truth):
+    """A drawing: the title block and the margin columns as drawn; none for a cell the blank does not have."""
+
     kind: Literal["assembly_drawing", "part_drawing"]
     origin: Literal["vector", "scan"]
     designation: str
     name: str
     material: str | None
     mass: str | None
-    scale: str
-    litera: str
+    scale: str | None
+    litera: str | None
     revision: str | None
     archive_number: str | None
     first_use: str | None
