@@ -7,15 +7,19 @@ missing per field, and how many values the model gave and how many of them are r
 where that model also reads the cells OCR filled; the conflicts are counted with the reading the truth supports.
 
 The models run on an OpenAI-compatible server on this machine, LM Studio by default; the server must have them.
-Writes eval/results/vlm-title-block.json and eval/results/vlm-title-block.md.
+Writes eval/results/vlm-title-block.json and eval/results/vlm-title-block.md. ``--real`` measures the real sheets of
+the gold set instead (eval/gold/sheets.json, cut into data/gold_sheets by ``eval/gold.py sheets``) and writes
+eval/results/vlm-title-block-real.json and .md, with a table by sheet. A field the truth leaves empty or the blank lacks
+is not scored, as in backend/arm_web/evaluate.py.
 
     uv run python eval/vlm_title_block.py --model google/gemma-4-e4b --model qwen/qwen3.6-27b \
-        [--verify google/gemma-4-e4b]
+        [--verify google/gemma-4-e4b] [--real]
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import platform
 import re
@@ -37,6 +41,8 @@ from synth import kits
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "samples" / "demo_kit"
 CORPUS = ROOT / "data" / "synth" / "vlm_kits"
+SHEETS = ROOT / "data" / "gold_sheets"
+GOLD = ROOT / "eval" / "gold"
 OUT = Path(__file__).resolve().parent / "results"
 FIELDS = ("designation", "name", "material", "mass", "scale", "litera")
 CONFLICT = re.compile(r"«(?P<label>[^»]+)»: прочитано «(?P<ocr>[^»]*)», модель прочла «(?P<vlm>[^»]*)»")
@@ -69,18 +75,21 @@ def score(report: Report, truth: KitTruth, labels: dict[str, str], tally: dict[s
         tally["drawings"]["scans"] += 1
         part = parts.get(ids.get(path, ""))
         tb = part.title_block if part else None
+        sheet = tally.setdefault(f"sheet:{path}", Counter())
         for field in FIELDS:
             want = getattr(doc, field)
-            if want is None:
+            if want in (None, ""):
                 continue
             got = getattr(tb, field) if tb else None
             counts = tally[field]
             counts["total"] += 1
+            sheet["total"] += 1
             if got is None or got.value in (None, ""):
                 counts["missing"] += 1
                 continue
             right = norm(got.value) == norm(want)
             counts["right" if right else "wrong"] += 1
+            sheet["right"] += right
             if got.source and got.source.method == "vlm":
                 counts["by_model"] += 1
                 counts["by_model_right"] += right
@@ -132,6 +141,11 @@ def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path,
         "conflicts": dict(tally["conflicts"]),
         "seconds": seconds,
         "problems": sorted(set(problems)),
+        "sheets": {
+            key.removeprefix("sheet:"): {"right": c["right"], "total": c["total"]}
+            for key, c in sorted(tally.items())
+            if key.startswith("sheet:")
+        },
     }
 
 
@@ -144,17 +158,44 @@ def corpus(count: int, seed: int) -> dict[Path, KitTruth]:
     return truths
 
 
+def sheet_inputs() -> dict[str, str]:
+    """How each sheet of the gold set reaches the pipeline: a PDF with the archive's OCR layer, a picture or a photo."""
+    with (ROOT / "eval" / "open_drawings.csv").open(encoding="utf-8", newline="") as f:
+        quality = {row["path"]: row["quality"] for row in csv.DictReader(f)}
+    with (GOLD / "sheets.csv").open(encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    kinds = {"pdf": "PDF со слоем распознавания", "jpg": "картинка"}
+    return {
+        row["sheet"]: "фото" if quality.get(row["source"]) == "photo" else kinds.get(row["form"], row["form"])
+        for row in rows
+    }
+
+
 def markdown(result: dict[str, Any]) -> str:
     env = result["environment"]
+    scans = result["runs"][0]["scans"]
+    if result["real"]:
+        title = "# Основная надпись реальных сканов: OCR и мультимодальная модель"
+        where = (
+            f"Корпус: листы эталона ([eval/gold/README.md](../gold/README.md#листы-с-основной-надписью)), {scans} "
+            "сканов чертежей — альбом ВЛ60 1963 года, фото ИЖ-250, альбомы приборов; полностью — "
+            "[vlm-title-block-real.json](vlm-title-block-real.json)."
+        )
+    else:
+        title = "# Основная надпись сканов: OCR и мультимодальная модель"
+        where = (
+            f"Корпус: демо-комплект и {result['kits']} синтетических комплектов (сид {result['seed']}, половина "
+            f"чертежей — сканы), всего {scans} сканов чертежей; полностью — "
+            "[vlm-title-block.json](vlm-title-block.json)."
+        )
     lines = [
-        "# Основная надпись сканов: OCR и мультимодальная модель",
+        title,
         "",
         f"Получено `uv run python eval/vlm_title_block.py {result['command']}` {result['date']}; "
         f"{env['machine']}, Python {env['python']}, Tesseract {env['tesseract']}; сервер моделей {result['url']}.",
-        f"Корпус: демо-комплект и {result['kits']} синтетических комплектов (сид {result['seed']}, половина чертежей — "
-        f"сканы), всего {result['runs'][0]['scans']} сканов чертежей; полностью — "
-        "[vlm-title-block.json](vlm-title-block.json).",
-        "Поля: обозначение, наименование, материал, масса, масштаб, литера; сравнение после регистра, «ё», "
+        where,
+        "Поля: обозначение, наименование, материал, масса, масштаб, литера; поле, которое в эталоне пусто или которого "
+        "нет на бланке, не считается. Сравнение после регистра, «ё», "
         "десятичной запятой и пробелов. Модель читает только ячейки, которые OCR оставил пустыми"
         + (", а с проверкой — и заполненные" if any(r["verify"] for r in result["runs"]) else "")
         + ".",
@@ -181,12 +222,23 @@ def markdown(result: dict[str, Any]) -> str:
         for r in verify:
             c = r["conflicts"]
             lines.append(f"| {r['name']} | {c['total']} | {c.get('model_right', 0)} | {c.get('kept_right', 0)} |")
+    if result["real"]:
+        inputs = result["inputs"]
+        lines += ["", "По листам — верно из полей, которые есть на бланке:", ""]
+        lines.append("| Лист | Вход | " + " | ".join(r["name"] for r in result["runs"]) + " |")
+        lines.append("| --- | --- |" + " ---: |" * len(result["runs"]))
+        for sheet in result["runs"][0]["sheets"]:
+            cells = [f"{r['sheets'][sheet]['right']}/{r['sheets'][sheet]['total']}" for r in result["runs"]]
+            lines.append(f"| {sheet} | {inputs.get(sheet, '')} | " + " | ".join(cells) + " |")
     problems = sorted({p for r in result["runs"] for p in r["problems"]})
     if problems:
         lines += ["", "Сообщения прогона:", "", *[f"- {p}" for p in problems]]
     lines += [
         "",
-        "Сканы синтетические: шрифт и деградации свои (ADR-0013), реальные сканы АРМ могут дать другие цифры. "
+        "Листов мало: разница в несколько значений между прогонами — не разница моделей. Решение включать модель по "
+        "умолчанию — только по замеру на эталонной выборке (этап 8)."
+        if result["real"]
+        else "Сканы синтетические: шрифт и деградации свои (ADR-0013), реальные сканы АРМ могут дать другие цифры. "
         "Решение включать модель по умолчанию — только по замеру на эталонной выборке (этап 8).",
     ]
     return "\n".join(lines) + "\n"
@@ -204,10 +256,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--kits", type=int, default=10)
     parser.add_argument("--seed", type=int, default=2)
+    parser.add_argument("--real", action="store_true", help="листы эталона из data/gold_sheets вместо синтетики")
     args = parser.parse_args(argv)
     if not ocr_available(load_settings(use_ocr=True)):
         parser.error("нужен Tesseract с языками rus+eng: замер сравнивает модель с OCR")
-    truths = corpus(args.kits, args.seed)
+    if args.real and not SHEETS.is_dir():
+        parser.error("нет data/gold_sheets: листы вырезает uv run python eval/gold.py sheets")
+    truths = {SHEETS: KitTruth.read(GOLD / "sheets.json")} if args.real else corpus(args.kits, args.seed)
     runs = [run("OCR", None, args.url, False, truths)]
     for model in args.model:
         runs.append(run(f"OCR + {model}", model, args.url, False, truths))
@@ -217,9 +272,17 @@ def main(argv: list[str] | None = None) -> int:
         (e.version for e in BaselinePipeline(load_settings(use_ocr=True)).engines() if e.name == "tesseract"), None
     )
     result = {
-        "command": " ".join([*(f"--model {m}" for m in args.model), *(f"--verify {m}" for m in args.verify)]),
+        "command": " ".join(
+            [
+                *(f"--model {m}" for m in args.model),
+                *(f"--verify {m}" for m in args.verify),
+                *(["--real"] if args.real else []),
+            ]
+        ),
         "date": datetime.now(UTC).date().isoformat(),
         "url": args.url,
+        "real": args.real,
+        "inputs": sheet_inputs() if args.real else {},
         "kits": args.kits,
         "seed": args.seed,
         "environment": {
@@ -230,8 +293,9 @@ def main(argv: list[str] | None = None) -> int:
         "runs": runs,
     }
     OUT.mkdir(exist_ok=True)
-    (OUT / "vlm-title-block.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (OUT / "vlm-title-block.md").write_text(markdown(result), encoding="utf-8")
+    name = "vlm-title-block-real" if args.real else "vlm-title-block"
+    (OUT / f"{name}.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (OUT / f"{name}.md").write_text(markdown(result), encoding="utf-8")
     print(markdown(result))
     return 0
 

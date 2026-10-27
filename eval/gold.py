@@ -1,13 +1,17 @@
-"""The Block 1 gold set on real kits (plan stages 2.4 and 8): drafts of each labeller, their agreement, the truth.
+"""The gold set on real documents (plan stages 2.4 and 8): drafts of each labelling, their agreement, the truth.
 
 A kit is a folder of the open drawings corpus, data/open_drawings/<folder>, whose files the registry
-eval/open_drawings.csv lists. Its truth is a ``synth.truth.KitTruth``, the format of the synthetic kits, so the same
-code compares a report with both. Each labelling is a draft made from the documents alone, without the report of the
-core: eval/gold/drafts/<folder>.<label>.json, the label a short tag such as ``a``. Two drafts of one kit are compared
-value by value, each disagreement is settled by the sheet, and the settled truth is eval/gold/<folder>.json. The
-labelling rules: eval/gold/README.md.
+eval/open_drawings.csv lists. The sheets are a second set, ``sheets``: eval/gold/sheets.csv takes single sheets with a
+title block out of the corpus documents, as a one-page PDF or as a picture, and the ``sheets`` command cuts them into
+data/gold_sheets (outside git). The truth of either is a ``synth.truth.KitTruth``, the format of the synthetic kits, so
+the same code compares a report with both. Each labelling is a draft made from the documents alone, without the report
+of the core: eval/gold/drafts/<folder>.<label>.json, the label a short tag such as ``a``. Two drafts are compared value
+by value on the documents both hold, each disagreement is settled by the sheet, and the settled truth is
+eval/gold/<folder>.json. The labelling rules: eval/gold/README.md.
 
     uv run python eval/gold.py template github/snowlue_ITMO_works --by a
+    uv run python eval/gold.py sheets
+    uv run python eval/gold.py template sheets --by a --only vl60_p025.pdf izh250_p002.jpg
     uv run python eval/gold.py check
     uv run python eval/gold.py agree
 """
@@ -22,15 +26,21 @@ from itertools import combinations
 from pathlib import Path
 from typing import get_args
 
+import pypdfium2 as pdfium
 from kdcheck.config import load_settings
 from kdcheck.schemas import DiscrepancyType
 from pydantic import ValidationError
 from synth.truth import DrawingTruth, KitTruth, OtherTruth, SpecTruth
 
 EVAL = Path(__file__).resolve().parent
+ROOT = EVAL.parent
 REGISTRY = EVAL / "open_drawings.csv"
+CORPUS = ROOT / "data" / "open_drawings"
 GOLD = EVAL / "gold"
 DRAFTS = GOLD / "drafts"
+SHEETS = GOLD / "sheets.csv"
+SHEET_DIR = ROOT / "data" / "gold_sheets"
+SHEET_DPI = 300  # a sheet given as a picture is rendered as an office scanner would scan it
 OUT = EVAL / "results" / "gold-agreement.md"
 
 # Types of the report, and those the plan names for the core to find later (docs/PLAN.md, stage 4).
@@ -58,6 +68,12 @@ def read_registry() -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+def read_sheets() -> list[dict[str, str]]:
+    """The sheets of the gold set: file name, source document in the registry, page from 1, form, kind."""
+    with SHEETS.open(encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
+
+
 def norm(value: object) -> str:
     """Values compare after case, «ё», decimal comma, spaces, Latin letters like Cyrillic ones, dashes and quotes."""
     if value is None:
@@ -66,25 +82,37 @@ def norm(value: object) -> str:
     return re.sub(r"\s+", "", text)
 
 
-def template(folder: str, labeller: str) -> int:
-    """A draft for ``labeller``: every file of the kit with empty values, the kind taken from the registry."""
-    prefix = folder.strip("/") + "/"
-    rows = [row for row in read_registry() if row["path"].startswith(prefix)]
+def _listed(folder: str) -> list[tuple[str, str, str, int]]:
+    """Files of a kit folder in the registry, or the sheets of the gold set: name, kind, quality, sheets."""
+    registry = read_registry()
+    if folder == "sheets":
+        quality = {row["path"]: row["quality"] for row in registry}
+        return [(row["sheet"], row["kind"], quality.get(row["source"], ""), 1) for row in read_sheets()]
+    prefix = folder + "/"
+    return [
+        (row["path"].removeprefix(prefix), row["doc_type"], row["quality"], int(row["sheets"] or row["pages"]))
+        for row in registry
+        if row["path"].startswith(prefix)
+    ]
+
+
+def template(folder: str, labeller: str, only: list[str] | None = None) -> int:
+    """A draft for ``labeller``: every file of the kit, or those in ``only``, with empty values and the kind given."""
+    folder = folder.strip("/")
+    rows = [row for row in _listed(folder) if not only or row[0] in only]
     if not rows:
-        print(f"в реестре нет файлов папки {folder}", file=sys.stderr)
+        print(f"нет файлов папки {folder}", file=sys.stderr)
         return 1
-    target = DRAFTS / f"{prefix.rstrip('/')}.{labeller}.json"
+    target = DRAFTS / f"{folder}.{labeller}.json"
     if target.exists():
-        print(f"черновик уже есть, его не перезаписываю: {target.relative_to(EVAL.parent)}", file=sys.stderr)
+        print(f"черновик уже есть, его не перезаписываю: {target.relative_to(ROOT)}", file=sys.stderr)
         return 1
     truth = KitTruth(root="", documents={})
-    for row in rows:
-        name = row["path"].removeprefix(prefix)
-        kinds = row["doc_type"].split(";")
+    for name, doc_type, quality, sheets in rows:
+        kinds = doc_type.split(";")
         if len(kinds) > 1:
             print(f"{name}: в одном файле несколько документов, разметка по страницам — с пунктом 4.5 плана")
             continue
-        sheets = int(row["sheets"] or row["pages"])
         if kinds[0] in NOT_DOCUMENTS:
             truth.problem_files[name] = "foreign"
         elif kinds[0] == "specification":
@@ -92,7 +120,7 @@ def template(folder: str, labeller: str) -> int:
         elif kinds[0] in ("assembly", "part"):
             truth.documents[name] = DrawingTruth(
                 kind="assembly_drawing" if kinds[0] == "assembly" else "part_drawing",
-                origin="vector" if row["quality"] == "vector" else "scan",
+                origin="vector" if quality == "vector" else "scan",
                 designation="",
                 name="",
                 material=None,
@@ -112,8 +140,34 @@ def template(folder: str, labeller: str) -> int:
         return 1
     target.parent.mkdir(parents=True, exist_ok=True)
     truth.write(target)
-    print(f"черновик: {target.relative_to(EVAL.parent)}, документов {len(truth.documents)}")
+    print(f"черновик: {target.relative_to(ROOT)}, документов {len(truth.documents)}")
     return 0
+
+
+def sheets() -> int:
+    """Cut the sheets of eval/gold/sheets.csv out of the corpus into data/gold_sheets.
+
+    Form ``pdf`` keeps the page as it is, with its text layer; form ``jpg`` renders it into a picture with no text.
+    """
+    SHEET_DIR.mkdir(parents=True, exist_ok=True)
+    problems: list[str] = []
+    for row in read_sheets():
+        source = CORPUS / row["source"]
+        if not source.exists():
+            problems.append(f"{row['sheet']}: нет {source.relative_to(ROOT)}, скачивает eval/open_drawings.py fetch")
+            continue
+        pdf = pdfium.PdfDocument(source)
+        index = int(row["page"]) - 1
+        target = SHEET_DIR / row["sheet"]
+        if row["form"] == "pdf":
+            page = pdfium.PdfDocument.new()
+            page.import_pages(pdf, [index])
+            page.save(target)
+        else:
+            picture = pdf[index].render(scale=SHEET_DPI / 72).to_pil().convert("RGB")
+            picture.save(target, "JPEG", quality=90, dpi=(SHEET_DPI, SHEET_DPI))
+    print("\n".join(problems) or f"листов: {len(read_sheets())}, папка {SHEET_DIR.relative_to(ROOT)}")
+    return 1 if problems else 0
 
 
 def _folder(path: Path) -> str:
@@ -132,9 +186,17 @@ def _drafts() -> dict[str, dict[str, KitTruth]]:
 
 
 def check() -> int:
-    """Every gold file reads as a KitTruth, names files of its kit in the registry and known discrepancy types."""
-    listed = {row["path"] for row in read_registry()}
+    """Every gold file reads as a KitTruth and names known files and discrepancy types; sheets come from the corpus."""
+    registry = {row["path"] for row in read_registry()}
+    listed = registry | {f"sheets/{row['sheet']}" for row in read_sheets()}
     problems: list[str] = []
+    names = [row["sheet"] for row in read_sheets()]
+    problems += [f"{SHEETS.name}: лист {n} назван дважды" for n in sorted({n for n in names if names.count(n) > 1})]
+    for row in read_sheets():
+        if row["source"] not in registry:
+            problems.append(f"{SHEETS.name}: {row['sheet']} — источника {row['source']} нет в реестре")
+        if row["form"] not in ("pdf", "jpg") or row["kind"] not in ("part", "assembly"):
+            problems.append(f"{SHEETS.name}: {row['sheet']} — форма {row['form']}, вид {row['kind']}")
     paths = sorted(GOLD.rglob("*.json"))
     for path in paths:
         where = path.relative_to(EVAL.parent)
@@ -146,7 +208,7 @@ def check() -> int:
         folder = _folder(path)
         for name in [*truth.documents, *truth.problem_files]:
             if f"{folder}/{name}" not in listed:
-                problems.append(f"{where}: {name} — нет в реестре в папке {folder}")
+                problems.append(f"{where}: {name} — нет ни в реестре в папке {folder}, ни в {SHEETS.name}")
         for d in truth.discrepancies:
             if d.type not in TYPES:
                 problems.append(f"{where}: тип расхождения {d.type} не из каталога")
@@ -154,10 +216,12 @@ def check() -> int:
     return 1 if problems else 0
 
 
-def _values(truth: KitTruth) -> dict[str, str]:
-    """Every labelled value by where it is: the root, the fields of each document, each specification row."""
+def _values(truth: KitTruth, names: set[str]) -> dict[str, str]:
+    """Every labelled value by where it is: the root, the fields of the documents named, each specification row."""
     values = {"корень": truth.root}
     for name, doc in truth.documents.items():
+        if name not in names:
+            continue
         values[f"{name}: вид"] = doc.kind
         fields = DRAWING if isinstance(doc, DrawingTruth) else TITLE
         values |= {f"{name}: {field}": str(getattr(doc, field) or "") for field in fields}
@@ -174,8 +238,12 @@ def _discrepancies(truth: KitTruth) -> set[str]:
 
 
 def compare(a: KitTruth, b: KitTruth) -> tuple[int, int, list[tuple[str, str, str]]]:
-    """Agreed values, values either labeller filled, and the disagreements as (where, value of a, value of b)."""
-    va, vb = _values(a), _values(b)
+    """Agreed values, values either labelling filled, and the disagreements as (where, value of a, value of b).
+
+    Only the documents both drafts hold are compared: a set of sheets may be labelled twice in part.
+    """
+    common = a.documents.keys() & b.documents.keys()
+    va, vb = _values(a, common), _values(b, common)
     keys = sorted(k for k in va.keys() | vb.keys() if norm(va.get(k)) or norm(vb.get(k)))
     differ = [(k, va.get(k, "—"), vb.get(k, "—")) for k in keys if norm(va.get(k)) != norm(vb.get(k))]
     da, db = _discrepancies(a), _discrepancies(b)
@@ -185,13 +253,14 @@ def compare(a: KitTruth, b: KitTruth) -> tuple[int, int, list[tuple[str, str, st
 
 
 def agree() -> int:
-    """Compare the two drafts of each kit labelled twice; write the result to eval/results/gold-agreement.md."""
+    """Compare the two drafts of each kit or set labelled twice; write the result to eval/results/gold-agreement.md."""
     lines = [
-        "# Эталон Блока 1: согласие разметок",
+        "# Эталон: согласие разметок",
         "",
-        "Скрипт `eval/gold.py agree`: два черновика одного комплекта сравниваются значение за значением без учёта",
-        "регистра, «ё», десятичной запятой, пробелов, тире, кавычек и латинских букв, похожих на русские.",
-        "Решение по каждому несовпадению — в протоколе [eval/gold/README.md](../gold/README.md).",
+        "Скрипт `eval/gold.py agree`: два черновика одного комплекта или набора листов сравниваются значение",
+        "за значением на документах, которые есть в обоих, без учёта регистра, «ё», десятичной запятой, пробелов,",
+        "тире, кавычек и латинских букв, похожих на русские. Решение по каждому несовпадению — в протоколе",
+        "[eval/gold/README.md](../gold/README.md).",
         "",
     ]
     pairs = 0
@@ -200,7 +269,13 @@ def agree() -> int:
             pairs += 1
             agreed, total, differ = compare(a, b)
             share = f"{agreed / total:.2f}".replace(".", ",") if total else "—"
-            lines += [f"## {folder}: {wa} и {wb}", "", f"Совпало значений: {agreed} из {total}, доля {share}.", ""]
+            both = len(a.documents.keys() & b.documents.keys())
+            lines += [
+                f"## {folder}: {wa} и {wb}",
+                "",
+                f"Документов в обеих разметках: {both}. Совпало значений: {agreed} из {total}, доля {share}.",
+                "",
+            ]
             if differ:
                 lines += [f"| Где | {wa} | {wb} |", "| --- | --- | --- |"]
                 lines += [f"| {k} | {x or '«»'} | {y or '«»'} |" for k, x, y in differ]
@@ -216,14 +291,18 @@ def agree() -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     sub = parser.add_subparsers(dest="command", required=True)
-    p = sub.add_parser("template", help="черновик разметки комплекта")
-    p.add_argument("folder", help="папка комплекта в data/open_drawings, например github/snowlue_ITMO_works")
+    p = sub.add_parser("template", help="черновик разметки комплекта или листов")
+    p.add_argument("folder", help="папка комплекта в data/open_drawings, например github/snowlue_ITMO_works; sheets")
     p.add_argument("--by", required=True, help="метка разметки в имени черновика: a, b")
-    sub.add_parser("check", help="формат файлов эталона и пути по реестру")
-    sub.add_parser("agree", help="согласие двух черновиков одного комплекта")
+    p.add_argument("--only", nargs="+", help="только эти файлы или листы")
+    sub.add_parser("sheets", help="вырезать листы эталона из корпуса в data/gold_sheets")
+    sub.add_parser("check", help="формат файлов эталона, пути по реестру и список листов")
+    sub.add_parser("agree", help="согласие двух черновиков одного комплекта или набора листов")
     args = parser.parse_args(argv)
     if args.command == "template":
-        return template(args.folder, args.by)
+        return template(args.folder, args.by, args.only)
+    if args.command == "sheets":
+        return sheets()
     return check() if args.command == "check" else agree()
 
 
