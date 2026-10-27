@@ -1,0 +1,268 @@
+{
+  "root": "СУИР.06.06.00",
+  "documents": {
+    "Спецификация_СУИР.06.06.00.СБ.pdf": {
+      "kind": "specification",
+      "designation": "СУИР.06.06.00.СБ",
+      "name": "Обойма",
+      "litera": "",
+      "revision": "",
+      "rows": [
+        {
+          "section": "Детали",
+          "fmt": "",
+          "pos": "1",
+          "designation": "СУИР.06.06.01",
+          "name": "Вилка",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "",
+          "pos": "2",
+          "designation": "СУИР.06.06.02",
+          "name": "Подвеска",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "",
+          "pos": "3",
+          "designation": "СУИР.06.06.03",
+          "name": "Блок",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "",
+          "pos": "4",
+          "designation": "СУИР.06.06.04",
+          "name": "Кольцо",
+          "qty": "2",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "",
+          "pos": "5",
+          "designation": "СУИР.06.06.05",
+          "name": "Планка",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "",
+          "pos": "6",
+          "designation": "СУИР.06.06.06",
+          "name": "Ось",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "",
+          "pos": "7",
+          "designation": "СУИР.06.06.07",
+          "name": "Ось",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "",
+          "pos": "8",
+          "designation": "СУИР.06.06.08",
+          "name": "Втулка",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "9",
+          "designation": "",
+          "name": "Винт А.М4-6gх16 ГОСТ 1491-80",
+          "qty": "2",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "10",
+          "designation": "",
+          "name": "Винт установочный ГОСТ Р ИСО 4766-М10 х 12",
+          "qty": "4",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "11",
+          "designation": "",
+          "name": "Винт установочный ГОСТ Р ИСО 4766-М12 х 12",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        }
+      ],
+      "sheets": 1,
+      "boxes": {}
+    },
+    "Чертёж_СУИР.06.06.00.СБ.pdf": {
+      "kind": "assembly_drawing",
+      "origin": "vector",
+      "designation": "СУИР.06.06.00.СБ",
+      "name": "Обойма Сборочный чертёж",
+      "material": "",
+      "mass": "8,29",
+      "scale": "1:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "Чертёж_СУИР.06.06.01 Вилка.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "СУИР.06.06.01",
+      "name": "Вилка",
+      "material": "Сталь 40Х ГОСТ 4543-2016",
+      "mass": "3,47",
+      "scale": "1:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "Чертёж_СУИР.06.06.02 Подвеска.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "СУИР.06.06.02",
+      "name": "Подвеска",
+      "material": "Д16 ГОСТ 4784-2019",
+      "mass": "0,94",
+      "scale": "1:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "Чертёж_СУИР.06.06.03 Блок.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "СУИР.06.06.03",
+      "name": "Блок",
+      "material": "Сталь 45 ГОСТ 1050-2013",
+      "mass": "2,58",
+      "scale": "1:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    }
+  },
+  "discrepancies": [
+    {
+      "type": "missing_drawing",
+      "designation": "СУИР.06.06.04",
+      "rule_id": "B1.MISSING.001",
+      "mutation": null,
+      "name": null,
+      "comment": "поз. 4 «Кольцо» в «Деталях», чертежа в комплекте нет"
+    },
+    {
+      "type": "missing_drawing",
+      "designation": "СУИР.06.06.05",
+      "rule_id": "B1.MISSING.001",
+      "mutation": null,
+      "name": null,
+      "comment": "поз. 5 «Планка» в «Деталях», чертежа в комплекте нет"
+    },
+    {
+      "type": "missing_drawing",
+      "designation": "СУИР.06.06.06",
+      "rule_id": "B1.MISSING.001",
+      "mutation": null,
+      "name": null,
+      "comment": "поз. 6 «Ось» в «Деталях», чертежа в комплекте нет"
+    },
+    {
+      "type": "missing_drawing",
+      "designation": "СУИР.06.06.07",
+      "rule_id": "B1.MISSING.001",
+      "mutation": null,
+      "name": null,
+      "comment": "поз. 7 «Ось» в «Деталях», чертежа в комплекте нет"
+    },
+    {
+      "type": "missing_drawing",
+      "designation": "СУИР.06.06.08",
+      "rule_id": "B1.MISSING.001",
+      "mutation": null,
+      "name": null,
+      "comment": "поз. 8 «Втулка» в «Деталях», чертежа в комплекте нет"
+    },
+    {
+      "type": "duplicate_designation",
+      "designation": "СУИР.06.06.00.СБ",
+      "rule_id": "B1.DUP.001",
+      "mutation": null,
+      "name": null,
+      "comment": "спецификация обозначена с кодом СБ, как сборочный чертёж: одно обозначение у двух документов"
+    },
+    {
+      "type": "orphan_drawing",
+      "designation": "СУИР.06.06.00.СБ",
+      "rule_id": "B1.ORPHAN.001",
+      "mutation": null,
+      "name": null,
+      "comment": "раздела «Документация» нет, сборочный чертёж не указан ни в одной спецификации (ГОСТ 2.106)"
+    }
+  ],
+  "problem_files": {
+    "СУИР.06.06.00.СБ Обойма.pdf": "foreign"
+  },
+  "seed": null,
+  "mutations": [],
+  "notes": [
+    "Спецификация обозначена СУИР.06.06.00.СБ, с кодом сборочного чертежа: значение оставлено как на листе, совпадение со сборочным чертежом — duplicate_designation; корень — обозначение изделия без кода, СУИР.06.06.00",
+    "Раздела «Документация» нет: сборочный чертёж не указан ни в одной спецификации — orphan_drawing",
+    "Графа «Формат» спецификации пуста у всех позиций: format_mismatch не ставим, сравнивать не с чем",
+    "PDF напечатаны на лист Letter 216×279 мм, а в основных надписях — А2, А3, А4: размер страницы не формат документа",
+    "Поз. 6 и 7 — две разные детали «Ось» с разными обозначениями: это не расхождение"
+  ]
+}

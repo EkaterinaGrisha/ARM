@@ -1,0 +1,402 @@
+{
+  "root": "ПМИГ 2208.23.000",
+  "documents": {
+    "СПЕЦ КД.pdf": {
+      "kind": "specification",
+      "designation": "ПМИГ 2208.23.000",
+      "name": "Сборка крепежных деталей",
+      "litera": "",
+      "revision": "",
+      "rows": [
+        {
+          "section": "Документация",
+          "fmt": "А4",
+          "pos": "",
+          "designation": "ПМИГ 2208.23.000 СБ",
+          "name": "Сборочный чертеж",
+          "qty": "",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "1",
+          "designation": "ПМИГ 2208.23.001",
+          "name": "Основание",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "2",
+          "designation": "ПМИГ 2208.23.002",
+          "name": "Пластина",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "3",
+          "designation": "ПМИГ 2208.23.003",
+          "name": "Накладка",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "4",
+          "designation": "ПМИГ 2208.23.004",
+          "name": "Угольник",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "7",
+          "designation": "",
+          "name": "Болт М10х1-6gх32 (S16) ГОСТ 7798-70",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "8",
+          "designation": "",
+          "name": "Винт А.М8х1-6gх22 ГОСТ 1491-80",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "9",
+          "designation": "",
+          "name": "Гайка М6-6Н ГОСТ 5915-70",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "10",
+          "designation": "",
+          "name": "Гайка М10х1-6Н(S16) ГОСТ 5915-70",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "11",
+          "designation": "",
+          "name": "Шайба 10Л ГОСТ 6402-70",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "12",
+          "designation": "",
+          "name": "Шайба А.6.37 ГОСТ 11371-78",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Стандартные изделия",
+          "fmt": "",
+          "pos": "13",
+          "designation": "",
+          "name": "Шпилька М6-6gх28 ГОСТ 22032-76",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        }
+      ],
+      "sheets": 1,
+      "boxes": {}
+    },
+    "СБ КД.pdf": {
+      "kind": "assembly_drawing",
+      "origin": "vector",
+      "designation": "ПМИГ 2208.23.000 СБ",
+      "name": "Сборка крепежных деталей Сборочный чертеж",
+      "material": "",
+      "mass": "0,9",
+      "scale": "1:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "основание ч.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "ПМИГ 2208.23.001",
+      "name": "Основание",
+      "material": "Сталь 10 ГОСТ 1050-2013",
+      "mass": "0,6",
+      "scale": "1:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "пластина ч.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "ПМИГ 2208.23.002",
+      "name": "Пластина",
+      "material": "Сталь 10 ГОСТ 1050-2013",
+      "mass": "0,07",
+      "scale": "2,5:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "накладка ч.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "ПМИГ 2208.23.003",
+      "name": "Накладка",
+      "material": "Сталь 10 ГОСТ 1050-2013",
+      "mass": "0,11",
+      "scale": "2,5:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "угольник ч.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "ПМИГ 2208.23.004",
+      "name": "Угольник",
+      "material": "Сталь 10 ГОСТ 1050-2013",
+      "mass": "0,06",
+      "scale": "2,5:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "СПЕЦ П.pdf": {
+      "kind": "specification",
+      "designation": "ПМИГ 2208.23.000",
+      "name": "Паяное соединение",
+      "litera": "",
+      "revision": "",
+      "rows": [
+        {
+          "section": "Документация",
+          "fmt": "А4",
+          "pos": "",
+          "designation": "ПМИГ 2208.23.000 СБ",
+          "name": "Сборочный чертеж",
+          "qty": "",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "1",
+          "designation": "ПМИГ 2208.23.001",
+          "name": "Кожух",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "2",
+          "designation": "ПМИГ 2208.23.002",
+          "name": "Фланец",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        },
+        {
+          "section": "Детали",
+          "fmt": "А4",
+          "pos": "3",
+          "designation": "ПМИГ 2208.23.003",
+          "name": "Шайба",
+          "qty": "1",
+          "note": "",
+          "boxes": {}
+        }
+      ],
+      "sheets": 1,
+      "boxes": {}
+    },
+    "СБ П.pdf": {
+      "kind": "assembly_drawing",
+      "origin": "vector",
+      "designation": "ПМИГ 2208.23.000 СБ",
+      "name": "Паяное соединение Сборочный чертеж",
+      "material": "",
+      "mass": "4,94",
+      "scale": "1:2",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "кукожух ч.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "ПМИГ 2208.23.001",
+      "name": "Кожух",
+      "material": "Сталь 10 ГОСТ 1050-2013",
+      "mass": "3,33",
+      "scale": "1:2",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "фланец ч.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "ПМИГ 2208.23.002",
+      "name": "Фланец",
+      "material": "Сталь 10 ГОСТ 1050-2013",
+      "mass": "1,27",
+      "scale": "1:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    },
+    "шайба ч.pdf": {
+      "kind": "part_drawing",
+      "origin": "vector",
+      "designation": "ПМИГ 2208.23.003",
+      "name": "Шайба",
+      "material": "Сталь 10 ГОСТ 1050-2013",
+      "mass": "0,34",
+      "scale": "1:1",
+      "litera": "",
+      "revision": "",
+      "archive_number": "",
+      "first_use": "",
+      "requirements": [],
+      "parameters": [],
+      "sheets": 1,
+      "boxes": {},
+      "requirement_boxes": []
+    }
+  },
+  "discrepancies": [
+    {
+      "type": "duplicate_designation",
+      "designation": "ПМИГ 2208.23.000",
+      "rule_id": "B1.DUP.003",
+      "mutation": null,
+      "name": null,
+      "comment": "две спецификации с одним обозначением: «Сборка крепежных деталей» и «Паяное соединение»"
+    },
+    {
+      "type": "duplicate_designation",
+      "designation": "ПМИГ 2208.23.000 СБ",
+      "rule_id": "B1.DUP.001",
+      "mutation": null,
+      "name": null,
+      "comment": "два сборочных чертежа с одним обозначением: СБ КД.pdf и СБ П.pdf"
+    },
+    {
+      "type": "duplicate_designation",
+      "designation": "ПМИГ 2208.23.001",
+      "rule_id": "B1.DUP.001",
+      "mutation": null,
+      "name": null,
+      "comment": "«Основание» и «Кожух»: два чертежа и две позиции с разными наименованиями"
+    },
+    {
+      "type": "duplicate_designation",
+      "designation": "ПМИГ 2208.23.002",
+      "rule_id": "B1.DUP.001",
+      "mutation": null,
+      "name": null,
+      "comment": "«Пластина» и «Фланец»: два чертежа и две позиции с разными наименованиями"
+    },
+    {
+      "type": "duplicate_designation",
+      "designation": "ПМИГ 2208.23.003",
+      "rule_id": "B1.DUP.001",
+      "mutation": null,
+      "name": null,
+      "comment": "«Накладка» и «Шайба»: два чертежа и две позиции с разными наименованиями"
+    }
+  ],
+  "problem_files": {
+    "титул.pdf": "foreign"
+  },
+  "seed": null,
+  "mutations": [],
+  "notes": [
+    "В папке две сборки одного автора, «Сборка крепежных деталей» и «Паяное соединение», с одними обозначениями: ПМИГ 2208.23.000 и детали 001–003. Папка — один комплект, как её подали бы на проверку; корень — ПМИГ 2208.23.000, общее обозначение обеих спецификаций; совпадения — duplicate_designation",
+    "name_mismatch не ставим: у каждой позиции есть чертёж с её обозначением и её наименованием, разные наименования у одного обозначения — следствие дублей",
+    "В спецификации «Сборки крепежных деталей» после поз. 4 идёт поз. 7: ГОСТ 2.106 (п. 4.2.18 редакции 2019) допускает резервировать номера позиций, position_anomaly не ставим",
+    "Поз. 1 спецификации «Паяного соединения» на листе — «Кожух»; в одной из разметок — «Кажух», решено по листу"
+  ]
+}
