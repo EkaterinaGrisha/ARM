@@ -10,6 +10,10 @@ Two measurements.
    ``data/synth/scan_kits`` (outside git), most of their documents captured: the title block fields of drawings and
    of specifications, and the designations of specification rows, by input (vector, raster, scan) and class.
 
+The stress corpus (``data/synth/stress``, ``python -m synth.stress``) holds the same kits with their scans through
+Augraphy. When it is there, it is checked against its manifest (eval/stress_corpus.json) first, and both measurements
+cover its scans as well; each of them pairs with the scan of the same document by synth.degrade.
+
 Writes eval/results/scan-quality.json and eval/results/scan-quality.md.
 
     uv run python eval/scan_quality.py [--kits 6] [--seed 3]
@@ -19,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import platform
 import shutil
@@ -38,14 +43,17 @@ from kdcheck.schemas import Report
 from PIL import Image, ImageChops, ImageFilter, ImageStat
 from synth.degrade import CLASSES
 from synth.model import Output
-from synth.render import draw_drawing
-from synth.truth import DrawingTruth, KitTruth, SpecTruth
+from synth.render import FORMATS, draw_drawing
+from synth.stress import Manifest, Parameters, verify
+from synth.truth import AugraphyCapture, Capture, DrawingTruth, KitTruth, SpecTruth
 from vlm_title_block import FIELDS, norm, sheet_inputs
 
 from synth import degrade, kits
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "data" / "synth" / "scan_kits"
+STRESS = ROOT / "data" / "synth" / "stress"
+STRESS_MANIFEST = ROOT / "eval" / "stress_corpus.json"
 SHEETS = ROOT / "data" / "gold_sheets"
 GOLD = ROOT / "eval" / "gold"
 OUT = Path(__file__).resolve().parent / "results"
@@ -186,25 +194,28 @@ def real_sheets() -> list[dict[str, Any]]:
     return measured
 
 
-def synthetic_sheets(truths: dict[Path, KitTruth], unreadable: list[Path]) -> list[dict[str, Any]]:
-    """The captured documents of the corpus and the unreadable scans, with their statistics and known skew."""
+def synthetic_sheets(
+    truths: dict[Path, KitTruth], unreadable: list[Path], *, groups: tuple[str, ...] = ()
+) -> list[dict[str, Any]]:
+    """The captured documents of the corpus, of ``groups`` when given, and the unreadable scans, with their
+    statistics; the skew is known for synth.degrade, not for Augraphy, which logs the range of a turn."""
     measured = []
     for folder, truth in truths.items():
         for path, doc in truth.documents.items():
-            if doc.capture is None:
+            if doc.capture is None or (groups and doc.capture.group not in groups):
                 continue
             image, ppmm, encoding = page_image(folder / path)
-            sheet = doc.capture.sheets[0] if doc.capture.sheets else None
             measured.append(
                 {
-                    "sheet": f"{folder.name}/{path}",
-                    "group": f"{doc.capture.kind}:{doc.capture.quality}",
+                    "sheet": f"{folder.parent.name}/{folder.name}/{path}",
+                    "group": doc.capture.group,
                     "mode": doc.capture.mode,
                     "encoding": encoding,
-                    "true_skew": sheet.skew if sheet else 0.0,
                     **image_statistics(image, ppmm),
                 }
             )
+            if isinstance(doc.capture, Capture):
+                measured[-1]["true_skew"] = doc.capture.sheets[0].skew if doc.capture.sheets else 0.0
     for path in unreadable:
         image, ppmm, encoding = page_image(path)
         measured.append({"sheet": path.name, "group": "scan:unreadable", "mode": "grey", "encoding": encoding})
@@ -237,15 +248,36 @@ def summary(measured: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return result
 
 
+def envelope(measured: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """For each synthetic group, the sheets within the real scans on every statistic but the resolution, and on each
+    statistic the sheets beyond them: within means between the least and the greatest value of the real sheets."""
+    real = [m for m in measured if m["group"] not in GROUPS]
+    if not real:
+        return {}
+    bounds = {s: (min(m[s] for m in real), max(m[s] for m in real)) for s in STATS if s != "dpi"}
+    result = {}
+    for group in GROUPS:
+        if items := [m for m in measured if m["group"] == group]:
+            result[group] = {
+                "sheets": len(items),
+                "inside": sum(all(low <= m[s] <= high for s, (low, high) in bounds.items()) for m in items),
+                "beyond": {s: sum(not low <= m[s] <= high for m in items) for s, (low, high) in bounds.items()},
+            }
+    return result
+
+
 # ---------------------------------------------------------------------------------------- reading by class
 
 
 def _key(doc: DrawingTruth | SpecTruth) -> str:
-    return "vector" if doc.capture is None else f"{doc.capture.kind}:{doc.capture.quality}"
+    return "vector" if doc.capture is None else doc.capture.group
 
 
-def score(report: Report, truth: KitTruth, tally: dict[str, Counter[str]]) -> None:
-    """Right values by input and class; for the title blocks of drawings also by resolution and by pixels."""
+def score(
+    report: Report, truth: KitTruth, tally: dict[str, Counter[str]], fields: dict[str, dict[str, bool]] | None = None
+) -> None:
+    """Right values by input and class; for the title blocks of drawings also by resolution and by pixels, and in
+    ``fields``, by the path of each drawing, whether each of its fields was read right."""
     ids = {d.path: d.id for d in report.documents}
     parts = {p.document_id: p for p in report.parts}
     specs = {s.document_id: s for s in report.specifications}
@@ -270,6 +302,8 @@ def score(report: Report, truth: KitTruth, tally: dict[str, Counter[str]]) -> No
                 for counts in slices:
                     counts["drawing_fields"] += 1
                     counts["drawing_right"] += right
+                if fields is not None:
+                    fields.setdefault(path, {})[field] = right
             continue
         t["specs"] += 1
         spec = specs.get(doc_id)
@@ -285,12 +319,111 @@ def score(report: Report, truth: KitTruth, tally: dict[str, Counter[str]]) -> No
 
 
 def read_by_class(truths: dict[Path, KitTruth]) -> dict[str, Any]:
+    """The tally by class, and by kit and path of each drawing which of its title block fields were read right."""
     pipeline = BaselinePipeline(load_settings(use_ocr=True))
     tally: dict[str, Counter[str]] = defaultdict(Counter)
+    fields: dict[str, dict[str, bool]] = {}
     started = time.monotonic()
     for folder, truth in truths.items():
-        score(pipeline.run(folder, kit_id=folder.name, kit_name=folder.name), truth, tally)
-    return {"seconds": round(time.monotonic() - started, 1), "by_class": {k: dict(v) for k, v in tally.items()}}
+        read: dict[str, dict[str, bool]] = {}
+        score(pipeline.run(folder, kit_id=folder.name, kit_name=folder.name), truth, tally, read)
+        fields |= {f"{folder.name}/{path}": right for path, right in read.items()}
+    return {
+        "seconds": round(time.monotonic() - started, 1),
+        "by_class": {k: dict(v) for k, v in tally.items()},
+        "fields": fields,
+    }
+
+
+# ---------------------------------------------------------------------------------------- the stress corpus
+
+
+def stress_corpus(count: int, seed: int) -> tuple[dict[Path, KitTruth], dict[str, Any]]:
+    """The kits of the stress corpus once its files match the manifest, and what the manifest says; no kits when the
+    corpus is not there. The corpus pairs with ours when it was built with the parameters of this run."""
+    if not STRESS_MANIFEST.exists() or not STRESS.is_dir():
+        return {}, {}
+    manifest = Manifest.read(STRESS_MANIFEST)
+    if problems := verify(STRESS, manifest):
+        listed = "\n".join(problems[:20])
+        raise SystemExit(f"Стрессовый корпус {STRESS} не совпадает с манифестом {STRESS_MANIFEST}:\n{listed}")
+    ours = Parameters(kits=count, seed=seed, clean_every=1, scan_share=SCAN_SHARE, raster_share=RASTER_SHARE)
+    names = [f"kit_{i:03d}" for i in range(1, manifest.parameters.kits + 1)]
+    truths = {STRESS / name: KitTruth.read(STRESS / f"{name}_truth.json") for name in names}
+    effects: Counter[str] = Counter()
+    phases: dict[str, str] = {}
+    for scan in manifest.scans.values():
+        for sheet in scan.sheets:
+            effects.update({effect.name for effect in sheet.effects})
+            phases |= {effect.name: effect.phase for effect in sheet.effects}
+    info = {
+        "manifest": STRESS_MANIFEST.relative_to(ROOT).as_posix(),
+        "sha256": hashlib.sha256(STRESS_MANIFEST.read_bytes()).hexdigest(),
+        "built": manifest.built,
+        "parameters": manifest.parameters.model_dump(),
+        "paired": manifest.parameters == ours,
+        "environment": manifest.environment,
+        "versions": manifest.versions,
+        "files": len(manifest.files),
+        "scans": len(manifest.scans),
+        "sheets": sum(len(scan.sheets) for scan in manifest.scans.values()),
+        "effects": {name: {"phase": phases[name], "sheets": sheets} for name, sheets in effects.most_common()},
+        "effects_per_sheet": [len(sheet.effects) for scan in manifest.scans.values() for sheet in scan.sheets],
+        "resized": sum(_resized(scan) for scan in manifest.scans.values()),
+    }
+    return truths, info
+
+
+def _resized(scan: AugraphyCapture) -> int:
+    """Sheets of a scan whose size is no format the generator draws at the resolution of the scan any more."""
+    sizes = {(round(w / 25.4 * scan.dpi), round(h / 25.4 * scan.dpi)) for w, h in FORMATS.values()}
+    sizes |= {(h, w) for w, h in sizes}
+    return sum(
+        not any(abs(sheet.pixels[0] - w) <= 2 and abs(sheet.pixels[1] - h) <= 2 for w, h in sizes)
+        for sheet in scan.sheets
+    )
+
+
+def _plain(doc: Any) -> Any:
+    """A document of the truth without its capture and boxes: what both corpora draw the same."""
+    if isinstance(doc, dict):
+        return {k: _plain(v) for k, v in doc.items() if k not in ("capture", "boxes", "box", "requirement_boxes")}
+    if isinstance(doc, list):
+        return [_plain(v) for v in doc]
+    return doc
+
+
+def pairs(
+    truths: dict[Path, KitTruth], stress: dict[Path, KitTruth], ours: dict[str, Any], theirs: dict[str, Any]
+) -> dict[str, Any]:
+    """Each drawing scanned by both degraders, by the class of its scan: how many title block fields each reading got
+    right, and how many only one of them did. A drawing pairs when both corpora draw it the same."""
+    by_class: dict[str, Counter[str]] = defaultdict(Counter)
+    unpaired = 0
+    for folder, truth in truths.items():
+        other = stress.get(STRESS / folder.name)
+        for path, doc in truth.documents.items():
+            if not isinstance(doc, DrawingTruth) or not isinstance(doc.capture, Capture) or doc.capture.kind != "scan":
+                continue
+            twin = other.documents.get(path) if other else None
+            if not isinstance(twin, DrawingTruth) or not isinstance(twin.capture, AugraphyCapture):
+                unpaired += 1
+                continue
+            if _plain(doc.model_dump(mode="json")) != _plain(twin.model_dump(mode="json")):
+                unpaired += 1
+                continue
+            key = f"{folder.name}/{path}"
+            ours_right, theirs_right = ours["fields"].get(key, {}), theirs["fields"].get(key, {})
+            counts = by_class[doc.capture.quality]
+            counts["drawings"] += 1
+            for field, right in ours_right.items():
+                other_right = theirs_right.get(field, False)
+                counts["fields"] += 1
+                counts["degrade"] += right
+                counts["augraphy"] += other_right
+                counts["only_degrade"] += right and not other_right
+                counts["only_augraphy"] += other_right and not right
+    return {"by_class": {k: dict(v) for k, v in by_class.items()}, "unpaired": unpaired}
 
 
 # ---------------------------------------------------------------------------------------- corpus and output
@@ -347,8 +480,13 @@ GROUPS = {
     "scan:fair": "скан, среднее",
     "scan:poor": "скан, плохое",
     "scan:unreadable": "скан, нечитаемое",
+    "augraphy:good": "скан Augraphy, хорошее",
+    "augraphy:fair": "скан Augraphy, среднее",
+    "augraphy:poor": "скан Augraphy, плохое",
     "vector": "вектор",
 }
+AUGRAPHY = ("augraphy:good", "augraphy:fair", "augraphy:poor")
+PHASES = {"ink": "тушь", "paper": "бумага", "post": "отпечаток"}
 PARAMETERS = (
     ("dpi", "Разрешение, dpi"),
     ("modes", "Пиксели: ч/б, серые, цвет"),
@@ -393,6 +531,7 @@ def markdown(result: dict[str, Any]) -> str:
         f"{result['date']}; {env['machine']}, Python {env['python']}, Tesseract {env['tesseract']}. "
         "Полностью — [scan-quality.json](scan-quality.json).",
         "",
+        *_stress_header(result.get("stress")),
         "## Классы качества",
         "",
         "Каждый параметр растра или скана берётся из диапазона класса по сиду документа и пишется в разметку "
@@ -405,6 +544,7 @@ def markdown(result: dict[str, Any]) -> str:
     ]
     for field, title in PARAMETERS:
         lines.append(f"| {title} | " + " | ".join(_parameter(field, getattr(CLASSES[q], field)) for q in names) + " |")
+    lines += _stress_section(result.get("stress"))
     lines += [
         "",
         "## Реальные и синтетические сканы",
@@ -428,6 +568,7 @@ def markdown(result: dict[str, Any]) -> str:
             + " | ".join(_range(s[k]) for k in STATS)
             + " |"
         )
+    lines += _envelope_section(result.get("envelope"))
     errors = {g: s["skew_error"] for g, s in result["statistics"].items() if "skew_error" in s}
     if errors:
         mean = f"{statistics.mean(errors.values()):.2f}".replace(".", ",")
@@ -449,8 +590,9 @@ def markdown(result: dict[str, Any]) -> str:
         "| Вход | Чертежей | Основная надпись чертежа | Спецификаций | Основная надпись спецификации | Строки |",
         "| --- | ---: | ---: | ---: | ---: | ---: |",
     ]
+    by_class = reading["by_class"] | (result["stress"]["reading"]["by_class"] if result.get("stress") else {})
     for group in GROUPS:
-        t = reading["by_class"].get(group)
+        t = by_class.get(group)
         if not t:
             continue
         drawings = _share(t.get("drawing_right", 0), t.get("drawing_fields", 0))
@@ -469,12 +611,111 @@ def markdown(result: dict[str, Any]) -> str:
             t = reading["by_class"][key]
             share = _share(t.get("drawing_right", 0), t.get("drawing_fields", 0))
             lines.append(f"| {names(key.split(':', 1)[1])} | {t.get('drawings', 0)} | {share} |")
+    lines += _pairs_section(result.get("stress"))
     lines += [
         "",
         "Реальных сканов мало, и все они старые: статистики показывают, попадают ли классы в их диапазон, но не "
-        "калибруют классы. Калибровка — по сканам АРМ, когда они будут (ADR-0013).",
+        "калибруют классы. Калибровка — по сканам АРМ, когда они будут (ADR-0013). Стрессовый корпус не "
+        "калибруется и не пересобирается: метрики на нём ссылаются на его манифест.",
     ]
     return "\n".join(lines) + "\n"
+
+
+def _envelope_section(groups: dict[str, Any] | None) -> list[str]:
+    if not groups:
+        return []
+    names = {
+        "ink": "Тушь",
+        "paper": "Бумага",
+        "noise": "Шум σ",
+        "stroke": "Штрих",
+        "specks": "Крап",
+        "uneven": "Неровность",
+        "skew": "Наклон",
+    }
+    lines = [
+        "",
+        "В границах реальных сканов — листы, у которых все статистики, кроме разрешения, лежат между наименьшим и "
+        "наибольшим значением реальных листов; по каждой статистике — сколько листов за её границей. Реальных листов "
+        "мало, поэтому это проверка покрытия, а не калибровка.",
+        "",
+        "| Набор | Листов | В границах | " + " | ".join(names.values()) + " |",
+        "| --- | ---: | ---: |" + " ---: |" * len(names),
+    ]
+    for group, e in groups.items():
+        beyond = " | ".join(str(e["beyond"][s]) for s in names)
+        lines.append(f"| {GROUPS[group]} | {e['sheets']} | {_share(e['inside'], e['sheets'])} | {beyond} |")
+    return lines
+
+
+def _stress_header(stress: dict[str, Any] | None) -> list[str]:
+    if not stress:
+        return ["Стрессового корпуса Augraphy (data/synth/stress) на этой машине нет: его строк в таблицах нет.", ""]
+    return [
+        f"Стрессовый корпус — те же комплекты со сканами через Augraphy (data/synth/stress), сверен с манифестом "
+        f"[eval/stress_corpus.json](../stress_corpus.json) по sha256 всех {stress['files']} файлов; sha256 манифеста — "
+        f"`{stress['sha256']}`.",
+        "",
+    ]
+
+
+def _stress_section(stress: dict[str, Any] | None) -> list[str]:
+    if not stress:
+        return []
+    versions, environment = stress["versions"], stress["environment"]
+    per_sheet = stress["effects_per_sheet"]
+    lines = [
+        "",
+        "## Стрессовый корпус Augraphy",
+        "",
+        f"Собран `python -m synth.stress build` {stress['built']} на Python {environment['python']}, "
+        f"{environment['platform']}: Augraphy {versions['augraphy']}, numba {versions['numba']}, "
+        f"OpenCV {versions['opencv-python']}, numpy {versions['numpy']}. "
+        + (
+            "Комплекты, документы и сиды — те же, что у корпуса этого замера."
+            if stress["paired"]
+            else "Параметры сборки не те, что у корпуса этого замера, поэтому пар нет."
+        )
+        + " Настройки сканера — разрешение, вид пикселей, сжатие — берутся из класса так же, как в "
+        "`synth.degrade`, поэтому у одного документа они одни и те же. Что происходит на бумаге и на стекле — "
+        "эффекты конвейера Augraphy по умолчанию: каждая из 22 его позиций срабатывает с вероятностью 0,2, а позиция с "
+        "выбором применяет один эффект из нескольких. "
+        f"Сканов — {stress['scans']}, листов — {stress['sheets']}; эффектов на лист — медиана "
+        f"{_range({'median': statistics.median(per_sheet), 'min': min(per_sheet), 'max': max(per_sheet)})}; у "
+        f"{stress['resized']} листов эффекты изменили размер, и формат листа по нему уже не определить.",
+        "",
+        "| Эффект | Фаза | Листов |",
+        "| --- | --- | ---: |",
+    ]
+    for name, effect in stress["effects"].items():
+        lines.append(f"| {name} | {PHASES[effect['phase']]} | {_share(effect['sheets'], stress['sheets'])} |")
+    return lines
+
+
+def _pairs_section(stress: dict[str, Any] | None) -> list[str]:
+    if not stress or not stress.get("pairs"):
+        return []
+    pairs = stress["pairs"]
+    lines = [
+        "",
+        "Попарно: одни и те же чертежи с теми же настройками сканера, отсканированные `synth.degrade` и через "
+        "Augraphy, поля основной надписи. Чертежей без пары — " + str(pairs["unpaired"]) + ".",
+        "",
+        "| Класс | Чертежей | Полей | Верно synth.degrade | Верно Augraphy | Только synth.degrade | Только Augraphy |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for quality in ("good", "fair", "poor"):
+        t = pairs["by_class"].get(quality)
+        if not t:
+            continue
+        total = t["fields"]
+        cells = [_share(t[k], total) for k in ("degrade", "augraphy", "only_degrade", "only_augraphy")]
+        lines.append(
+            f"| {GROUPS[f'scan:{quality}'].removeprefix('скан, ')} | {t['drawings']} | {total} | "
+            + " | ".join(cells)
+            + " |"
+        )
+    return lines
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -485,8 +726,10 @@ def main(argv: list[str] | None = None) -> int:
     if not ocr_available():
         raise SystemExit("Нужен Tesseract с русским языком: замер читает сканы через OCR")
     truths, unreadable = corpus(args.kits, args.seed)
-    measured = real_sheets() + synthetic_sheets(truths, unreadable)
-    result = {
+    stress, stress_info = stress_corpus(args.kits, args.seed)
+    measured = real_sheets() + synthetic_sheets(truths, unreadable) + synthetic_sheets(stress, [], groups=AUGRAPHY)
+    reading = read_by_class(truths)
+    result: dict[str, Any] = {
         "date": datetime.now(UTC).date().isoformat(),
         "kits": args.kits,
         "seed": args.seed,
@@ -496,9 +739,17 @@ def main(argv: list[str] | None = None) -> int:
             "tesseract": _tesseract(),
         },
         "statistics": summary(measured),
-        "reading": read_by_class(truths),
+        "envelope": envelope(measured),
+        "reading": reading,
         "sheets": measured,
     }
+    if stress:
+        theirs = read_by_class(stress)
+        by_class = {k: v for k, v in theirs["by_class"].items() if k in AUGRAPHY}
+        stress_info["reading"] = {"seconds": theirs["seconds"], "by_class": by_class}
+        stress_info["pairs"] = pairs(truths, stress, reading, theirs) if stress_info["paired"] else None
+        result["stress"] = stress_info
+    reading.pop("fields")
     OUT.mkdir(exist_ok=True)
     (OUT / "scan-quality.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (OUT / "scan-quality.md").write_text(markdown(result), encoding="utf-8")

@@ -3,17 +3,17 @@
 The evaluation compares a report with it (``backend/arm_web/evaluate.py`` reads the JSON these models write). Values
 are the text drawn on the sheet, and ``boxes`` say where: the page and the box as shares of the page from its top
 left corner, as ``kdcheck.schemas.SourceRef`` gives them. On a scan the boxes follow the sheet through its skew and
-shift, and ``capture`` says how the pixels were made (:mod:`synth.degrade`); the light scans of the demo kit keep the
-boxes of the sheet and have no ``capture``.
+shift, and ``capture`` says how the pixels were made: by :mod:`synth.degrade` or through Augraphy
+(:mod:`synth.augraphy_scans`). The light scans of the demo kit keep the boxes of the sheet and have no ``capture``.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, JsonValue, Tag
 
 from synth.model import Change, Drawing, Row, Spec
 from synth.render import Box as DrawnBox
@@ -80,6 +80,7 @@ class Capture(Truth):
     so a metric can be sliced by class or by any of them. A raster has the resolution, mode and compression only.
     """
 
+    degrader: Literal["synth.degrade"] = "synth.degrade"
     kind: Literal["raster", "scan"]
     quality: Literal["good", "fair", "poor", "unreadable"]
     seed: int
@@ -98,6 +99,67 @@ class Capture(Truth):
     white: int | None = None  # grey level the scanner turns white and stretches the rest to; none when it does not
     lid: int = 255  # grey level of the scanner lid around a turned or shifted sheet
     sheets: list[SheetCapture] = []
+
+    @property
+    def group(self) -> str:
+        """The slice of a metric the document falls in: «scan:fair», «raster:good»."""
+        return f"{self.kind}:{self.quality}"
+
+
+class Effect(Truth):
+    """An effect of Augraphy that ran on a sheet: its phase, its name, and its settings as the effect held them after
+    the run, with the values some effects draw for themselves; images and the data of the sheet are left out."""
+
+    phase: Literal["ink", "paper", "post"]
+    name: str
+    settings: dict[str, JsonValue] = {}
+
+
+class AugraphySheet(Truth):
+    """What happened to one sheet of a scan through Augraphy, in the order the effects ran."""
+
+    effects: list[Effect] = []
+    pixels: tuple[int, int]  # width and height of the scan; a geometric effect may change them
+    threshold: int | None = None  # grey level that splits ink from paper in a black and white file, by Otsu
+
+
+class AugraphyCapture(Truth):
+    """How a document became a scan through Augraphy (:mod:`synth.augraphy_scans`).
+
+    The scanner settings are drawn from the class ``quality`` with ``seed`` as :mod:`synth.degrade` draws them, so
+    the same document gets the same resolution, pixels and compression from both; what happened on paper and on the
+    glass is the effects of the default pipeline of Augraphy ``version``, sheet by sheet.
+    """
+
+    degrader: Literal["augraphy"] = "augraphy"
+    kind: Literal["scan"] = "scan"
+    quality: Literal["good", "fair", "poor"]
+    seed: int
+    dpi: int
+    mode: Literal["bilevel", "grey", "colour"]
+    container: Literal["pdf", "jpg", "png", "tiff"]
+    jpeg: int | None = None  # JPEG quality; none for a lossless file
+    pipeline: Literal["default"] = "default"  # augraphy.default_augraphy_pipeline
+    version: str
+    sheets: list[AugraphySheet] = []
+
+    @property
+    def group(self) -> str:
+        """The slice of a metric the document falls in: «augraphy:fair»."""
+        return f"augraphy:{self.quality}"
+
+
+def _degrader(record: Any) -> str:
+    """Which degrader wrote a capture record; the records written before Augraphy have no such key."""
+    if isinstance(record, dict):
+        return str(record.get("degrader", "synth.degrade"))
+    return str(getattr(record, "degrader", "synth.degrade"))
+
+
+CaptureRecord = Annotated[
+    Annotated[Capture, Tag("synth.degrade")] | Annotated[AugraphyCapture, Tag("augraphy")],
+    Discriminator(_degrader),
+]
 
 
 def _boxes(drawn: dict[str, DrawnBox], prefix: str = "") -> dict[str, Box]:
@@ -141,10 +203,12 @@ class SpecTruth(Truth):
     sheets: int = 1
     boxes: dict[str, Box] = Field({}, description="Fields of the title block and of the left margin columns")
     origin: Literal["vector", "raster", "scan"] = "vector"
-    capture: Capture | None = None
+    capture: CaptureRecord | None = None
 
     @classmethod
-    def of(cls, spec: Spec, drawn: dict[str, DrawnBox] | None = None, capture: Capture | None = None) -> SpecTruth:
+    def of(
+        cls, spec: Spec, drawn: dict[str, DrawnBox] | None = None, capture: CaptureRecord | None = None
+    ) -> SpecTruth:
         drawn = drawn or {}
         return cls(
             designation=spec.designation,
@@ -202,11 +266,11 @@ class DrawingTruth(Truth):
     sheets: int = 1
     boxes: dict[str, Box] = Field({}, description="Fields of the title block, the margin columns, general roughness")
     requirement_boxes: list[Box | None] = []
-    capture: Capture | None = None
+    capture: CaptureRecord | None = None
 
     @classmethod
     def of(
-        cls, drawing: Drawing, drawn: dict[str, DrawnBox] | None = None, capture: Capture | None = None
+        cls, drawing: Drawing, drawn: dict[str, DrawnBox] | None = None, capture: CaptureRecord | None = None
     ) -> DrawingTruth:
         drawn = drawn or {}
         keys = drawing.param_keys or [""] * len(drawing.expected_params)

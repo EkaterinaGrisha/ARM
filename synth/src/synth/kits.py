@@ -4,7 +4,8 @@ A kit comes from its seed (ADR-0013). A random tree of assemblies (:mod:`synth.p
 specification and an assembly drawing for each assembly, a drawing for each part made with one. Mutations
 (:mod:`synth.mutations`) then change the documents or their files, and each writes into the truth the discrepancies
 and problem files it plants. The files are drawn by :mod:`synth.render`; a share of the documents come out as rasters
-or scans of one of three classes of quality (:mod:`synth.degrade`), each with a seed of its own in the truth.
+or scans of one of three classes of quality (:mod:`synth.degrade`), each with a seed of its own in the truth. The
+stress corpus scans the same kits through Augraphy instead (:mod:`synth.stress`).
 
     uv run python -m synth.kits data/synth/kits --kits 20 --seed 1
 
@@ -25,7 +26,7 @@ from synth import degrade, mutations, vocab
 from synth.model import Change, Container, Drawing, Kind, Output, Quality, Row, Spec
 from synth.product import Numbering, Part, Shape, Unit, grow
 from synth.render import Box, draw_drawing, draw_spec, wrap
-from synth.truth import Capture, DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
+from synth.truth import CaptureRecord, DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
 
 KIT_LITERAS = ("О", "О1", "А")  # each has a stage below it, for the mutations that lower a litera
 LAYOUTS = ("split", "flat", "tree")  # folders: specifications apart from drawings, none, one per assembly
@@ -59,10 +60,11 @@ class Kit:
     problem_files: dict[str, str] = field(default_factory=dict)
     unread: set[str] = field(default_factory=set)  # paths of documents the check cannot read, so no fields to find
     drawn: dict[str, dict[str, Box]] = field(default_factory=dict)  # where the values of each file are drawn
-    captures: dict[str, Capture] = field(default_factory=dict)  # how the rasters and scans were made, by path
+    captures: dict[str, CaptureRecord] = field(default_factory=dict)  # how the rasters and scans were made, by path
     mutations: list[str] = field(default_factory=list)
     touched: set[str] = field(default_factory=set)  # designations a mutation has used: one mutation each
     scan_rng: random.Random = field(default_factory=random.Random)  # the seed of each raster and scan
+    capture: degrade.Capturer = degrade.capture  # what makes the rasters and scans
 
     # ------------------------------------------------------------------ what mutations look up and record
 
@@ -255,10 +257,10 @@ class Kit:
             self.files[drawing.file] = self.pixels(drawing.file, pdf, drawing.output, boxes)
 
     def pixels(self, path: str, pdf: bytes, output: Output, boxes: dict[str, Box]) -> bytes:
-        """``pdf`` as ``output`` asks: as is, or captured with :mod:`synth.degrade`, its boxes moved with the sheets."""
+        """``pdf`` as ``output`` asks: as is, or captured by the degrader of the kit, boxes moved with the sheets."""
         if output.kind == "vector":
             return pdf
-        data, self.captures[path] = degrade.capture(pdf, output, self.scan_rng.getrandbits(32), boxes)
+        data, self.captures[path] = self.capture(pdf, output, self.scan_rng.getrandbits(32), boxes)
         return data
 
     def truth(self) -> KitTruth:
@@ -303,11 +305,17 @@ def _mass(rng: random.Random, low: float, high: float) -> str:
 
 
 def build(
-    seed: int, mutation_ids: list[str], *, name: str = "kit", scan_share: float = 0.1, raster_share: float = 0.05
+    seed: int,
+    mutation_ids: list[str],
+    *,
+    name: str = "kit",
+    scan_share: float = 0.1,
+    raster_share: float = 0.05,
+    capture: degrade.Capturer = degrade.capture,
 ) -> Kit:
     """A kit from ``seed`` with the mutations ``mutation_ids`` planted, those that find a target in it.
 
-    ``scan_share`` and ``raster_share`` of the documents come out as scans and as rasters.
+    ``scan_share`` and ``raster_share`` of the documents come out as scans and as rasters, made by ``capture``.
     """
     rng = random.Random(seed)
     depth = rng.randint(2, 4)
@@ -329,6 +337,7 @@ def build(
         scan_share,
         raster_share,
         scan_rng=random.Random(seed + 1),
+        capture=capture,
     )
     kit.make_documents()
     planned = [mutations.CATALOG[m] for m in mutation_ids]
@@ -351,10 +360,12 @@ def corpus(
     clean_every: int = 5,
     scan_share: float = 0.1,
     raster_share: float = 0.05,
+    capture: degrade.Capturer = degrade.capture,
 ) -> list[KitTruth]:
     """``kits`` kits from ``seed``: every ``clean_every``-th one clean, the others with mutations in turn.
 
-    The mutations come from the catalog shuffled and taken in turn, so each one is planted about as often.
+    The mutations come from the catalog shuffled and taken in turn, so each one is planted about as often. The
+    rasters and scans are made by ``capture``; the kits and the seeds of their documents do not depend on it.
     """
     rng = random.Random(seed)
     queue: list[str] = []
@@ -369,7 +380,14 @@ def corpus(
                     rng.shuffle(queue)
                 if (candidate := queue.pop()) not in ids:
                     ids.append(candidate)
-        kit = build(seed * 1000 + index, ids, name=f"kit_{index:03d}", scan_share=scan_share, raster_share=raster_share)
+        kit = build(
+            seed * 1000 + index,
+            ids,
+            name=f"kit_{index:03d}",
+            scan_share=scan_share,
+            raster_share=raster_share,
+            capture=capture,
+        )
         truths.append(kit.write(out))
         summary.append(
             {
@@ -380,7 +398,7 @@ def corpus(
                 "documents": len(truths[-1].documents),
                 "discrepancies": len(kit.expected),
                 "problem_files": len(kit.problem_files),
-                "captures": dict(sorted(Counter(f"{c.kind}:{c.quality}" for c in kit.captures.values()).items())),
+                "captures": dict(sorted(Counter(c.group for c in kit.captures.values()).items())),
             }
         )
     manifest = {"generator": "synth.kits", "seed": seed, "kits": summary}

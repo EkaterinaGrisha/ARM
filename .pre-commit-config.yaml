@@ -22,7 +22,7 @@ repos:
         name: uv.lock is up to date
         entry: uv lock --check
         language: system
-        files: ^(pyproject\.toml|backend/pyproject\.toml|uv\.lock)$
+        files: ^(pyproject\.toml|backend/pyproject\.toml|packages/kdcheck/pyproject\.toml|synth/pyproject\.toml|uv\.lock)$
         pass_filenames: false
       - id: requirements
         name: backend/requirements.txt matches uv.lock

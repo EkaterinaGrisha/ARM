@@ -42,6 +42,7 @@
 | --- | --- | --- |
 | Открытые чертежи и учебные комплекты | `data/open_drawings/`, реестр — [eval/open_drawings.csv](../eval/open_drawings.csv) | `uv run python eval/open_drawings.py fetch` скачивает по реестру и сверяет sha256; источники — [DATA_SOURCES.md](DATA_SOURCES.md) |
 | Синтетические комплекты | `data/synth/` | `uv run python -m synth.kits data/synth/kits --kits 20 --seed 1` |
+| Стрессовый корпус: те же комплекты со сканами через Augraphy | `data/synth/stress/`, манифест — [eval/stress_corpus.json](../eval/stress_corpus.json) | `uv run --group augraphy python -m synth.stress build data/synth/stress` на Python 3.11; файлы сверяет `uv run python -m synth.stress verify data/synth/stress` |
 | Комплекты АРМ | `data/` | по правилам АРМ, вне git |
 
 ## Документы

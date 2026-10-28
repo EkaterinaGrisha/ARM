@@ -1,12 +1,13 @@
 """Synthetic kits: the same seed gives the same kit, a clean kit is consistent, each mutation leaves its trace."""
 
 import json
+import random
 from pathlib import PurePosixPath
 
 import pytest
 from synth.kits import Kit
 
-from synth import kits, mutations
+from synth import degrade, kits, mutations
 
 CLEAN_SEED = 14
 
@@ -140,3 +141,23 @@ def test_rasters_and_scans_of_a_kit_carry_their_capture_in_the_truth():
         assert doc.boxes and all(0 <= b.bbox[0] < b.bbox[2] <= 1 for b in doc.boxes.values())
     summary = {f"{d.capture.kind}:{d.capture.quality}" for d in captured.values() if d.capture}
     assert summary == {f"{c.kind}:{c.quality}" for c in kit.captures.values()}
+
+
+def test_the_degrader_changes_the_captured_files_only():
+    """The stress corpus scans the kits of the main corpus: the documents and the seed of each capture do not depend
+    on what makes the pixels, so each scan pairs with the scan of the same document by synth.degrade."""
+    seeds: list[int] = []
+
+    def blank(pdf, output, seed, boxes):  # a degrader that keeps no pixels at all
+        seeds.append(seed)
+        return b"blank", degrade.plan(output, [(210.0, 297.0)], seed, random.Random(seed))
+
+    plain = kits.build(21, [], scan_share=0.5, raster_share=0.3)
+    other = kits.build(21, [], scan_share=0.5, raster_share=0.3, capture=blank)
+    captured = set(plain.captures)
+    assert captured and set(other.captures) == captured and all(other.files[p] == b"blank" for p in captured)
+    assert {p: f for p, f in plain.files.items() if p not in captured} == {
+        p: f for p, f in other.files.items() if p not in captured
+    }
+    assert seeds == [c.seed for c in plain.captures.values()]
+    assert plain.truth().documents.keys() == other.truth().documents.keys()

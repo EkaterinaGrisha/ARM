@@ -40,6 +40,11 @@ warn_redundant_casts = true
 module = ["pytesseract", "pymupdf", "pymupdf.*", "pypdfium2", "pypdfium2.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# The augraphy group of synth: installed on Python 3.11 on demand, untyped or absent otherwise.
+module = ["augraphy", "augraphy.*", "cv2", "cv2.*", "numba", "numba.*"]
+ignore_missing_imports = true
+
 
 [[tool.mypy.overrides]]
 # The core is strict. `strict = true` in an override leaks to every module, so its flags are listed one by one.
