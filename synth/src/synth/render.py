@@ -1,7 +1,8 @@
 """Sheets of ESKD documents drawn with reportlab (BSD): the frame, the title block, specifications and drawings.
 
-Pages are drawn in the bundled OpenGost Type A, the lettering of GOST 2.304, with no timestamps, so the same document
-gives the same bytes on any machine. Coordinates are millimetres from the top left corner of the sheet.
+Pages are drawn in the bundled OpenGost fonts, the lettering of GOST 2.304, type A or type B as the document says, with
+no timestamps, so the same document gives the same bytes on any machine. Coordinates are millimetres from the top left
+corner of the sheet.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 
-from synth.model import Drawing, Row, Spec
+from synth.model import Drawing, FontType, Row, Spec, Variant
 
 MM = 72 / 25.4
 FORMATS = {"A4": (210, 297), "A3": (420, 297)}
@@ -26,62 +27,101 @@ FORMATS = {"A4": (210, 297), "A3": (420, 297)}
 Box = tuple[int, tuple[float, float, float, float]]
 DESCENT = 0.3  # below the baseline, as a share of the height of capitals
 
-FONT = "OpenGostTypeA"
-# OpenGost Type A 0.3 as the openSUSE package opengost-ttf-fonts 0.3-7.32 ships it, byte for byte; sources at
-# https://codeberg.org/nadevko/opengostfonts. SIL Open Font License 1.1, text in fonts/OFL.txt.
-FONT_FILE = Path(__file__).parent / "fonts" / "OpenGostTypeA-Regular.ttf"
+# OpenGost Type A and Type B 0.3 as the openSUSE package opengost-ttf-fonts 0.3-7.32 ships them, byte for byte; sources
+# at https://codeberg.org/nadevko/opengostfonts. SIL Open Font License 1.1, text in fonts/OFL.txt.
+FONTS: dict[FontType, tuple[str, Path]] = {
+    "A": ("OpenGostTypeA", Path(__file__).parent / "fonts" / "OpenGostTypeA-Regular.ttf"),
+    "B": ("OpenGostTypeB", Path(__file__).parent / "fonts" / "OpenGostTypeB-Regular.ttf"),
+}
+FONT = FONTS["A"][0]
+# Type B has no «Ø» and no «↗»: a CAD system takes such signs from a font of symbols, the sheets from type A.
+FALLBACK: FontType = "A"
 
 
 @functools.cache
-def _ttf() -> TTFont:
-    font = TTFont(FONT, str(FONT_FILE))
-    pdfmetrics.registerFont(font)
-    return font
+def _ttf(font: FontType = "A") -> TTFont:
+    name, path = FONTS[font]
+    ttf = TTFont(name, str(path))
+    pdfmetrics.registerFont(ttf)
+    return ttf
 
 
-def _font() -> str:
-    _ttf()
-    return FONT
+def _font(font: FontType = "A") -> str:
+    _ttf(font)
+    return FONTS[font][0]
 
 
-def font_size(size: float) -> float:
+def _cap(font: FontType) -> float:
+    return float(_ttf(font).face.capHeight) / 1000  # TrueType metrics come per 1000 units of the size
+
+
+def font_size(size: float, font: FontType = "A") -> float:
     """Font size in points that makes capitals ``size`` mm high, by the capital height of the font."""
-    cap_height = float(_ttf().face.capHeight) / 1000  # TrueType metrics come per 1000 units of the size
-    return size * MM / cap_height
+    return size * MM / _cap(font)
 
 
-def text_width(s: str, size: float = 3.5) -> float:
-    """Width in mm of ``s`` in the drafting lettering, capitals ``size`` mm high."""
-    return pdfmetrics.stringWidth(s, _font(), font_size(size)) / MM
+def _runs(s: str, font: FontType) -> list[tuple[FontType, str]]:
+    """``s`` in runs of one font: the glyphs ``font`` lacks come from the fallback."""
+    glyphs = _ttf(font).face.charToGlyph
+    runs: list[tuple[FontType, str]] = []
+    for ch in s:
+        f = font if ord(ch) in glyphs else FALLBACK
+        if runs and runs[-1][0] == f:
+            runs[-1] = (f, runs[-1][1] + ch)
+        else:
+            runs.append((f, ch))
+    return runs
 
 
-def new_canvas(password: str | None = None) -> Canvas:
+def _run_size(fontsize: float, font: FontType, run: FontType) -> float:
+    """The size of a run of the fallback that gives its capitals the height of those of ``font``."""
+    return fontsize if run == font else fontsize * _cap(font) / _cap(run)
+
+
+def _width_pt(s: str, font: FontType, fontsize: float) -> float:
+    return sum(pdfmetrics.stringWidth(t, _font(f), _run_size(fontsize, font, f)) for f, t in _runs(s, font))
+
+
+def text_width(s: str, size: float = 3.5, font: FontType = "A") -> float:
+    """Width in mm of ``s`` in the drafting lettering ``font``, capitals ``size`` mm high."""
+    return _width_pt(s, font, font_size(size, font)) / MM
+
+
+def new_canvas(password: str | None = None, font: FontType = "A") -> Canvas:
     """A canvas that writes the same bytes for the same drawing: no timestamps, a fixed document ID.
 
     With ``password`` the PDF opens only with it.
     """
-    _font()
+    _font(FALLBACK)
     rl_config.useA85 = 0  # binary streams as is, as CAD systems and scanners write them, not a quarter larger
     # The initial font of each page, else every page refers to an unused Helvetica. The stub types it as a float.
     return Canvas(
         io.BytesIO(),
         invariant=1,
         pageCompression=1,
-        initialFontName=FONT,  # type: ignore[arg-type]
+        initialFontName=_font(font),  # type: ignore[arg-type]
         encrypt=password,
     )
 
 
 class Sheet:
-    """A page with coordinates in millimetres from the top left corner.
+    """A page with coordinates in millimetres from the top left corner, its text in ``font``.
 
     Text drawn with a ``key`` leaves its box in ``boxes``; text drawn twice under one key on a page takes the union.
     """
 
-    def __init__(self, canvas: Canvas, fmt: str, *, page: int = 1, boxes: dict[str, Box] | None = None) -> None:
+    def __init__(
+        self,
+        canvas: Canvas,
+        fmt: str,
+        *,
+        page: int = 1,
+        boxes: dict[str, Box] | None = None,
+        font: FontType = "A",
+    ) -> None:
         self.w, self.h = FORMATS[fmt]
         self.c = canvas
-        self.page, self.boxes = page, boxes
+        self.page, self.boxes, self.font = page, boxes, font
         canvas.setPageSize((self.w * MM, self.h * MM))
 
     def _pt(self, x: float, y: float) -> tuple[float, float]:
@@ -108,7 +148,7 @@ class Sheet:
         self.c.restoreState()
 
     def width(self, s: str, size: float = 3.5) -> float:
-        return text_width(s, size)
+        return text_width(s, size, self.font)
 
     def text(
         self,
@@ -126,7 +166,7 @@ class Sheet:
         """
         if not s:
             return
-        fontsize = font_size(size)
+        fontsize = font_size(size, self.font)
         sx = 1.0
         c = self.c
         c.saveState()
@@ -141,12 +181,16 @@ class Sheet:
                 if k < 0.75:
                     fontsize *= k / 0.75
             c.scale(sx, 1)
-        c.setFont(FONT, fontsize)
-        c.drawString(0, 0, s)
+        at: float = 0
+        for font, run in _runs(s, self.font):
+            size_pt = _run_size(fontsize, self.font, font)
+            c.setFont(_font(font), size_pt)
+            c.drawString(at, 0, run)
+            at += pdfmetrics.stringWidth(run, _font(font), size_pt)
         c.restoreState()
         if key is not None and self.boxes is not None:
-            width = pdfmetrics.stringWidth(s, FONT, fontsize) * sx / MM
-            self._keep(key, x, y, width, fontsize / font_size(1.0), rotate)
+            width = _width_pt(s, self.font, fontsize) * sx / MM
+            self._keep(key, x, y, width, fontsize / font_size(1.0, self.font), rotate)
 
     def _keep(self, key: str, x: float, y: float, width: float, height: float, rotate: int) -> None:
         if rotate:  # runs up the page from (x, y), capitals to the left of the baseline
@@ -175,6 +219,16 @@ class Sheet:
         avail = x1 - x0 - 1.6
         width = min(self.width(s, size), avail)
         self.text(x0 + (x1 - x0 - width) / 2, y_base, s, size, max_width=avail, key=key)
+
+    def shortened(
+        self, x: float, y: float, designation: str, written: str, max_width: float = 68, key: str | None = None
+    ) -> None:
+        """A designation at ``x``, or only its suffix ``written`` where the suffix of the full one would stand: a row
+        below the full designation, GOST 2.113, 4.1.12 and 5.3."""
+        if written:
+            shift = self.width(designation.removesuffix(written))
+            x, max_width = x + shift, max_width - shift
+        self.text(x, y, written or designation, 3.5, max_width=max_width, key=key)
 
 
 def _frame(sh: Sheet, archive: str, first_use: str, *, top: bool = True) -> None:
@@ -347,24 +401,53 @@ def _sketch(sh: Sheet, kind: str, annotations: list[str], keys: str = "annotatio
         sh.line(cx + dx, cy + dy + 1, cx + dx + max(12, sh.width(ann)), cy + dy + 1, width=0.18)
 
 
+def _variant_table(sh: Sheet, variants: list[Variant]) -> None:
+    """The table of variants of a group drawing, GOST 2.113, 4.1, in the top right of the field: the designation of
+    each variant, in full on its first row and as «-01» on the next ones (4.1.12), its variable dimensions and its
+    mass (4.1.10). Values are keyed «variant:<row>:designation», «…:mass» and «…:<column>»."""
+    columns = [("Обозначение", 46.0), *((name, 18.0) for name in variants[0].data), ("Масса, кг", 22.0)]
+    width = sum(w for _, w in columns)
+    x0, y0 = sh.w - 13 - width, 26.0
+    height = 8.0 * (1 + len(variants))
+    sh.rect(x0, y0, x0 + width, y0 + height, width=0.5)
+    for r in range(1, 1 + len(variants)):
+        sh.line(x0, y0 + 8 * r, x0 + width, y0 + 8 * r, width=0.5 if r == 1 else 0.25)
+    x = x0
+    for i, (label, w) in enumerate(columns):
+        if i:
+            sh.line(x, y0, x, y0 + height, width=0.5)
+        sh.text_center(x, x + w, y0 + 5.5, label, 3.5)
+        x += w
+    for row, variant in enumerate(variants):
+        yb, key = y0 + 8 * (row + 2) - 2.2, f"variant:{row}:"
+        sh.shortened(x0 + 1.5, yb, variant.designation, variant.written, columns[0][1] - 3, key=key + "designation")
+        x = x0 + columns[0][1]
+        for (name, w), value in zip(columns[1:-1], variant.data.values(), strict=True):
+            sh.text_center(x, x + w, yb, value, 3.5, key=key + name)
+            x += w
+        sh.text_center(x, x + columns[-1][1], yb, variant.mass, 3.5, key=key + "mass")
+
+
 def draw_drawing(d: Drawing, password: str | None = None, boxes: dict[str, Box] | None = None) -> bytes:
     """The drawing ``d``; with ``boxes`` also where its values are drawn, keyed as ``Drawing.param_keys`` says."""
-    c = new_canvas(password)
-    sh = Sheet(c, d.fmt, boxes=boxes)
+    c = new_canvas(password, d.font_type)
+    sh = Sheet(c, d.fmt, boxes=boxes, font=d.font_type)
     _frame(sh, d.archive, d.first_use)
     _title_block(sh, d, material=d.material, mass=d.mass, scale=d.scale, sheets=d.sheets)
     _sketch(sh, d.sketch, d.annotations)
+    if d.variants:
+        _variant_table(sh, d.variants)
     if d.general_roughness:
         sh.text(sh.w - 45, 16, f"√{d.general_roughness} (√)", 5, key="general_roughness")
-    # technical requirements above the title block
+    # technical requirements above the title block; an item of several lines goes on from the left edge
     X = sh.w - 5 - 185
-    y = sh.h - 5 - 55 - 6 - 6 * len(d.requirements)
-    if len(d.requirements) > 0:
-        for i, req in enumerate(d.requirements, start=1):
-            sh.text(X, y + (i - 1) * 6, f"{i}. {req}", 3.5, max_width=185, key=f"requirement:{i - 1}")
+    lines = [(i, n, part) for i, req in enumerate(d.requirements) for n, part in enumerate(req.split("\n"))]
+    y = sh.h - 5 - 55 - 6 - 6 * len(lines)
+    for row, (i, n, part) in enumerate(lines):
+        sh.text(X, y + row * 6, f"{i + 1}. {part}" if n == 0 else part, 3.5, max_width=185, key=f"requirement:{i}")
     for number, sheet_notes in enumerate(d.more_sheets[: len(d.more_sheets) - d.missing_sheets], start=2):
         c.showPage()
-        sh = Sheet(c, d.fmt, page=number, boxes=boxes)
+        sh = Sheet(c, d.fmt, page=number, boxes=boxes, font=d.font_type)
         _frame(sh, "", "", top=False)
         _title_block_2a(sh, d.designation, number)
         _sketch(sh, "disc" if d.sketch == "assembly" else d.sketch, sheet_notes, keys=f"sheet{number}:annotation")
@@ -372,13 +455,14 @@ def draw_drawing(d: Drawing, password: str | None = None, boxes: dict[str, Box] 
 
 
 NAME_WIDTH = 61  # mm of the «Наименование» column of a specification that text may take
+GROUP_NAME_WIDTH = 41  # the same in form 5 of GOST 2.113
 
 
-def wrap(text: str, width: float = NAME_WIDTH, size: float = 3.5) -> str:
+def wrap(text: str, width: float = NAME_WIDTH, size: float = 3.5, font: FontType = "A") -> str:
     """``text`` with line breaks between words, so that each line fits ``width`` mm in the drafting lettering."""
     lines: list[str] = []
     for word in text.split():
-        if lines and text_width(f"{lines[-1]} {word}", size) <= width:
+        if lines and text_width(f"{lines[-1]} {word}", size, font) <= width:
             lines[-1] = f"{lines[-1]} {word}"
         else:
             lines.append(word)
@@ -394,64 +478,133 @@ SPEC_COLS = [
     (153, 163, "Кол."),
     (163, 185, "Приме-\nчание"),
 ]
+# Form 5 of GOST 2.113: a group specification by variant B of at most three variants, a column of quantities for
+# each, the base variant under «–».
+GROUP_COLS = [
+    (0, 6, "Формат"),
+    (6, 12, "Зона"),
+    (12, 20, "Поз."),
+    (20, 90, "Обозначение"),
+    (90, 133, "Наимено-\nвание"),
+    (133, 163, ""),
+    (163, 185, "Приме-\nчание"),
+]
+VARIABLE_DATA = "Переменные данные для исполнений:"  # GOST 2.113, 5.5.1
+
+
+Line = tuple[str, Row | None, int, str]  # what a line holds, the row, its index in the specification, the text
+BLANK: Line = ("blank", None, -1, "")
+
+
+def _lines(s: Spec) -> list[list[Line]]:
+    """The lines of a specification in groups that stay on one page: a heading, a row with the lines of its name.
+
+    Sections start with their heading. In variant A of GOST 2.113 the variable data follow the constant ones under
+    a heading of their own, and the data of each variant under its designation, with sections of their own; these
+    headings stay on the page of the first row below them.
+    """
+    groups: list[list[Line]] = []
+    section: str | None = None
+    variant = ""
+    for index, spec_row in enumerate(s.rows):
+        keep: list[Line] = []
+        if spec_row.variant != variant:
+            if not variant:
+                keep = [BLANK, ("heading", None, -1, VARIABLE_DATA)]
+            keep += [BLANK, ("heading", spec_row, -1, spec_row.variant), BLANK]
+            variant, section = spec_row.variant, None
+        if spec_row.section != section:
+            if section is not None:
+                groups.append([BLANK])
+            if keep:
+                keep += [("section", spec_row, -1, ""), BLANK]
+            else:
+                groups += [[("section", spec_row, -1, "")], [BLANK]]
+            section = spec_row.section
+        first, *more = spec_row.name.split("\n")
+        groups.append([*keep, ("row", spec_row, index, first), *(("more", spec_row, index, part) for part in more)])
+    return groups
+
+
+def _spec_header(sh: Sheet, s: Spec, X: float, bottom: float) -> None:
+    sh.line(X, 20, X + 185, 20, width=0.7)
+    for x0, x1, label in GROUP_COLS if s.group == "B" else SPEC_COLS:
+        sh.line(X + x0, 5, X + x0, bottom, width=0.7)
+        parts = label.split("\n")
+        if x1 - x0 <= 8:  # narrow columns get vertical labels
+            sh.text(X + x0 + 4, 18, label, 2.5, rotate=90)
+        else:
+            for i, part in enumerate(parts):
+                sh.text_center(X + x0, X + x1, 12 + i * 4 - (len(parts) - 1) * 2, part, 2.5)
+    if s.group == "B":  # «Кол. на исполн.» with the base designation and a dash, then the number of each variant
+        sh.line(X + 133, 12.5, X + 163, 12.5, width=0.7)
+        for k in (1, 2):
+            sh.line(X + 133 + 10 * k, 12.5, X + 133 + 10 * k, bottom, width=0.7)
+        sh.text_center(X + 133, X + 163, 8, "Кол. на исполн.", 2.5)
+        sh.text_center(X + 133, X + 163, 11.5, f"{s.designation} –", 2.5)
+        for k, variant in enumerate(s.variants):  # «–» for the base one, then «01», «02»
+            number = variant.removeprefix(f"{s.designation}-") if k else "–"
+            sh.text_center(X + 133 + 10 * k, X + 143 + 10 * k, 18, number, 3.5)
+
+
+def _heading(sh: Sheet, X: float, y: float, text: str, right: float, key: str | None = None) -> None:
+    """A heading in the «Наименование» column, underlined; a long one starts in the column before."""
+    width = min(sh.width(text), right - X - 21)
+    x = min(X + 90 + (right - X - 90 - width) / 2, right - 0.8 - width)
+    sh.text(x, y - 2, text, 3.5, max_width=right - 0.8 - x, key=key)
+    sh.line(x, y - 1.2, x + width, y - 1.2, width=0.25)
 
 
 def draw_spec(s: Spec, boxes: dict[str, Box] | None = None) -> bytes:
     """The specification ``s``; with ``boxes`` also where its values are drawn: the title block by field, the rows
-    as «row:<index in s.rows>:<column>». A name with line breaks takes several lines, which stay on one page."""
-    c = new_canvas()
-    groups: list[list[tuple[str, Row | None, int, str]]] = []
-    section = None
-    for index, spec_row in enumerate(s.rows):
-        if spec_row.section != section:
-            if section is not None:
-                groups.append([("blank", None, -1, "")])
-            groups.append([("section", spec_row, -1, "")])
-            groups.append([("blank", None, -1, "")])
-            section = spec_row.section
-        first, *more = spec_row.name.split("\n")
-        groups.append([("row", spec_row, index, first), *(("more", spec_row, index, part) for part in more)])
-    pages: list[list[tuple[str, Row | None, int, str]]] = [[]]
+    as «row:<index in s.rows>:<column>», the headings of the variants as «variant:<designation>». A name with line
+    breaks takes several lines, which stay on one page.
+
+    A group specification of GOST 2.113 by variant A takes form 1 of GOST 2.106 with the variable data under their
+    headings; by variant B it takes form 5, the quantity of each variant in its column as «row:<index>:qty:<variant>».
+    """
+    c = new_canvas(font=s.font_type)
+    pages: list[list[Line]] = [[]]
     capacity = 23  # lines on the first sheet, 29 on the next ones
-    for group in groups:
+    for group in _lines(s):
         if len(pages[-1]) + len(group) > capacity:
             pages.append([])
             capacity = 29
         pages[-1].extend(group)
+    name_right = 133 if s.group == "B" else 153
+    name_width = GROUP_NAME_WIDTH if s.group == "B" else NAME_WIDTH
     for page_no, page_lines in enumerate(pages, start=1):
-        sh = Sheet(c, "A4", page=page_no, boxes=boxes)
+        sh = Sheet(c, "A4", page=page_no, boxes=boxes, font=s.font_type)
         _frame(sh, s.archive, s.first_use)
         X = 20
         tb_height = 40 if page_no == 1 else 15
-        bottom = sh.h - 5 - tb_height
-        sh.line(X, 20, X + 185, 20, width=0.7)
-        for x0, x1, label in SPEC_COLS:
-            sh.line(X + x0, 5, X + x0, bottom, width=0.7)
-            parts = label.split("\n")
-            if x1 - x0 <= 8:  # narrow columns get vertical labels
-                sh.text(X + x0 + 4, 18, label, 2.5, rotate=90)
-            else:
-                for i, part in enumerate(parts):
-                    sh.text_center(X + x0, X + x1, 12 + i * 4 - (len(parts) - 1) * 2, part, 2.5)
+        _spec_header(sh, s, X, sh.h - 5 - tb_height)
         y = 20
         for kind, row, index, name in page_lines:
             y += 8
             sh.line(X, y, X + 185, y, width=0.18)
             key = f"row:{index}:"
             if kind == "section" and row:
-                sh.text_center(X + 90, X + 153, y - 2, row.section, 3.5)
-                width = sh.width(row.section)
-                mid = X + 121.5
+                sh.text_center(X + 90, X + name_right, y - 2, row.section, 3.5)
+                width = min(sh.width(row.section), name_right - 90 - 1.6)  # under the text, squeezed to the column
+                mid = X + (90 + name_right) / 2
                 sh.line(mid - width / 2, y - 1.2, mid + width / 2, y - 1.2, width=0.25)
+            elif kind == "heading":
+                _heading(sh, X, y, name, X + name_right, key=f"variant:{row.variant}" if row else None)
             elif kind == "row" and row:
                 sh.text_center(X + 0, X + 6, y - 2, row.fmt, 2.5, key=key + "fmt")
                 sh.text_center(X + 12, X + 20, y - 2, row.pos, 3.5, key=key + "pos")
-                sh.text(X + 21, y - 2, row.designation, 3.5, max_width=68, key=key + "designation")
-                sh.text(X + 91, y - 2, name, 3.5, max_width=NAME_WIDTH, key=key + "name")
-                sh.text_center(X + 153, X + 163, y - 2, row.qty, 3.5, key=key + "qty")
+                sh.shortened(X + 21, y - 2, row.designation, row.written, key=key + "designation")
+                sh.text(X + 91, y - 2, name, 3.5, max_width=name_width, key=key + "name")
+                if s.group == "B":
+                    for k, variant in enumerate(s.variants):
+                        value = row.quantities.get(variant, "")
+                        sh.text_center(X + 133 + 10 * k, X + 143 + 10 * k, y - 2, value, 3.5, key=f"{key}qty:{variant}")
+                else:
+                    sh.text_center(X + 153, X + 163, y - 2, row.qty, 3.5, key=key + "qty")
                 sh.text(X + 164, y - 2, row.note, 3.5, max_width=20, key=key + "note")
             elif kind == "more":
-                sh.text(X + 91, y - 2, name, 3.5, max_width=NAME_WIDTH, key=key + "name")
+                sh.text(X + 91, y - 2, name, 3.5, max_width=name_width, key=key + "name")
         if page_no == 1:
             _title_block(sh, s, spec_form=True, sheets=len(pages))
         else:
