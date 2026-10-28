@@ -1,4 +1,4 @@
-"""Block 1 on synthetic kits with planted errors (ADR-0013): what the core finds against what each mutation planted.
+"""Blocks 1 and 2 on synthetic kits with planted errors (ADR-0013): what the core finds against the truth of each kit.
 
 Builds the corpus of ``synth.kits`` from its seed into ``data/synth/kits`` (outside git), runs the baseline pipeline
 on each kit with OCR and without, and compares the report with the truth of the kit:
@@ -6,7 +6,10 @@ on each kit with OCR and without, and compares the report with the truth of the 
 - discrepancies by rule, or by type for those the core has no rule for, matched on the designation;
 - the same by the mutation that planted them;
 - false discrepancies on the clean kits;
-- statuses of the problem files.
+- statuses of the problem files;
+- parameters of the drawings by category, on vector drawings and on rasters and scans, by the rule of
+  ``arm_web.evaluate``: one to one by category, the name of the truth within the name, qualifier and text of the
+  found parameter; the parameters of technical requirements a vector drawing loses, by the wording of their item.
 
 Writes eval/results/synth-kits.json and eval/results/synth-kits.md.
 
@@ -18,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import re
 import shutil
 import subprocess
 from collections import Counter, defaultdict
@@ -25,10 +29,12 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from arm_web.evaluate import _norm as norm
 from kdcheck.pipeline import BaselinePipeline
+from kdcheck.report.labels import PARAMETER_CATEGORY
 from kdcheck.run import load_settings, ocr_available
 from kdcheck.schemas import Report
-from synth.truth import KitTruth
+from synth.truth import DrawingTruth, KitTruth, SpecTruth
 
 from synth import kits, mutations
 
@@ -50,6 +56,10 @@ def _cause(key: Key, truth: KitTruth, *, missed: bool, use_ocr: bool) -> str:
     rows = [r for doc in truth.documents.values() if doc.kind == "specification" for r in doc.rows]
     if not missed and rule == "B1.MISSING.001" and any(r.designation == designation and r.fmt == "БЧ" for r in rows):
         return "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+    if group := _group_cause(rule, base, truth, missed=missed):
+        return group
+    if missed and all(d.origin != "vector" for d in truth.documents.values() if isinstance(d, SpecTruth)):
+        return "все спецификации комплекта — растры или сканы: их строк ядро не читает, дерева изделия нет"
     # a raster or a scan: of the document itself, or of a specification that lists it
     own = [
         path
@@ -78,6 +88,25 @@ def _cause(key: Key, truth: KitTruth, *, missed: bool, use_ocr: bool) -> str:
     return "—"
 
 
+def _group_cause(rule: str, designation: str, truth: KitTruth, *, missed: bool) -> str | None:
+    """Why the core misses or adds a discrepancy around a group document of GOST 2.113, or none. A variant is covered
+    by the group document of its base designation; the rows of form 5 hold the positions of variant B; in variant A
+    the heading of each variant stands right below the last row of the data before it."""
+    specs = [d for d in truth.documents.values() if isinstance(d, SpecTruth) and d.group]
+    if any(d.group == "B" and designation in {r.designation for r in d.rows} for d in specs):
+        return "позиция групповой спецификации по варианту Б (форма 5 ГОСТ 2.113): строк этой формы ядро не читает"
+    if missed:
+        return None
+    drawn = {v.designation for d in truth.documents.values() if isinstance(d, DrawingTruth) for v in d.variants[1:]}
+    if rule == "B1.SPEC.001" and any(designation in d.variants[1:] for d in specs):
+        return "исполнение групповой сборочной единицы (ГОСТ 2.113): ядро ищет спецификацию с обозначением исполнения"
+    if rule.startswith("B1.MISSING.") and designation in drawn:
+        return "исполнение на групповом чертеже (ГОСТ 2.113): ядро ищет документ с обозначением исполнения"
+    if rule == "B1.NAME.001" and any(designation in {r.designation for r in d.rows if r.variant} for d in specs):
+        return "переменные данные по варианту А (ГОСТ 2.113): заголовок исполнения ниже ядро добавляет к наименованию"
+    return None
+
+
 def compare(report: Report, truth: KitTruth) -> dict[str, Any]:
     expected = _expected(truth)
     want = Counter(key for key, _ in expected)
@@ -104,6 +133,37 @@ def compare(report: Report, truth: KitTruth) -> dict[str, Any]:
     }
 
 
+def parameters(report: Report, truth: KitTruth, tally: dict[str, Counter[str]], lost: Counter[str]) -> None:
+    """Parameters of the drawings against the truth: in ``tally`` by «<input>:<category>», what is expected, found
+    and extra; in ``lost``, the wordings of the items of technical requirements whose parameters a vector drawing
+    loses, digits as N."""
+    ids = {d.path: d.id for d in report.documents}
+    parts = {p.document_id: p for p in report.parts}
+    for path, doc in truth.documents.items():
+        if not isinstance(doc, DrawingTruth):
+            continue
+        part = parts.get(ids.get(path, ""))
+        got = list(part.parameters) if part else []
+        source = "vector" if doc.origin == "vector" else "captured"
+        used: set[int] = set()
+        for want in doc.parameters:
+            counts = tally[f"{source}:{want.category}"]
+            counts["expected"] += 1
+            for i, found in enumerate(got):
+                hay = norm(f"{found.name} {found.qualifier or ''} {found.text}")
+                if i not in used and found.category == want.category and norm(want.name) in hay:
+                    used.add(i)
+                    counts["found"] += 1
+                    break
+            else:
+                if source == "vector" and want.box is not None and want.box in doc.requirement_boxes:
+                    wording = re.sub(r"\d+", "N", doc.requirements[doc.requirement_boxes.index(want.box)])
+                    lost[f"{PARAMETER_CATEGORY.get(want.category, want.category)}: {wording}"] += 1
+        for i, found in enumerate(got):
+            if i not in used:
+                tally[f"{source}:{found.category}"]["extra"] += 1
+
+
 def _ratio(numerator: int, denominator: int) -> float | None:
     return round(numerator / denominator, 3) if denominator else None
 
@@ -116,8 +176,11 @@ def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
     errors: list[dict[str, str]] = []
     files = [0, 0]
     other: Counter[str] = Counter()
+    tally: dict[str, Counter[str]] = defaultdict(Counter)
+    lost: Counter[str] = Counter()
     for name, truth in truths.items():
         report = pipeline.run(CORPUS / name, kit_id=name, kit_name=name)
+        parameters(report, truth, tally, lost)
         result = compare(report, truth)
         for part in ("expected", "found", "missed", "extra"):
             for (rule, _), count in result[part].items():
@@ -173,6 +236,15 @@ def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
         "other_statuses": dict(other),
         "causes": dict(Counter(f"{e['kind']}: {e['cause']}" for e in errors if "cause" in e).most_common()),
         "errors": errors,
+        "parameters": {
+            key: {
+                **{part: counts[part] for part in ("expected", "found", "extra")},
+                "precision": _ratio(counts["found"], counts["found"] + counts["extra"]),
+                "recall": _ratio(counts["found"], counts["expected"]),
+            }
+            for key, counts in sorted(tally.items())
+        },
+        "lost_requirements": dict(lost.most_common()),
     }
 
 
@@ -191,7 +263,7 @@ def _number(value: float | None) -> str:
 def markdown(result: dict[str, Any]) -> str:
     corpus = result["corpus"]
     lines = [
-        "# Блок 1 на синтетических комплектах",
+        "# Блоки 1 и 2 на синтетических комплектах",
         "",
         f"Получено `uv run python eval/synth_kits.py --kits {corpus['kits']} --seed {corpus['seed']}` "
         f"{result['date']}; {result['machine']}; Tesseract {result['tesseract'] or 'нет'}. "
@@ -232,7 +304,40 @@ def markdown(result: dict[str, Any]) -> str:
         if run_["other_statuses"]:
             other = ", ".join(f"{k}: {v}" for k, v in sorted(run_["other_statuses"].items()))
             lines += ["", f"Прочие непустые статусы документов, не заложенные как проблемные файлы: {other}."]
+        lines += _parameters_section(run_)
     return "\n".join(lines) + "\n"
+
+
+def _parameters_section(run_: dict[str, Any]) -> list[str]:
+    params = run_["parameters"]
+    lines = [
+        "",
+        f"### Блок 2: параметры чертежей, OCR {'включён' if run_['ocr'] else 'выключен'}",
+        "",
+        "Параметры технических требований, поля чертежа и знака общей шероховатости из разметки против параметров "
+        "отчёта — по правилу `arm_web.evaluate`: один к одному по категории, имя из разметки — внутри имени, "
+        "уточнения и текста найденного параметра. Лишний — параметр отчёта без пары в разметке.",
+        "",
+        "| Категория | Вектор: ожидалось | найдено | лишних | Растры и сканы: ожидалось | найдено | лишних |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    total: dict[str, Counter[str]] = defaultdict(Counter)
+    for category, title in PARAMETER_CATEGORY.items():
+        cells = []
+        for source in ("vector", "captured"):
+            counts = params.get(f"{source}:{category}", {})
+            total[source].update({k: counts.get(k, 0) for k in ("expected", "found", "extra")})
+            cells += [str(counts.get("expected", 0)), str(counts.get("found", 0)), str(counts.get("extra", 0))]
+        if any(c != "0" for c in cells):
+            lines.append(f"| {title} | " + " | ".join(cells) + " |")
+    for source, title in (("vector", "вектор"), ("captured", "растры и сканы")):
+        t = total[source]
+        recall, precision = _ratio(t["found"], t["expected"]), _ratio(t["found"], t["found"] + t["extra"])
+        lines.append(f"\nВсего, {title}: полнота {_number(recall)}, точность {_number(precision)}.")
+    if run_["lost_requirements"]:
+        lines += ["", "| Параметр, потерянный в пункте ТТ на векторе, и формулировка пункта | Число |", "| --- | --- |"]
+        lines += [f"| {wording} | {count} |" for wording, count in list(run_["lost_requirements"].items())[:25]]
+    return lines
 
 
 def main(argv: list[str] | None = None) -> int:

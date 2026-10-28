@@ -8,7 +8,8 @@ Two measurements.
    skew of a synthetic scan is known, so the error of its estimate is measured too.
 2. Reading by class. The baseline pipeline with OCR on clean synthetic kits built from a seed into
    ``data/synth/scan_kits`` (outside git), most of their documents captured: the title block fields of drawings and
-   of specifications, and the designations of specification rows, by input (vector, raster, scan) and class.
+   of specifications, and the designations of specification rows, by input (vector, raster, scan) and class, and by
+   the lettering of the kit, type A or type B of GOST 2.304.
 
 The stress corpus (``data/synth/stress``, ``python -m synth.stress``) holds the same kits with their scans through
 Augraphy. When it is there, it is checked against its manifest (eval/stress_corpus.json) first, and both measurements
@@ -273,6 +274,12 @@ def _key(doc: DrawingTruth | SpecTruth) -> str:
     return "vector" if doc.capture is None else doc.capture.group
 
 
+def _lettering(doc: DrawingTruth | SpecTruth) -> str:
+    """The slice by the lettering of GOST 2.304 and the input: «font:B:scan», «font:A:augraphy»."""
+    kind = "vector" if doc.capture is None else doc.capture.group.split(":")[0]
+    return f"font:{doc.font_type}:{kind}"
+
+
 def score(
     report: Report, truth: KitTruth, tally: dict[str, Counter[str]], fields: dict[str, dict[str, bool]] | None = None
 ) -> None:
@@ -284,10 +291,10 @@ def score(
     for path, doc in truth.documents.items():
         if not isinstance(doc, DrawingTruth | SpecTruth):
             continue
-        t = tally[_key(doc)]
+        t, font = tally[_key(doc)], tally[_lettering(doc)]
         doc_id = ids.get(path, "")
         if isinstance(doc, DrawingTruth):
-            slices = [t]
+            slices = [t, font]
             if doc.capture is not None:
                 slices += [tally[f"dpi:{doc.capture.dpi}"], tally[f"mode:{doc.capture.mode}"]]
             tb = parts[doc_id].title_block if doc_id in parts else None
@@ -305,17 +312,18 @@ def score(
                 if fields is not None:
                     fields.setdefault(path, {})[field] = right
             continue
-        t["specs"] += 1
         spec = specs.get(doc_id)
-        for field in ("designation", "name"):
-            got = getattr(spec, field) if spec else None
-            t["spec_fields"] += 1
-            t["spec_right"] += got is not None and norm(got.value) == norm(getattr(doc, field))
         found = {norm(r.designation.value) for r in spec.rows if r.designation} if spec else set()
-        for row in doc.rows:
-            if row.designation:
-                t["rows"] += 1
-                t["rows_found"] += norm(row.designation) in found
+        for counts in (t, font):
+            counts["specs"] += 1
+            for field in ("designation", "name"):
+                got = getattr(spec, field) if spec else None
+                counts["spec_fields"] += 1
+                counts["spec_right"] += got is not None and norm(got.value) == norm(getattr(doc, field))
+            for row in doc.rows:
+                if row.designation:
+                    counts["rows"] += 1
+                    counts["rows_found"] += norm(row.designation) in found
 
 
 def read_by_class(truths: dict[Path, KitTruth]) -> dict[str, Any]:
@@ -611,14 +619,46 @@ def markdown(result: dict[str, Any]) -> str:
             t = reading["by_class"][key]
             share = _share(t.get("drawing_right", 0), t.get("drawing_fields", 0))
             lines.append(f"| {names(key.split(':', 1)[1])} | {t.get('drawings', 0)} | {share} |")
+    lines += _lettering_section(by_class)
     lines += _pairs_section(result.get("stress"))
     lines += [
         "",
         "Реальных сканов мало, и все они старые: статистики показывают, попадают ли классы в их диапазон, но не "
         "калибруют классы. Калибровка — по сканам АРМ, когда они будут (ADR-0013). Стрессовый корпус не "
-        "калибруется и не пересобирается: метрики на нём ссылаются на его манифест.",
+        "калибруется; пересобирается он только вслед за генератором, когда меняются документы комплектов, и метрики "
+        "на нём ссылаются на его манифест.",
     ]
     return "\n".join(lines) + "\n"
+
+
+LETTERINGS = {"A": "тип А", "B": "тип Б"}
+INPUTS = {"vector": "вектор", "raster": "растр", "scan": "скан", "augraphy": "скан Augraphy"}
+
+
+def _lettering_section(by_class: dict[str, Any]) -> list[str]:
+    """The same reading by the lettering of GOST 2.304, input by input, all classes together."""
+    keys = [f"font:{f}:{i}" for i in INPUTS for f in LETTERINGS if f"font:{f}:{i}" in by_class]
+    if not keys:
+        return []
+    lines = [
+        "",
+        "По шрифту ГОСТ 2.304: комплект нарисован типом А или типом Б целиком, классы качества вместе.",
+        "",
+        "| Шрифт | Вход | Чертежей | Основная надпись чертежа | Спецификаций | Основная надпись спецификации "
+        "| Строки |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for key in keys:
+        _, font, kind = key.split(":")
+        t = by_class[key]
+        drawings = _share(t.get("drawing_right", 0), t.get("drawing_fields", 0))
+        specs = _share(t.get("spec_right", 0), t.get("spec_fields", 0))
+        rows = _share(t.get("rows_found", 0), t.get("rows", 0))
+        lines.append(
+            f"| {LETTERINGS[font]} | {INPUTS[kind]} | {t.get('drawings', 0)} | {drawings} | {t.get('specs', 0)} | "
+            f"{specs} | {rows} |"
+        )
+    return lines
 
 
 def _envelope_section(groups: dict[str, Any] | None) -> list[str]:
@@ -745,7 +785,7 @@ def main(argv: list[str] | None = None) -> int:
     }
     if stress:
         theirs = read_by_class(stress)
-        by_class = {k: v for k, v in theirs["by_class"].items() if k in AUGRAPHY}
+        by_class = {k: v for k, v in theirs["by_class"].items() if k in AUGRAPHY or k.endswith(":augraphy")}
         stress_info["reading"] = {"seconds": theirs["seconds"], "by_class": by_class}
         stress_info["pairs"] = pairs(truths, stress, reading, theirs) if stress_info["paired"] else None
         result["stress"] = stress_info
