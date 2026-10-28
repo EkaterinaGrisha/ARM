@@ -206,7 +206,7 @@ def evaluate(report: Report, truth: dict, dataset: str = "") -> QualityReport:
                     support=total,
                 )
             )
-    for origin, title in (("vector", "векторные PDF"), ("scan", "сканы")):
+    for origin, title in (("vector", "векторные PDF"), ("raster", "растровые без сканирования"), ("scan", "сканы")):
         correct, total = origin_stats.get(origin, [0, 0])
         if total:
             q.metrics.append(

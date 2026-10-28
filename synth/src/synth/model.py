@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
+
+Kind = Literal["vector", "raster", "scan"]
+Container = Literal["pdf", "jpg", "png", "tiff"]
+Quality = Literal["", "good", "fair", "poor", "unreadable"]
 
 
 @dataclass
@@ -10,6 +15,18 @@ class Change:
     number: int
     notice: str
     date: str
+
+
+@dataclass
+class Output:
+    """How a document goes into the kit: a vector PDF, or pixels rasterized from the file or scanned from paper.
+
+    ``quality`` is the class of :mod:`synth.degrade` the pixels come from; empty for the light scans of the demo kit.
+    """
+
+    kind: Kind = "vector"
+    container: Container = "pdf"
+    quality: Quality = ""
 
 
 @dataclass
@@ -29,7 +46,7 @@ class Drawing:
     annotations: list[str] = field(default_factory=list)
     general_roughness: str = ""
     sketch: str = "disc"
-    output: str = "vector"  # vector | scan_pdf | scan_jpg
+    output: Output = field(default_factory=Output)
     assembly: bool = False
     # expected parameters (category, name) for the quality metrics
     expected_params: list[tuple[str, str]] = field(default_factory=list)
@@ -66,3 +83,4 @@ class Spec:
     rows: list[Row] = field(default_factory=list)
     archive: str = ""  # the columns of the left margin
     first_use: str = ""
+    output: Output = field(default_factory=Output)

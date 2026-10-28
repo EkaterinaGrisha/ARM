@@ -2,7 +2,9 @@
 
 The evaluation compares a report with it (``backend/arm_web/evaluate.py`` reads the JSON these models write). Values
 are the text drawn on the sheet, and ``boxes`` say where: the page and the box as shares of the page from its top
-left corner, as ``kdcheck.schemas.SourceRef`` gives them. A scan keeps the boxes of the sheet it was made from.
+left corner, as ``kdcheck.schemas.SourceRef`` gives them. On a scan the boxes follow the sheet through its skew and
+shift, and ``capture`` says how the pixels were made (:mod:`synth.degrade`); the light scans of the demo kit keep the
+boxes of the sheet and have no ``capture``.
 """
 
 from __future__ import annotations
@@ -30,6 +32,72 @@ class Box(Truth):
     @classmethod
     def of(cls, drawn: DrawnBox | None) -> Box | None:
         return None if drawn is None else cls(page=drawn[0], bbox=drawn[1])
+
+
+class Stamp(Truth):
+    """An ink stamp on the paper copy: its lines, shape and turn, its place on the sheet and its box on the scan."""
+
+    text: list[str]
+    shape: Literal["rect", "round"]
+    centre: tuple[float, float]  # mm from the top left corner of the sheet
+    size: tuple[float, float]  # mm
+    angle: float  # degrees, counter clockwise
+    colour: tuple[int, int, int]
+    box: Box
+
+
+class Fold(Truth):
+    """A crease of a folded sheet: a vertical line for ``axis`` x, ``at`` mm from the left edge or the top."""
+
+    axis: Literal["x", "y"]
+    at: float
+    shade: int  # grey levels the crease darkens by
+
+
+class Shadow(Truth):
+    """A shadow along the edge of the sheet that lifted off the glass."""
+
+    side: Literal["left", "right", "top", "bottom"]
+    width: float  # mm
+    depth: int  # grey levels at the edge
+
+
+class SheetCapture(Truth):
+    """What happened to one sheet of a scan: on paper, then on the glass."""
+
+    skew: float = 0.0  # degrees, counter clockwise about the centre
+    shift: tuple[float, float] = (0.0, 0.0)  # mm, right and down
+    stamps: list[Stamp] = []
+    folds: list[Fold] = []
+    shadow: Shadow | None = None
+    dust: int = 0  # specks on the glass
+
+
+class Capture(Truth):
+    """How a document became pixels (:mod:`synth.degrade`): rasterized from its file or scanned from a paper copy.
+
+    ``quality`` names the class the parameters were drawn from with ``seed``, and the parameters are those applied,
+    so a metric can be sliced by class or by any of them. A raster has the resolution, mode and compression only.
+    """
+
+    kind: Literal["raster", "scan"]
+    quality: Literal["good", "fair", "poor", "unreadable"]
+    seed: int
+    dpi: int
+    mode: Literal["bilevel", "grey", "colour"]
+    container: Literal["pdf", "jpg", "png", "tiff"]
+    jpeg: int | None = None  # JPEG quality; none for a lossless file
+    threshold: int | None = None  # grey level that splits ink from paper in a black and white file
+    ink: int = 0  # grey level of the ink on paper
+    paper: int = 255  # grey level of clean paper
+    spread: float = 0.0  # mm a stroke grows by on each side; it thins below zero
+    fade: float = 0.0  # share of the ink lost where it fades most
+    stains: int = 0  # grey levels the paper darkens by in its darkest stain
+    blur: float = 0.0  # sigma of the optics, mm
+    noise: float = 0.0  # sigma of the sensor noise, grey levels
+    white: int | None = None  # grey level the scanner turns white and stretches the rest to; none when it does not
+    lid: int = 255  # grey level of the scanner lid around a turned or shifted sheet
+    sheets: list[SheetCapture] = []
 
 
 def _boxes(drawn: dict[str, DrawnBox], prefix: str = "") -> dict[str, Box]:
@@ -72,9 +140,11 @@ class SpecTruth(Truth):
     rows: list[RowTruth]
     sheets: int = 1
     boxes: dict[str, Box] = Field({}, description="Fields of the title block and of the left margin columns")
+    origin: Literal["vector", "raster", "scan"] = "vector"
+    capture: Capture | None = None
 
     @classmethod
-    def of(cls, spec: Spec, drawn: dict[str, DrawnBox] | None = None) -> SpecTruth:
+    def of(cls, spec: Spec, drawn: dict[str, DrawnBox] | None = None, capture: Capture | None = None) -> SpecTruth:
         drawn = drawn or {}
         return cls(
             designation=spec.designation,
@@ -84,6 +154,8 @@ class SpecTruth(Truth):
             rows=[RowTruth.of(r, drawn, i) for i, r in enumerate(spec.rows)],
             sheets=max((page for page, _ in drawn.values()), default=1),
             boxes={k: v for k, v in _boxes(drawn).items() if not k.startswith("row:")},
+            origin=spec.output.kind,
+            capture=capture,
         )
 
 
@@ -115,7 +187,7 @@ class DrawingTruth(Truth):
     """A drawing: the title block and the margin columns as drawn; none for a cell the blank does not have."""
 
     kind: Literal["assembly_drawing", "part_drawing"]
-    origin: Literal["vector", "scan"]
+    origin: Literal["vector", "raster", "scan"]
     designation: str
     name: str
     material: str | None
@@ -130,14 +202,17 @@ class DrawingTruth(Truth):
     sheets: int = 1
     boxes: dict[str, Box] = Field({}, description="Fields of the title block, the margin columns, general roughness")
     requirement_boxes: list[Box | None] = []
+    capture: Capture | None = None
 
     @classmethod
-    def of(cls, drawing: Drawing, drawn: dict[str, DrawnBox] | None = None) -> DrawingTruth:
+    def of(
+        cls, drawing: Drawing, drawn: dict[str, DrawnBox] | None = None, capture: Capture | None = None
+    ) -> DrawingTruth:
         drawn = drawn or {}
         keys = drawing.param_keys or [""] * len(drawing.expected_params)
         return cls(
             kind="assembly_drawing" if drawing.assembly else "part_drawing",
-            origin="vector" if drawing.output == "vector" else "scan",
+            origin=drawing.output.kind,
             designation=drawing.designation,
             name=drawing.name.replace("\n", " "),
             material=drawing.material or None,
@@ -155,6 +230,7 @@ class DrawingTruth(Truth):
             sheets=drawing.sheets,
             boxes={k: v for k, v in _boxes(drawn).items() if k in TITLE_FIELDS},
             requirement_boxes=[Box.of(drawn.get(f"requirement:{i}")) for i in range(len(drawing.requirements))],
+            capture=capture,
         )
 
 

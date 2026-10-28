@@ -3,7 +3,8 @@
 A kit comes from its seed (ADR-0013). A random tree of assemblies (:mod:`synth.product`) gives the documents: a
 specification and an assembly drawing for each assembly, a drawing for each part made with one. Mutations
 (:mod:`synth.mutations`) then change the documents or their files, and each writes into the truth the discrepancies
-and problem files it plants. The files are drawn by :mod:`synth.render`; a share of the drawings come out as scans.
+and problem files it plants. The files are drawn by :mod:`synth.render`; a share of the documents come out as rasters
+or scans of one of three classes of quality (:mod:`synth.degrade`), each with a seed of its own in the truth.
 
     uv run python -m synth.kits data/synth/kits --kits 20 --seed 1
 
@@ -13,23 +14,27 @@ writes ``kit_001/`` … with ``kit_001_truth.json`` … next to them, and ``corp
 from __future__ import annotations
 
 import argparse
-import io
 import json
 import random
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
-from synth import mutations, vocab
-from synth.model import Change, Drawing, Row, Spec
+from synth import degrade, mutations, vocab
+from synth.model import Change, Container, Drawing, Kind, Output, Quality, Row, Spec
 from synth.product import Numbering, Part, Shape, Unit, grow
 from synth.render import Box, draw_drawing, draw_spec, wrap
-from synth.scans import scan, scan_pdf
-from synth.truth import DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
+from synth.truth import Capture, DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
 
 KIT_LITERAS = ("О", "О1", "А")  # each has a stage below it, for the mutations that lower a litera
 LAYOUTS = ("split", "flat", "tree")  # folders: specifications apart from drawings, none, one per assembly
 NAMINGS = ("designation name", "designation", "designation_name")  # how file names are made
+QUALITIES: tuple[Quality, ...] = ("good", "fair", "poor")  # classes of a raster or a scan, equally often
+# what a scanner writes, and what CAD exports to pixels; a picture holds one page
+SCAN_CONTAINERS: tuple[Container, ...] = ("pdf", "pdf", "pdf", "jpg", "tiff")
+RASTER_CONTAINERS: tuple[Container, ...] = ("pdf", "pdf", "png", "tiff", "jpg")
+SUFFIXES = {"pdf": ".pdf", "jpg": ".jpg", "png": ".png", "tiff": ".tif"}
 
 
 @dataclass
@@ -46,6 +51,7 @@ class Kit:
     layout: str
     naming: str
     scan_share: float
+    raster_share: float
     specs: dict[str, Spec] = field(default_factory=dict)  # by the designation of the assembly
     drawings: list[Drawing] = field(default_factory=list)
     files: dict[str, bytes] = field(default_factory=dict)  # by the path in the kit, once drawn
@@ -53,10 +59,10 @@ class Kit:
     problem_files: dict[str, str] = field(default_factory=dict)
     unread: set[str] = field(default_factory=set)  # paths of documents the check cannot read, so no fields to find
     drawn: dict[str, dict[str, Box]] = field(default_factory=dict)  # where the values of each file are drawn
+    captures: dict[str, Capture] = field(default_factory=dict)  # how the rasters and scans were made, by path
     mutations: list[str] = field(default_factory=list)
     touched: set[str] = field(default_factory=set)  # designations a mutation has used: one mutation each
-    scan_rng: random.Random = field(default_factory=random.Random)
-    noise: random.Random = field(default_factory=random.Random)
+    scan_rng: random.Random = field(default_factory=random.Random)  # the seed of each raster and scan
 
     # ------------------------------------------------------------------ what mutations look up and record
 
@@ -80,7 +86,7 @@ class Kit:
                 drawing = self.drawing(part.designation)
                 if drawing is None or part.designation in self.touched:
                     continue
-                if vector and drawing.output != "vector":
+                if vector and drawing.output.kind != "vector":
                     continue
                 found.append((unit, part, drawing))
         return found
@@ -136,8 +142,9 @@ class Kit:
             rows.append(Row("Прочие изделия", "", str(next(positions)), "", wrap(item), str(qty)))
         for item, amount, measure in unit.materials:
             rows.append(Row("Материалы", "", str(next(positions)), "", wrap(item), amount, measure))
+        output = self._output(pages=None)
         return Spec(
-            self.path(unit, unit.designation, unit.name, ".pdf", specification=True),
+            self.path(unit, unit.designation, unit.name, SUFFIXES[output.container], specification=True),
             unit.designation,
             unit.name,
             litera=self.litera,
@@ -145,6 +152,7 @@ class Kit:
             rows=rows,
             archive=_archive(unit.designation),
             first_use=unit.parent.designation if unit.parent else "",
+            output=output,
         )
 
     def _assembly_drawing(self, unit: Unit, fmt: str) -> Drawing:
@@ -156,9 +164,9 @@ class Kit:
             position = len(unit.units) + len(unit.parts) + bolts[0]
             requirements.append(f"Момент затяжки болтов поз. {position} — 45...50 Н·м.")
         positions = [str(i) for i in range(1, min(5, len(unit.units) + len(unit.parts)) + 1)]
-        output = self._output()
+        output = self._output(pages=1)
         return Drawing(
-            self.path(unit, designation, unit.name, self._suffix(output)),
+            self.path(unit, designation, unit.name, SUFFIXES[output.container]),
             designation,
             unit.name,
             fmt=fmt,
@@ -186,15 +194,15 @@ class Kit:
         keyed = [(p, f"requirement:{i}") for i, r in enumerate(requirements) for p in r.params]
         keyed += [(p, f"annotation:{j}") for j, a in enumerate(annotations) for p in a.params]
         keyed.append((("roughness", roughness), "general_roughness"))
-        output = self._output()
         more_sheets: list[list[str]] = []
-        if output == "vector" and rng.random() < 0.15:  # a scan takes the first page only, so these stay vector
+        if rng.random() < 0.15:
             for number in range(2, 2 + (1 if rng.random() < 0.7 else 2)):
                 notes = rng.sample(kind.annotations, min(len(kind.annotations), rng.randint(2, 3)))
                 keyed += [(p, f"sheet{number}:annotation:{j}") for j, a in enumerate(notes) for p in a.params]
                 more_sheets.append([a.text for a in notes])
+        output = self._output(pages=1 + len(more_sheets))
         return Drawing(
-            self.path(unit, part.designation, part.name, self._suffix(output)),
+            self.path(unit, part.designation, part.name, SUFFIXES[output.container]),
             part.designation,
             part.name,
             fmt=fmt,
@@ -222,43 +230,47 @@ class Kit:
             for n in range(count, 0, -1)
         ]
 
-    def _output(self) -> str:
-        if self.rng.random() >= self.scan_share:
-            return "vector"
-        return self.rng.choice(("scan_pdf", "scan_jpg"))
-
-    @staticmethod
-    def _suffix(output: str) -> str:
-        return ".jpg" if output == "scan_jpg" else ".pdf"
+    def _output(self, pages: int | None) -> Output:
+        """Vector, or by the shares of the kit a scan or a raster of a class at random; a picture only for one page,
+        and ``pages`` is none for a specification, which is paginated as it is drawn."""
+        roll = self.rng.random()
+        if roll >= self.scan_share + self.raster_share:
+            return Output()
+        kind: Kind = "scan" if roll < self.scan_share else "raster"
+        containers = SCAN_CONTAINERS if kind == "scan" else RASTER_CONTAINERS
+        if pages != 1:
+            containers = tuple(c for c in containers if c in ("pdf", "tiff"))
+        return Output(kind, self.rng.choice(containers), self.rng.choice(QUALITIES))
 
     # ------------------------------------------------------------------ files and truth
 
     def draw(self) -> None:
-        """Draw every document into ``files``; scans take their skew and noise from streams of their own."""
+        """Draw every document into ``files``; rasters and scans take their seeds from a stream of their own."""
         for spec in self.specs.values():
-            self.files[spec.file] = draw_spec(spec, boxes=self.drawn.setdefault(spec.file, {}))
+            boxes = self.drawn.setdefault(spec.file, {})
+            self.files[spec.file] = self.pixels(spec.file, draw_spec(spec, boxes=boxes), spec.output, boxes)
         for drawing in self.drawings:
-            self.files[drawing.file] = self.drawing_file(drawing, self.drawn.setdefault(drawing.file, {}))
+            boxes = self.drawn.setdefault(drawing.file, {})
+            pdf = draw_drawing(drawing, boxes=boxes)
+            self.files[drawing.file] = self.pixels(drawing.file, pdf, drawing.output, boxes)
 
-    def drawing_file(self, drawing: Drawing, boxes: dict[str, Box] | None = None) -> bytes:
-        """The file of ``drawing``: the PDF, or a scan of its first page, which keeps the boxes of the PDF."""
-        pdf = draw_drawing(drawing, boxes=boxes)
-        if drawing.output == "vector":
+    def pixels(self, path: str, pdf: bytes, output: Output, boxes: dict[str, Box]) -> bytes:
+        """``pdf`` as ``output`` asks: as is, or captured with :mod:`synth.degrade`, its boxes moved with the sheets."""
+        if output.kind == "vector":
             return pdf
-        image = scan(pdf, rng=self.scan_rng, noise=self.noise)
-        buf = io.BytesIO()
-        if drawing.output == "scan_jpg":
-            image.save(buf, "JPEG", quality=72, dpi=(150, 150))
-            return buf.getvalue()
-        image.save(buf, "JPEG", quality=72)
-        return scan_pdf(buf.getvalue(), drawing.fmt)
+        data, self.captures[path] = degrade.capture(pdf, output, self.scan_rng.getrandbits(32), boxes)
+        return data
 
     def truth(self) -> KitTruth:
         documents: dict[str, SpecTruth | DrawingTruth] = {
-            s.file: SpecTruth.of(s, self.drawn.get(s.file)) for s in self.specs.values() if s.file not in self.unread
+            s.file: SpecTruth.of(s, self.drawn.get(s.file), self.captures.get(s.file))
+            for s in self.specs.values()
+            if s.file not in self.unread
         }
         documents |= {
-            d.file: DrawingTruth.of(d, self.drawn.get(d.file)) for d in self.drawings if d.file not in self.unread
+            d.file: DrawingTruth.of(d, self.drawn.get(d.file), self.captures.get(d.file))
+            for d in self.drawings
+            if d.file not in self.unread
         }
         return KitTruth(
             root=self.root.designation,
@@ -290,8 +302,13 @@ def _mass(rng: random.Random, low: float, high: float) -> str:
     return f"{rng.uniform(low, high):.2f}".replace(".", ",")
 
 
-def build(seed: int, mutation_ids: list[str], *, name: str = "kit", scan_share: float = 0.1) -> Kit:
-    """A kit from ``seed`` with the mutations ``mutation_ids`` planted, those that find a target in it."""
+def build(
+    seed: int, mutation_ids: list[str], *, name: str = "kit", scan_share: float = 0.1, raster_share: float = 0.05
+) -> Kit:
+    """A kit from ``seed`` with the mutations ``mutation_ids`` planted, those that find a target in it.
+
+    ``scan_share`` and ``raster_share`` of the documents come out as scans and as rasters.
+    """
     rng = random.Random(seed)
     depth = rng.randint(2, 4)
     # The structured scheme numbers two levels of assemblies below the product, so deeper trees use the classifier.
@@ -310,8 +327,8 @@ def build(seed: int, mutation_ids: list[str], *, name: str = "kit", scan_share: 
         rng.choice(LAYOUTS),
         rng.choice(NAMINGS),
         scan_share,
+        raster_share,
         scan_rng=random.Random(seed + 1),
-        noise=random.Random(seed + 2),
     )
     kit.make_documents()
     planned = [mutations.CATALOG[m] for m in mutation_ids]
@@ -333,6 +350,7 @@ def corpus(
     per_kit: tuple[int, int] = (2, 6),
     clean_every: int = 5,
     scan_share: float = 0.1,
+    raster_share: float = 0.05,
 ) -> list[KitTruth]:
     """``kits`` kits from ``seed``: every ``clean_every``-th one clean, the others with mutations in turn.
 
@@ -351,7 +369,7 @@ def corpus(
                     rng.shuffle(queue)
                 if (candidate := queue.pop()) not in ids:
                     ids.append(candidate)
-        kit = build(seed * 1000 + index, ids, name=f"kit_{index:03d}", scan_share=scan_share)
+        kit = build(seed * 1000 + index, ids, name=f"kit_{index:03d}", scan_share=scan_share, raster_share=raster_share)
         truths.append(kit.write(out))
         summary.append(
             {
@@ -362,6 +380,7 @@ def corpus(
                 "documents": len(truths[-1].documents),
                 "discrepancies": len(kit.expected),
                 "problem_files": len(kit.problem_files),
+                "captures": dict(sorted(Counter(f"{c.kind}:{c.quality}" for c in kit.captures.values()).items())),
             }
         )
     manifest = {"generator": "synth.kits", "seed": seed, "kits": summary}
@@ -375,11 +394,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--kits", type=int, default=20, help="число комплектов")
     parser.add_argument("--seed", type=int, default=1, help="сид корпуса")
     parser.add_argument("--clean-every", type=int, default=5, help="каждый n-й комплект — без ошибок")
-    parser.add_argument("--scan-share", type=float, default=0.1, help="доля чертежей-сканов")
+    parser.add_argument("--scan-share", type=float, default=0.1, help="доля документов-сканов")
+    parser.add_argument("--raster-share", type=float, default=0.05, help="доля растровых документов без сканирования")
     args = parser.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    truths = corpus(out, args.kits, args.seed, clean_every=args.clean_every, scan_share=args.scan_share)
+    truths = corpus(
+        out,
+        args.kits,
+        args.seed,
+        clean_every=args.clean_every,
+        scan_share=args.scan_share,
+        raster_share=args.raster_share,
+    )
     planted = sum(len(t.discrepancies) for t in truths)
     print(f"Комплектов: {len(truths)}, заложено расхождений: {planted}. Корпус: {out}", file=sys.stdout)
     return 0

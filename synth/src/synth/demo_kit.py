@@ -17,7 +17,7 @@ import random
 import sys
 from pathlib import Path
 
-from synth.model import Change, Drawing, Row, Spec
+from synth.model import Change, Drawing, Output, Row, Spec
 from synth.render import Box, draw_drawing, draw_foreign, draw_spec
 from synth.scans import scan, scan_pdf
 from synth.truth import DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
@@ -206,7 +206,7 @@ DRAWINGS = [
         annotations=["Ø105h8", "Ø80", "Ra 3,2"],
         general_roughness="Ra 12,5",
         sketch="disc",
-        output="scan_pdf",
+        output=Output("scan", "pdf"),
         expected_params=[
             ("coating", "Хим.Окс.прм"),
             ("general_tolerance", "IT14"),
@@ -395,7 +395,7 @@ DRAWINGS = [
         annotations=["Ø50H9", "Ø62", "Ra 3,2"],
         general_roughness="Ra 12,5",
         sketch="disc",
-        output="scan_jpg",
+        output=Output("scan", "jpg"),
         expected_params=[
             ("general_tolerance", "IT14"),
             ("dimension_tolerance", "Ø50H9"),
@@ -467,11 +467,11 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> KitTruth:
         drawn = {}
         pdf = draw_drawing(d, boxes=drawn)
         target = draw_dir / d.file
-        if d.output == "vector":
+        if d.output.kind == "vector":
             target.write_bytes(pdf)
         else:
             img = scan(pdf, rng=rng, noise=noise)
-            if d.output == "scan_jpg":
+            if d.output.container == "jpg":
                 img.save(target, "JPEG", quality=72, dpi=(150, 150))
             else:
                 buf = io.BytesIO()

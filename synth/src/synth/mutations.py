@@ -10,17 +10,15 @@ since synth does not import the core (ADR-0010); a mutation with no rule yet mea
 from __future__ import annotations
 
 import dataclasses
-import io
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Literal
 
-from synth import vocab
-from synth.model import Change, Drawing, Row
+from synth import degrade, vocab
+from synth.model import Change, Container, Drawing, Output, Row
 from synth.product import Part
 from synth.render import draw_drawing, draw_foreign
-from synth.scans import scan
 
 if TYPE_CHECKING:
     from synth.kits import Kit
@@ -326,11 +324,11 @@ def unreadable_scan(kit: Kit) -> bool:
     if not (free := kit.free_parts()):
         return False
     _, _, drawing = kit.rng.choice(free)
-    image = scan(draw_drawing(drawing), rng=kit.scan_rng, noise=kit.noise, unreadable=True)
-    buf = io.BytesIO()
-    image.save(buf, "JPEG", quality=40)
-    path = PurePosixPath(drawing.file).with_suffix(".jpg").as_posix()
-    _unread_drawing(kit, drawing, buf.getvalue(), "unreadable", "unreadable_scan", path)
+    container: Container = "jpg" if drawing.sheets - drawing.missing_sheets == 1 else "pdf"
+    output = Output("scan", container, "unreadable")
+    data, _ = degrade.capture(draw_drawing(drawing), output, kit.scan_rng.getrandbits(32))
+    path = PurePosixPath(drawing.file).with_suffix(f".{container}").as_posix()
+    _unread_drawing(kit, drawing, data, "unreadable", "unreadable_scan", path)
     return True
 
 

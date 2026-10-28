@@ -11,8 +11,11 @@ from synth import kits, mutations
 CLEAN_SEED = 14
 
 
-def _build(seed, ids) -> Kit:
-    return kits.build(seed, ids, name="kit")
+def _build(seed, ids, *, captured: bool = False) -> Kit:
+    """A kit of vector documents: scanning costs seconds a kit and is tested on its own, unless ``captured``."""
+    if captured:
+        return kits.build(seed, ids, name="kit")
+    return kits.build(seed, ids, name="kit", scan_share=0, raster_share=0)
 
 
 def _referenced(kit: Kit) -> set[str]:
@@ -21,10 +24,10 @@ def _referenced(kit: Kit) -> set[str]:
 
 def test_the_same_seed_gives_the_same_kit():
     ids = list(mutations.CATALOG)
-    first, second = _build(12, ids), _build(12, ids)
-    assert first.files == second.files
+    first, second = _build(12, ids, captured=True), _build(12, ids, captured=True)
+    assert first.captures and first.files == second.files
     assert first.truth() == second.truth()
-    assert _build(13, ids).files != first.files
+    assert _build(13, ids, captured=True).files != first.files
 
 
 def test_a_clean_kit_has_a_document_for_every_position_and_expects_nothing():
@@ -114,3 +117,26 @@ def test_the_corpus_writes_kits_truths_and_a_summary(tmp_path):
         folder = tmp_path / f"kit_{index:03d}"
         files = {p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file()}
         assert set(truth.documents) <= files and set(truth.problem_files) <= files
+
+
+def test_rasters_and_scans_of_a_kit_carry_their_capture_in_the_truth():
+    """Specifications as well as drawings; each file is what its capture says, of all its sheets, with its boxes."""
+    for seed in range(1, 40):
+        kit = kits.build(seed, [], scan_share=0.5, raster_share=0.3)
+        truth = kit.truth()
+        captured = {path: doc for path, doc in truth.documents.items() if doc.origin != "vector"}
+        if any(doc.kind == "specification" for doc in captured.values()):
+            break
+    assert {doc.kind for doc in captured.values()} >= {"specification", "part_drawing"}
+    assert {doc.capture.kind for doc in captured.values() if doc.capture} == {"raster", "scan"}
+    assert {doc.capture.quality for doc in captured.values() if doc.capture} == {"good", "fair", "poor"}
+    for path, doc in truth.documents.items():
+        if doc.origin == "vector":
+            assert doc.capture is None and kit.files[path].startswith(b"%PDF")
+            continue
+        assert doc.capture is not None and doc.capture.kind == doc.origin
+        assert PurePosixPath(path).suffix == kits.SUFFIXES[doc.capture.container]
+        assert len(doc.capture.sheets) == (doc.sheets if doc.origin == "scan" else 0)
+        assert doc.boxes and all(0 <= b.bbox[0] < b.bbox[2] <= 1 for b in doc.boxes.values())
+    summary = {f"{d.capture.kind}:{d.capture.quality}" for d in captured.values() if d.capture}
+    assert summary == {f"{c.kind}:{c.quality}" for c in kit.captures.values()}
