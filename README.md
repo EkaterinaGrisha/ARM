@@ -88,6 +88,8 @@ uv run kdcheck run ПАПКА --config мои_настройки                
 uv run python -m synth.demo_kit samples/demo_kit                # пересоздать демо-комплект и эталон к нему
 uv run python -m synth.kits data/synth/kits --kits 20 --seed 1    # синтетические комплекты с заложенными ошибками
 uv run python eval/synth_kits.py                                  # Блок 1 на этих комплектах: eval/results/synth-kits.md
+uv run --group augraphy python -m synth.stress build data/synth/stress   # стрессовый корпус: сканы через Augraphy, Python 3.11
+uv run python -m synth.stress verify data/synth/stress                  # сверить его файлы с манифестом eval/stress_corpus.json
 
 cd backend
 python -m arm_web process ../samples/demo_kit -o out            # то же, но с внешним конвейером из ARM_PIPELINE_CMD
@@ -275,7 +277,10 @@ frontend/public/demo/        демо-отчёт, страницы и выгру
 synth/src/synth/
   model.py                   документы синтетического комплекта как данные
   render.py                  листы на reportlab: рамка, основная надпись, спецификации, чертежи; шрифт из fonts/
-  scans.py                   сканы листов: рендер PDFium, наклон и шум от сида
+  scans.py                   лёгкие сканы демо-комплекта: рендер PDFium, наклон и шум от сида
+  degrade.py                 растры и сканы трёх классов качества по сиду, параметры — в разметке
+  augraphy_scans.py          сканы через конвейер Augraphy по умолчанию, тот же вход, что у degrade.py
+  stress.py                  стрессовый корпус Augraphy: сборка, манифест, сверка
   truth.py                   модели разметки: поля документов, ожидаемые расхождения, проблемные файлы
   demo_kit.py                демо-комплект: данные и сборка
   product.py, vocab.py       случайное дерево изделия, обозначения, наименования, материалы, техтребования

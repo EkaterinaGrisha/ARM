@@ -32,10 +32,13 @@ from synth import vocab
 from synth.model import Output
 from synth.render import Box
 from synth.scans import noise_plane
+from synth.truth import AugraphyCapture, Capture, CaptureRecord, Fold, Shadow, SheetCapture, Stamp
 from synth.truth import Box as TruthBox
-from synth.truth import Capture, Fold, Shadow, SheetCapture, Stamp
 
 Rect = tuple[float, float, float, float]
+# The entry of a degrader, as :func:`capture` takes it: the file of a document, the output it goes to, the seed of the
+# document and the boxes of its truth, which move with their sheets. :mod:`synth.augraphy_scans` takes it as well.
+Capturer = Callable[[bytes, Output, int, dict[str, Box] | None], tuple[bytes, CaptureRecord]]
 
 STAMP_FONT = Path(__file__).parent / "fonts" / "DejaVuSans.ttf"
 STAMP_INKS = ((95, 60, 160), (40, 70, 170))  # violet and blue
@@ -486,7 +489,7 @@ def _cut(img: Image.Image, record: Capture) -> Image.Image:
     return img.convert("RGB" if record.mode == "colour" else "L")
 
 
-def encode(images: list[Image.Image], record: Capture) -> bytes:
+def encode(images: list[Image.Image], record: Capture | AugraphyCapture) -> bytes:
     """The pages in the container of ``record``, with their resolution: a PDF of one image per page as a scanner
     writes it (JPEG, or CCITT G4 for black and white), a TIFF (G4 or lossless), a JPEG or a PNG."""
     buf = io.BytesIO()

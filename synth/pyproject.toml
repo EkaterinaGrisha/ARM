@@ -17,5 +17,10 @@ dependencies = [
   "reportlab>=5.0",
 ]
 
+[dependency-groups]
+# MIT; scans of the stress corpus (synth.augraphy_scans, ADR-0013). The default pipeline calls random.randint with
+# floats, which Python 3.12 rejects, so the group installs on 3.11 only: uv run --group augraphy …
+augraphy = ["augraphy==8.2.6 ; python_full_version < '3.12'"]
+
 [tool.setuptools.package-data]
 synth = ["fonts/*"]
