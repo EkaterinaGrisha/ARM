@@ -22,7 +22,7 @@ def _text_in(pdf: pdfium.PdfDocument, box: Box) -> str:
 @pytest.fixture(scope="module")
 def kit() -> kits.Kit:
     for seed in range(1, 60):  # a clean kit with a drawing of several sheets and a wrapped name
-        kit = kits.build(seed, [], scan_share=0)
+        kit = kits.build(seed, [], scan_share=0, raster_share=0)
         truth = kit.truth()
         several = any(isinstance(d, DrawingTruth) and d.sheets > 1 for d in truth.documents.values())
         wrapped = any("\n" in row.name for spec in kit.specs.values() for row in spec.rows)
@@ -77,7 +77,7 @@ def test_a_drawing_of_several_sheets_has_them_all_and_form_2a_on_the_later_ones(
 
 def test_a_dropped_sheet_is_missing_from_the_file_but_counted_in_the_title_block():
     for seed in range(1, 60):
-        kit = kits.build(seed, ["drop_sheet"], scan_share=0)
+        kit = kits.build(seed, ["drop_sheet"], scan_share=0, raster_share=0)
         if kit.mutations == ["drop_sheet"]:
             break
     truth = kit.truth()

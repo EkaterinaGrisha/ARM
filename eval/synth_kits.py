@@ -50,17 +50,26 @@ def _cause(key: Key, truth: KitTruth, *, missed: bool, use_ocr: bool) -> str:
     rows = [r for doc in truth.documents.values() if doc.kind == "specification" for r in doc.rows]
     if not missed and rule == "B1.MISSING.001" and any(r.designation == designation and r.fmt == "БЧ" for r in rows):
         return "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
-    scans = [
+    # a raster or a scan: of the document itself, or of a specification that lists it
+    own = [
         path
         for path, doc in truth.documents.items()
-        if doc.kind != "specification" and doc.origin == "scan" and doc.designation in {designation, base, f"{base} СБ"}
+        if doc.origin != "vector" and doc.designation in {designation, base, f"{base} СБ"}
     ]
-    if scans:
+    listing = [
+        path
+        for path, doc in truth.documents.items()
+        if doc.kind == "specification" and doc.origin != "vector" and designation in {r.designation for r in doc.rows}
+    ]
+    if own or listing:
+        doc = truth.documents[(own or listing)[0]]
+        what = "растр" if doc.origin == "raster" else "скан"
+        what += " спецификации" if doc.kind == "specification" else ""
         if use_ocr:
-            return "скан: OCR прочитал основную надпись с ошибкой"
-        if PurePosixPath(scans[0]).stem.startswith(f"{base}_"):
-            return "скан без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
-        return "скан без OCR: обозначение — из имени файла, остальных полей нет"
+            return f"{what}: OCR прочитал с ошибкой"
+        if own and PurePosixPath(own[0]).stem.startswith(f"{base}_"):
+            return f"{what} без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
+        return f"{what} без OCR: обозначение — из имени файла, остальных полей нет"
     known = {doc.designation for doc in truth.documents.values()} | {r.designation for r in rows}
     if not missed and designation not in known and base not in known:
         return "такого обозначения в комплекте нет: OCR исказил его на скане"
@@ -187,8 +196,10 @@ def markdown(result: dict[str, Any]) -> str:
         f"Получено `uv run python eval/synth_kits.py --kits {corpus['kits']} --seed {corpus['seed']}` "
         f"{result['date']}; {result['machine']}; Tesseract {result['tesseract'] or 'нет'}. "
         f"Корпус: {corpus['kits']} комплектов из `synth.kits`, из них {corpus['clean']} без ошибок; заложено "
-        f"{corpus['planted']} расхождений и {corpus['problem_files']} проблемных файлов. Полностью — в "
-        "[synth-kits.json](synth-kits.json), там же каждая ошибка с комплектом и обозначением.",
+        f"{corpus['planted']} расхождений и {corpus['problem_files']} проблемных файлов. Из {corpus['documents']} "
+        f"документов сканов {corpus['captured'].get('scan', 0)}, растров без сканирования "
+        f"{corpus['captured'].get('raster', 0)}; их классы качества — в [scan-quality.md](scan-quality.md). "
+        "Полностью — в [synth-kits.json](synth-kits.json), там же каждая ошибка с комплектом и обозначением.",
         "",
         "Расхождение найдено, если в отчёте есть то же правило (для типов без правила — тот же тип) с тем же "
         "обозначением. Лишнее — срабатывание, которого нет в разметке.",
@@ -242,6 +253,8 @@ def main(argv: list[str] | None = None) -> int:
             "clean": sum(1 for t in truths.values() if not t.mutations),
             "planted": sum(len(t.discrepancies) for t in truths.values()),
             "problem_files": sum(len(t.problem_files) for t in truths.values()),
+            "documents": sum(len(t.documents) for t in truths.values()),
+            "captured": dict(Counter(d.origin for t in truths.values() for d in t.documents.values())),
             "mutations": sorted(mutations.CATALOG),
         },
         "runs": [run(truths, use_ocr) for use_ocr in ([False, True] if ocr_available() else [False])],
