@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-28",
+  "date": "2026-10-31",
   "kits": 6,
   "seed": 3,
   "environment": {
@@ -941,119 +941,224 @@
     }
   },
   "reading": {
-    "seconds": 121.5,
+    "seconds": 195.2,
     "by_class": {
       "raster:good": {
+        "unreadable": 0,
         "drawings": 20,
         "drawing_fields": 111,
-        "drawing_right": 0,
+        "drawing_right": 81,
+        "field:designation": 20,
+        "field_right:designation": 14,
+        "field:name": 20,
+        "field_right:name": 11,
+        "field:mass": 20,
+        "field_right:mass": 14,
+        "field:scale": 20,
+        "field_right:scale": 17,
+        "field:litera": 20,
+        "field_right:litera": 20,
+        "field:revision": 13,
+        "field_right:revision": 13,
+        "field:sheets": 20,
+        "field_right:sheets": 20,
+        "field:material": 11,
+        "field_right:material": 5,
         "specs": 4,
         "spec_fields": 8,
-        "spec_right": 0,
+        "spec_right": 4,
         "rows": 20,
-        "rows_found": 0
+        "rows_found": 12
       },
       "font:A:raster": {
+        "unreadable": 0,
         "drawings": 17,
         "drawing_fields": 97,
-        "drawing_right": 6,
+        "drawing_right": 66,
         "specs": 2,
         "spec_fields": 4,
-        "spec_right": 0,
+        "spec_right": 2,
         "rows": 18,
-        "rows_found": 0
+        "rows_found": 8
       },
       "dpi:600": {
         "drawings": 10,
         "drawing_fields": 58,
-        "drawing_right": 1
+        "drawing_right": 44
       },
       "mode:bilevel": {
         "drawings": 49,
         "drawing_fields": 279,
-        "drawing_right": 26
+        "drawing_right": 201
       },
       "raster:poor": {
+        "unreadable": 0,
         "specs": 7,
         "spec_fields": 14,
-        "spec_right": 0,
+        "spec_right": 8,
         "rows": 49,
-        "rows_found": 0,
+        "rows_found": 33,
         "drawings": 13,
         "drawing_fields": 75,
-        "drawing_right": 12
+        "drawing_right": 59,
+        "field:designation": 13,
+        "field_right:designation": 10,
+        "field:name": 13,
+        "field_right:name": 9,
+        "field:material": 10,
+        "field_right:material": 6,
+        "field:mass": 13,
+        "field_right:mass": 10,
+        "field:scale": 13,
+        "field_right:scale": 11,
+        "field:litera": 13,
+        "field_right:litera": 13,
+        "field:revision": 5,
+        "field_right:revision": 3,
+        "field:sheets": 13,
+        "field_right:sheets": 13
       },
       "dpi:400": {
         "drawings": 18,
         "drawing_fields": 102,
-        "drawing_right": 3
+        "drawing_right": 79
       },
       "scan:poor": {
+        "unreadable": 0,
         "drawings": 23,
         "drawing_fields": 132,
-        "drawing_right": 3,
+        "drawing_right": 84,
+        "field:designation": 23,
+        "field_right:designation": 15,
+        "field:name": 23,
+        "field_right:name": 14,
+        "field:material": 17,
+        "field_right:material": 6,
+        "field:mass": 23,
+        "field_right:mass": 17,
+        "field:scale": 23,
+        "field_right:scale": 21,
+        "field:litera": 23,
+        "field_right:litera": 11,
+        "field:revision": 9,
+        "field_right:revision": 7,
+        "field:sheets": 23,
+        "field_right:sheets": 13,
         "specs": 5,
         "spec_fields": 10,
-        "spec_right": 0,
+        "spec_right": 5,
         "rows": 27,
-        "rows_found": 0
+        "rows_found": 20
       },
       "font:A:scan": {
+        "unreadable": 0,
         "drawings": 15,
         "drawing_fields": 87,
-        "drawing_right": 0,
+        "drawing_right": 55,
         "specs": 4,
         "spec_fields": 8,
-        "spec_right": 0,
+        "spec_right": 6,
         "rows": 26,
-        "rows_found": 0
+        "rows_found": 8
       },
       "dpi:200": {
         "drawings": 34,
         "drawing_fields": 198,
-        "drawing_right": 33
+        "drawing_right": 156
       },
       "mode:colour": {
         "drawings": 19,
         "drawing_fields": 111,
-        "drawing_right": 9
+        "drawing_right": 88
       },
       "dpi:150": {
         "drawings": 21,
         "drawing_fields": 120,
-        "drawing_right": 7
+        "drawing_right": 76
       },
       "raster:fair": {
+        "unreadable": 0,
         "drawings": 17,
         "drawing_fields": 96,
-        "drawing_right": 13,
+        "drawing_right": 76,
+        "field:designation": 17,
+        "field_right:designation": 10,
+        "field:name": 17,
+        "field_right:name": 10,
+        "field:mass": 17,
+        "field_right:mass": 17,
+        "field:scale": 17,
+        "field_right:scale": 15,
+        "field:litera": 17,
+        "field_right:litera": 17,
+        "field:revision": 10,
+        "field_right:revision": 9,
+        "field:sheets": 17,
+        "field_right:sheets": 17,
+        "field:material": 11,
+        "field_right:material": 7,
         "specs": 1,
         "spec_fields": 2,
-        "spec_right": 0,
+        "spec_right": 1,
         "rows": 5,
-        "rows_found": 0
+        "rows_found": 5
       },
       "scan:fair": {
+        "unreadable": 0,
         "specs": 8,
         "spec_fields": 16,
-        "spec_right": 0,
+        "spec_right": 9,
         "rows": 51,
-        "rows_found": 0,
+        "rows_found": 28,
         "drawings": 17,
         "drawing_fields": 98,
-        "drawing_right": 13
+        "drawing_right": 70,
+        "field:designation": 17,
+        "field_right:designation": 10,
+        "field:name": 17,
+        "field_right:name": 10,
+        "field:mass": 17,
+        "field_right:mass": 16,
+        "field:scale": 17,
+        "field_right:scale": 16,
+        "field:litera": 17,
+        "field_right:litera": 14,
+        "field:revision": 6,
+        "field_right:revision": 4,
+        "field:sheets": 17,
+        "field_right:sheets": 14,
+        "field:material": 13,
+        "field_right:material": 4
       },
       "scan:good": {
+        "unreadable": 0,
         "drawings": 31,
         "drawing_fields": 182,
-        "drawing_right": 7,
+        "drawing_right": 151,
+        "field:designation": 31,
+        "field_right:designation": 20,
+        "field:name": 31,
+        "field_right:name": 24,
+        "field:material": 27,
+        "field_right:material": 18,
+        "field:mass": 31,
+        "field_right:mass": 30,
+        "field:scale": 31,
+        "field_right:scale": 29,
+        "field:litera": 31,
+        "field_right:litera": 30,
+        "field:sheets": 31,
+        "field_right:sheets": 31,
+        "field:revision": 15,
+        "field_right:revision": 15,
         "specs": 4,
         "spec_fields": 8,
-        "spec_right": 0,
+        "spec_right": 5,
         "rows": 27,
-        "rows_found": 0
+        "rows_found": 15
       },
       "vector": {
+        "unreadable": 0,
         "specs": 9,
         "spec_fields": 18,
         "spec_right": 18,
@@ -1061,9 +1166,26 @@
         "rows_found": 59,
         "drawings": 45,
         "drawing_fields": 264,
-        "drawing_right": 258
+        "drawing_right": 264,
+        "field:designation": 45,
+        "field_right:designation": 45,
+        "field:name": 45,
+        "field_right:name": 45,
+        "field:material": 39,
+        "field_right:material": 39,
+        "field:mass": 45,
+        "field_right:mass": 45,
+        "field:scale": 45,
+        "field_right:scale": 45,
+        "field:litera": 45,
+        "field_right:litera": 45,
+        "field:revision": 24,
+        "field_right:revision": 24,
+        "field:sheets": 45,
+        "field_right:sheets": 45
       },
       "font:A:vector": {
+        "unreadable": 0,
         "specs": 3,
         "spec_fields": 6,
         "spec_right": 6,
@@ -1071,48 +1193,55 @@
         "rows_found": 20,
         "drawings": 10,
         "drawing_fields": 59,
-        "drawing_right": 58
+        "drawing_right": 59
       },
       "dpi:300": {
         "drawings": 38,
         "drawing_fields": 216,
-        "drawing_right": 4
+        "drawing_right": 166
       },
       "mode:grey": {
         "drawings": 53,
         "drawing_fields": 304,
-        "drawing_right": 13
+        "drawing_right": 232
       },
       "font:B:raster": {
+        "unreadable": 0,
         "specs": 10,
         "spec_fields": 20,
-        "spec_right": 0,
+        "spec_right": 11,
         "rows": 56,
-        "rows_found": 0,
+        "rows_found": 42,
         "drawings": 33,
         "drawing_fields": 185,
-        "drawing_right": 19
+        "drawing_right": 150
       },
       "font:B:scan": {
+        "unreadable": 0,
         "specs": 13,
         "spec_fields": 26,
-        "spec_right": 0,
+        "spec_right": 13,
         "rows": 79,
-        "rows_found": 0,
+        "rows_found": 55,
         "drawings": 56,
         "drawing_fields": 325,
-        "drawing_right": 23
+        "drawing_right": 250
       },
       "font:B:vector": {
+        "unreadable": 0,
         "drawings": 35,
         "drawing_fields": 205,
-        "drawing_right": 200,
+        "drawing_right": 205,
         "specs": 6,
         "spec_fields": 12,
         "spec_right": 12,
         "rows": 41,
         "rows_found": 39
       }
+    },
+    "unreadable_scans": {
+      "scans": 6,
+      "unreadable": 6
     }
   },
   "sheets": [
@@ -4984,11 +5113,11 @@
         "phase": "ink",
         "sheets": 13
       },
-      "Jpeg": {
+      "NoisyLines": {
         "phase": "post",
         "sheets": 12
       },
-      "NoisyLines": {
+      "Jpeg": {
         "phase": "post",
         "sheets": 12
       },
@@ -5044,11 +5173,11 @@
         "phase": "post",
         "sheets": 8
       },
-      "LowInkRandomLines": {
+      "BleedThrough": {
         "phase": "ink",
         "sheets": 8
       },
-      "BleedThrough": {
+      "LowInkRandomLines": {
         "phase": "ink",
         "sheets": 8
       },
@@ -5088,12 +5217,12 @@
         "phase": "paper",
         "sheets": 5
       },
-      "DelaunayTessellation": {
-        "phase": "paper",
-        "sheets": 5
-      },
       "BadPhotoCopy": {
         "phase": "post",
+        "sheets": 5
+      },
+      "DelaunayTessellation": {
+        "phase": "paper",
         "sheets": 5
       },
       "LowLightNoise": {
@@ -5215,57 +5344,110 @@
     ],
     "resized": 29,
     "reading": {
-      "seconds": 278.3,
+      "seconds": 359.3,
       "by_class": {
         "augraphy:poor": {
+          "unreadable": 0,
           "drawings": 23,
           "drawing_fields": 132,
-          "drawing_right": 6,
+          "drawing_right": 46,
+          "field:designation": 23,
+          "field_right:designation": 13,
+          "field:name": 23,
+          "field_right:name": 8,
+          "field:material": 17,
+          "field_right:material": 3,
+          "field:mass": 23,
+          "field_right:mass": 7,
+          "field:scale": 23,
+          "field_right:scale": 7,
+          "field:litera": 23,
+          "field_right:litera": 8,
+          "field:revision": 9,
+          "field_right:revision": 4,
+          "field:sheets": 23,
+          "field_right:sheets": 9,
           "specs": 5,
           "spec_fields": 10,
-          "spec_right": 0,
+          "spec_right": 1,
           "rows": 27,
           "rows_found": 0
         },
         "font:A:augraphy": {
+          "unreadable": 0,
           "drawings": 15,
           "drawing_fields": 87,
-          "drawing_right": 3,
+          "drawing_right": 23,
           "specs": 4,
           "spec_fields": 8,
-          "spec_right": 0,
+          "spec_right": 2,
           "rows": 26,
           "rows_found": 0
         },
         "augraphy:fair": {
+          "unreadable": 0,
           "specs": 8,
           "spec_fields": 16,
-          "spec_right": 0,
+          "spec_right": 5,
           "rows": 51,
-          "rows_found": 4,
+          "rows_found": 7,
           "drawings": 17,
           "drawing_fields": 98,
-          "drawing_right": 4
+          "drawing_right": 27,
+          "field:designation": 17,
+          "field_right:designation": 8,
+          "field:name": 17,
+          "field_right:name": 4,
+          "field:mass": 17,
+          "field_right:mass": 4,
+          "field:scale": 17,
+          "field_right:scale": 4,
+          "field:litera": 17,
+          "field_right:litera": 5,
+          "field:revision": 6,
+          "field_right:revision": 1,
+          "field:sheets": 17,
+          "field_right:sheets": 5,
+          "field:material": 13,
+          "field_right:material": 2
         },
         "augraphy:good": {
+          "unreadable": 0,
           "drawings": 31,
           "drawing_fields": 182,
-          "drawing_right": 4,
+          "drawing_right": 76,
+          "field:designation": 31,
+          "field_right:designation": 14,
+          "field:name": 31,
+          "field_right:name": 13,
+          "field:material": 27,
+          "field_right:material": 5,
+          "field:mass": 31,
+          "field_right:mass": 13,
+          "field:scale": 31,
+          "field_right:scale": 12,
+          "field:litera": 31,
+          "field_right:litera": 19,
+          "field:sheets": 31,
+          "field_right:sheets": 15,
+          "field:revision": 15,
+          "field_right:revision": 6,
           "specs": 4,
           "spec_fields": 8,
-          "spec_right": 0,
+          "spec_right": 3,
           "rows": 27,
-          "rows_found": 0
+          "rows_found": 7
         },
         "font:B:augraphy": {
+          "unreadable": 0,
           "specs": 13,
           "spec_fields": 26,
-          "spec_right": 0,
+          "spec_right": 7,
           "rows": 79,
-          "rows_found": 4,
+          "rows_found": 14,
           "drawings": 56,
           "drawing_fields": 325,
-          "drawing_right": 11
+          "drawing_right": 126
         }
       }
     },
@@ -5274,26 +5456,26 @@
         "poor": {
           "drawings": 23,
           "fields": 132,
-          "degrade": 3,
-          "augraphy": 6,
-          "only_degrade": 3,
-          "only_augraphy": 6
+          "degrade": 84,
+          "augraphy": 46,
+          "only_degrade": 55,
+          "only_augraphy": 17
         },
         "good": {
           "drawings": 31,
           "fields": 182,
-          "degrade": 7,
-          "augraphy": 4,
-          "only_degrade": 6,
-          "only_augraphy": 3
+          "degrade": 151,
+          "augraphy": 76,
+          "only_degrade": 82,
+          "only_augraphy": 7
         },
         "fair": {
           "drawings": 17,
           "fields": 98,
-          "degrade": 13,
-          "augraphy": 4,
-          "only_degrade": 11,
-          "only_augraphy": 2
+          "degrade": 70,
+          "augraphy": 27,
+          "only_degrade": 48,
+          "only_augraphy": 5
         }
       },
       "unpaired": 0

@@ -286,12 +286,15 @@ def score(
     """Right values by input and class; for the title blocks of drawings also by resolution and by pixels, and in
     ``fields``, by the path of each drawing, whether each of its fields was read right."""
     ids = {d.path: d.id for d in report.documents}
+    statuses = {d.path: d.status for d in report.documents}
     parts = {p.document_id: p for p in report.parts}
     specs = {s.document_id: s for s in report.specifications}
     for path, doc in truth.documents.items():
         if not isinstance(doc, DrawingTruth | SpecTruth):
             continue
         t, font = tally[_key(doc)], tally[_lettering(doc)]
+        for counts in (t, font):
+            counts["unreadable"] += statuses.get(path) == "unreadable"
         doc_id = ids.get(path, "")
         if isinstance(doc, DrawingTruth):
             slices = [t, font]
@@ -309,8 +312,15 @@ def score(
                 for counts in slices:
                     counts["drawing_fields"] += 1
                     counts["drawing_right"] += right
+                t[f"field:{field}"] += 1
+                t[f"field_right:{field}"] += right
                 if fields is not None:
                     fields.setdefault(path, {})[field] = right
+            for field in ("revision", "sheets"):  # read too, outside the share of the title block by input
+                if getattr(doc, field) not in (None, ""):
+                    got = getattr(tb, field) if tb else None
+                    t[f"field:{field}"] += 1
+                    t[f"field_right:{field}"] += got is not None and norm(got.value) == norm(getattr(doc, field))
             continue
         spec = specs.get(doc_id)
         found = {norm(r.designation.value) for r in spec.rows if r.designation} if spec else set()
@@ -341,6 +351,15 @@ def read_by_class(truths: dict[Path, KitTruth]) -> dict[str, Any]:
         "by_class": {k: dict(v) for k, v in tally.items()},
         "fields": fields,
     }
+
+
+def unreadable_status(paths: list[Path]) -> dict[str, int]:
+    """How many of the scans below what a person reads the core calls unreadable."""
+    if not paths:
+        return {}
+    folder = paths[0].parent
+    report = BaselinePipeline(load_settings(use_ocr=True)).run(folder, kit_id=folder.name, kit_name=folder.name)
+    return {"scans": len(paths), "unreadable": sum(d.status == "unreadable" for d in report.documents)}
 
 
 # ---------------------------------------------------------------------------------------- the stress corpus
@@ -593,10 +612,12 @@ def markdown(result: dict[str, Any]) -> str:
         "надписи чертежа — обозначение, наименование, материал, масса, масштаб, литера; спецификации — обозначение и "
         "наименование. Строки — "
         "обозначения строк спецификации, найденные в разобранной спецификации. Сравнение после регистра, «ё», "
-        f"десятичной запятой и пробелов. Время прогона — {seconds} с.",
+        "десятичной запятой и пробелов. «Нечитаемый» — документы, которым ядро поставило этот статус, хотя все "
+        f"они читаются человеком. Время прогона — {seconds} с.",
         "",
-        "| Вход | Чертежей | Основная надпись чертежа | Спецификаций | Основная надпись спецификации | Строки |",
-        "| --- | ---: | ---: | ---: | ---: | ---: |",
+        "| Вход | Чертежей | Основная надпись чертежа | Спецификаций | Основная надпись спецификации | Строки "
+        "| «Нечитаемый» |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     by_class = reading["by_class"] | (result["stress"]["reading"]["by_class"] if result.get("stress") else {})
     for group in GROUPS:
@@ -607,7 +628,15 @@ def markdown(result: dict[str, Any]) -> str:
         specs = _share(t.get("spec_right", 0), t.get("spec_fields", 0))
         rows = _share(t.get("rows_found", 0), t.get("rows", 0))
         count = f"{t.get('drawings', 0)} | {drawings} | {t.get('specs', 0)}"
-        lines.append(f"| {GROUPS[group]} | {count} | {specs} | {rows} |")
+        wrong = _share(t.get("unreadable", 0), t.get("drawings", 0) + t.get("specs", 0))
+        lines.append(f"| {GROUPS[group]} | {count} | {specs} | {rows} | {wrong} |")
+    if scans := reading.get("unreadable_scans"):
+        lines += [
+            "",
+            f"Сканы класса «нечитаемое» ({scans['scans']}, ниже границы, которую читает человек): статус «нечитаемый» "
+            f"ядро ставит {scans['unreadable']} из {scans['scans']}.",
+        ]
+    lines += _fields_section(by_class)
     for prefix, title, names in (
         ("dpi", "Разрешение, dpi", lambda k: k),
         ("mode", "Пиксели", lambda k: {"bilevel": "ч/б", "grey": "серые", "colour": "цвет"}[k]),
@@ -629,6 +658,41 @@ def markdown(result: dict[str, Any]) -> str:
         "на нём ссылаются на его манифест.",
     ]
     return "\n".join(lines) + "\n"
+
+
+FIELD_NAMES = {
+    "designation": "Обозначение",
+    "name": "Наименование",
+    "material": "Материал",
+    "mass": "Масса",
+    "scale": "Масштаб",
+    "litera": "Литера",
+    "revision": "Номер изменения",
+    "sheets": "Листов",
+}
+
+
+def _fields_section(by_class: dict[str, Any]) -> list[str]:
+    """The title block fields of drawings one by one, by input, the classes of quality together."""
+    kinds = {kind: [g for g in GROUPS if g.startswith(f"{kind}:") and g in by_class] for kind in INPUTS}
+    kinds = {kind: groups for kind, groups in kinds.items() if groups}
+    if not kinds:
+        return []
+    lines = [
+        "",
+        "Поля основной надписи чертежей-растров и сканов по одному, классы качества вместе:",
+        "",
+        "| Поле | " + " | ".join(INPUTS[kind] for kind in kinds) + " |",
+        "| --- |" + " ---: |" * len(kinds),
+    ]
+    for field, title in FIELD_NAMES.items():
+        cells = []
+        for groups in kinds.values():
+            right = sum(by_class[g].get(f"field_right:{field}", 0) for g in groups)
+            total = sum(by_class[g].get(f"field:{field}", 0) for g in groups)
+            cells.append(_share(right, total))
+        lines.append(f"| {title} | " + " | ".join(cells) + " |")
+    return lines
 
 
 LETTERINGS = {"A": "тип А", "B": "тип Б"}
@@ -769,6 +833,7 @@ def main(argv: list[str] | None = None) -> int:
     stress, stress_info = stress_corpus(args.kits, args.seed)
     measured = real_sheets() + synthetic_sheets(truths, unreadable) + synthetic_sheets(stress, [], groups=AUGRAPHY)
     reading = read_by_class(truths)
+    reading["unreadable_scans"] = unreadable_status(unreadable)
     result: dict[str, Any] = {
         "date": datetime.now(UTC).date().isoformat(),
         "kits": args.kits,

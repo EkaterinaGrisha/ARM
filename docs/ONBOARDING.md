@@ -27,9 +27,10 @@
 | Что | Данные | Результат | Замер |
 | --- | --- | --- | --- |
 | Основная надпись, векторные PDF | демо-комплект | 1,0 | [pdf-backends.md](../eval/results/pdf-backends.md) |
-| Основная надпись, сканы | демо-комплект | 0,375 с OCR | [pdf-backends.md](../eval/results/pdf-backends.md) |
+| Основная надпись, сканы | демо-комплект | 0,438 с OCR | [pdf-backends.md](../eval/results/pdf-backends.md) |
+| Основная надпись, растры и сканы | 6 синтетических комплектов | 0,75; сканы Augraphy — 0,36 | [scan-quality.md](../eval/results/scan-quality.md) |
 | Основная надпись, сканы | 117 синтетических сканов | OCR 0,378; с Gemma 4 E4B 0,709; с Qwen3.6-27B 0,727 | [vlm-title-block.md](../eval/results/vlm-title-block.md) |
-| Расхождения Блока 1 | 20 синтетических комплектов | полнота 0,70, точность 0,24 без OCR | [synth-kits.md](../eval/results/synth-kits.md) |
+| Расхождения Блока 1 | 20 синтетических комплектов | полнота 0,82, точность 0,27 с OCR; 0,70 и 0,24 без него | [synth-kits.md](../eval/results/synth-kits.md) |
 | Параметры чертежей, Блок 2 | векторные чертежи тех же комплектов | полнота 0,913, точность 0,996 | [synth-kits.md](../eval/results/synth-kits.md) |
 | Согласие двух разметок эталона | 2 учебных комплекта | 1,00 и 0,94 | [gold-agreement.md](../eval/results/gold-agreement.md) |
 
