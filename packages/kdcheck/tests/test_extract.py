@@ -7,6 +7,7 @@ import pytest
 from kdcheck.config import Review
 from kdcheck.extract import review, specification, title_block
 from kdcheck.ingest.document import load_document
+from kdcheck.normalize.designations import Designations
 from kdcheck.schemas import Extracted, PartRecord, SourceRef, TitleBlock
 
 KIT = Path(__file__).resolve().parents[3] / "samples" / "demo_kit"
@@ -85,3 +86,32 @@ def test_marking_reaches_nested_values_and_keeps_a_status_set_before(settings):
     )
     review.mark(part, settings.ingest.review)
     assert [ex.status for ex in review.values(part)] == ["conflict", "low_confidence", "ok"]
+
+
+@pytest.mark.parametrize(
+    ("field", "text", "value"),
+    [
+        ("scale", "1:2", "1:2"),
+        ("scale", "11", "1:1"),  # OCR lost the colon: the one scale of GOST 2.302 these digits spell
+        ("scale", "1 2", "1:2"),
+        ("scale", "125", "1:25"),
+        ("scale", "2,51", "2,5:1"),
+        ("scale", "17", None),  # 1:7 and 17:1 are no scales of GOST 2.302
+        ("mass", "12,5", "12,5"),
+        ("mass", "См. табл.", "См. табл."),  # a group drawing, GOST 2.113
+        ("mass", "(м. табл.", "См. табл."),
+        ("name", "‚Корпус |", "Корпус"),  # noise and ruled lines at the edges of a recognized cell
+        ("material", "Сталь 45 ГОСТ 1050-2013", "Сталь 45 ГОСТ 1050-2013"),
+    ],
+)
+def test_cell_value_by_gost(settings, field, text, value):
+    assert title_block.cell_value(field, text, Designations(settings.dictionaries)) == value
+
+
+def test_section_header_read_with_errors(settings):
+    sections = {"детали": "Детали", "стандартныеизделия": "Стандартные изделия"}
+    similarity = settings.forms.specification.section_similarity
+    assert specification._section("детали", sections, similarity) == "Детали"
+    assert specification._section("детолу", sections, similarity) == "Детали"  # OCR of «Детали» in GOST lettering
+    assert specification._section("тондортныеизделия", sections, similarity) == "Стандартные изделия"
+    assert specification._section("всборе", sections, similarity) is None  # the second line of a name

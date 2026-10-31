@@ -2,11 +2,14 @@
 
 Table columns are restored from the positions of the «Обозначение» and «Наименование» headers and the column widths
 of ``forms.yaml``. Rows are grouped by the vertical coordinate; wrapped names join the previous position, and section
-headers («Детали», «Стандартные изделия»…) set the section for the rows below.
+headers («Детали», «Стандартные изделия»…) set the section for the rows below. On a page image the table is found by
+its ruled lines and read row by row (:mod:`kdcheck.ocr.cells`): its rows come by column, and the same rules make
+positions of them.
 """
 
 from __future__ import annotations
 
+import difflib
 import re
 from dataclasses import dataclass
 
@@ -53,6 +56,9 @@ def find_header(page: Page, template: SpecificationTemplate) -> tuple[Word, Word
 
 
 def is_specification(page: Page, forms: Forms) -> bool:
+    """A table of form 1 of GOST 2.106: by its ruled lines on a page image, else by the column headers."""
+    if page.regions is not None and page.regions.table is not None:
+        return True
     return find_header(page, forms.specification) is not None
 
 
@@ -99,6 +105,11 @@ def parse(doc: LoadedDocument, forms: Forms, eskd: Designations) -> Specificatio
                     tb.litera,
                     tb.revision,
                 )
+        ruled = page.regions.table if page.regions is not None else None
+        if ruled is not None:  # read row by row by its ruled lines
+            similarity = forms.specification.section_similarity
+            section = _parse_rows(doc, page, ruled.rows, rows, section, sections, eskd, similarity)
+            continue
         table = _table(page, find_header(page, forms.specification), table, forms)
         if table is None:
             continue
@@ -152,19 +163,38 @@ def _parse_page(
         for w in ln.words
         if table.top <= w.cy <= table.bottom and left <= w.cx <= right
     ]
+    clusters = []
     for cluster in _cluster_rows(words, tol=template.row_tolerance * table.s):
         cells: dict[str, list[Word]] = {}
         for w in sorted(cluster, key=lambda w: w.bbox[0]):
             col = table.column(w.cx)
             if col:
                 cells.setdefault(col, []).append(w)
+        clusters.append(cells)
+    return _parse_rows(doc, page, clusters, rows, section, sections, eskd, template.section_similarity)
+
+
+def _parse_rows(
+    doc: LoadedDocument,
+    page: Page,
+    clusters: list[dict[str, list[Word]]],
+    rows: list[SpecRow],
+    section: str | None,
+    sections: dict[str, str],
+    eskd: Designations,
+    similarity: float,
+) -> str | None:
+    """Positions of the rows of a page, each row as its words by column; a section header sets the section below."""
+    for cells in clusters:
         if not cells:
             continue
         text = {k: " ".join(w.text for w in v) for k, v in cells.items()}
         only_name = set(cells) == {"name"}
         key = re.sub(r"[^а-я]", "", text.get("name", "").lower())
-        if only_name and key in sections:
-            section = sections[key]
+        # OCR misreads a header; a text layer does not, and its «деталь» is the second line of a name
+        header = _section(key, sections, similarity if page.method == "ocr" else 1.0) if only_name else None
+        if header is not None:
+            section = header
             continue
         has_identity = any(text.get(k) for k in ("designation", "position", "quantity", "format"))
         if not has_identity and rows and rows[-1].source and rows[-1].source.page == page.number:
@@ -172,6 +202,12 @@ def _parse_page(
             continue
         rows.append(_make_row(doc, page, len(rows) + 1, section, cells, eskd))
     return section
+
+
+def _section(key: str, sections: dict[str, str], similarity: float) -> str | None:
+    """The section a header row names: the closest name at ``similarity`` or more."""
+    close = difflib.get_close_matches(key, sections, n=1, cutoff=similarity)
+    return sections[close[0]] if close else None
 
 
 def _bbox(words: list[Word]) -> BBox:

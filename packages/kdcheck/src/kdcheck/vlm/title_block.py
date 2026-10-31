@@ -14,6 +14,7 @@ from PIL import Image
 from kdcheck.config import Settings
 from kdcheck.extract.title_block import Geometry, cell_value
 from kdcheck.ingest.document import LoadedDocument, Page
+from kdcheck.layout.raster import Turn
 from kdcheck.normalize.designations import Designations
 from kdcheck.schemas import Extracted, SourceRef, TitleBlock
 from kdcheck.vlm.client import VlmClient, VlmError
@@ -49,7 +50,7 @@ def read_cells(
             continue
         rect = geom.rect(cell)
         try:
-            text = client.read(_crop(raster, rect), label)
+            text = client.read(_crop(raster, geom, cell), label)
         except VlmError as exc:
             if exc.fatal:
                 raise
@@ -77,16 +78,13 @@ def read_cells(
     return notes
 
 
-def _crop(raster: Raster, rect: tuple[float, float, float, float]) -> Image.Image:
+def _crop(raster: Raster, geom: Geometry, cell: tuple[float, float, float, float]) -> Image.Image:
+    """The cell of the page image, straightened when the block was found turned with the sheet."""
     image, (ox, oy), scale = raster
-    x0, y0, x1, y1 = rect
-    box = (
-        max(0, round((x0 - ox) / scale)),
-        max(0, round((y0 - oy) / scale)),
-        min(image.width, round((x1 - ox) / scale)),
-        min(image.height, round((y1 - oy) / scale)),
-    )
-    return image.crop(box)
+    x0, y0 = (geom.x0 - ox) / scale, (geom.y0 - oy) / scale  # the corner of the block on the image
+    s, pad = geom.s / scale, geom.pad
+    box = (x0 + (cell[0] - pad) * s, y0 + (cell[1] - pad) * s, x0 + (cell[2] + pad) * s, y0 + (cell[3] + pad) * s)
+    return Turn(pivot=(x0, y0), angle=geom.angle).crop(image.convert("L"), box)
 
 
 def _same(field: str, a: object, b: object, eskd: Designations) -> bool:

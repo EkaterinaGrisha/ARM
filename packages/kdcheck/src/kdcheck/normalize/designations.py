@@ -21,8 +21,9 @@ class Designations:
         digit = r"[\d" + "".join(re.escape(c) for c in words.digit_lookalikes) + "]"
         self._pattern = re.compile(
             r"(?<![\wА-Яа-яЁё])"
-            r"(?P<org>[A-ZА-ЯЁ]{2,6})\s?[.\s]\s?"
-            rf"(?P<cls>{digit}{{6}})\s?\.\s?"
+            # the dots between the groups are kept by the text layer and may be lost or read as commas by OCR
+            r"(?P<org>[A-ZА-ЯЁ]{2,6})\s?[.,\s]?\s?"
+            rf"(?P<cls>{digit}{{6}})\s?[.,]?\s?"
             rf"(?P<num>{digit}{{3}})"
             r"(?:\s?-\s?(?P<exec>\d{2,3}))?"
             r"(?:\s?(?P<code>" + "|".join(re.escape(c) for c in words.document_codes) + r"))?"

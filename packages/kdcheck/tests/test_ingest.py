@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 from kdcheck.config import load_settings
-from kdcheck.ingest.document import load_document, sheet_format, sniff_media_type
+from kdcheck.ingest.document import image_quality, load_document, sheet_format, sniff_media_type, unreadable_reason
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 from kdcheck.render import RenderError, render_page
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter, ImageStat
 from reportlab.pdfgen.canvas import Canvas
 
 
@@ -177,3 +177,37 @@ def test_core_imports_pdf_library_only_through_the_adapter():
         "assert 'pymupdf' not in sys.modules and 'pypdfium2' not in sys.modules"
     )
     subprocess.run([sys.executable, "-c", code], check=True)
+
+
+def _drawing(paper: int, ink: int, *, blur: float = 0.0, lid: int = 0) -> Image.Image:
+    """An A3 sheet at 150 dpi with little on it: the frame, a title block and a few lines, ``lid`` px of a dark scanner
+    lid around it."""
+    px = 150 / 25.4
+    image = Image.new("L", (round(420 * px), round(297 * px)), paper)
+    draw = ImageDraw.Draw(image)
+    draw.rectangle([(20 * px, 5 * px), (415 * px, 292 * px)], outline=ink, width=2)
+    draw.rectangle([(230 * px, 237 * px), (415 * px, 292 * px)], outline=ink, width=2)
+    for y in range(60, 200, 20):
+        draw.line([(80 * px, y * px), (300 * px, y * px)], fill=ink, width=1)
+    if blur:
+        image = image.filter(ImageFilter.GaussianBlur(blur * px))
+    if lid:
+        framed = Image.new("L", (image.width + 2 * lid, image.height + 2 * lid), 20)
+        framed.paste(image, (lid, lid))
+        image = framed
+    return image
+
+
+def test_a_pale_sparse_sheet_is_readable(settings):
+    """Grey ink on grey paper over a sheet that is mostly paper: little spread of grey, yet the ink is plain."""
+    rules = settings.ingest.quality
+    image = _drawing(paper=220, ink=100)
+    assert ImageStat.Stat(image).stddev[0] < 18  # the spread of grey that took it for unreadable before
+    assert unreadable_reason(image_quality(image, rules), rules) is None
+
+
+def test_ink_that_hardly_differs_from_paper_is_unreadable(settings):
+    rules = settings.ingest.quality
+    for lid in (0, 40):  # a dark lid around the sheet differs from the paper, the ink still does not
+        quality = image_quality(_drawing(paper=145, ink=135, blur=0.6, lid=lid), rules)
+        assert unreadable_reason(quality, rules) == "низкий контраст изображения"

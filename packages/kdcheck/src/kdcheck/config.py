@@ -62,10 +62,25 @@ class TitleBlockCells(Section):
     scale: Box | None = None
     sheet: Box
     sheets: Box
+    changes: Box  # the «Изм.» column over the entries of the change record table
 
 
-class TitleBlockForm(Section):
+class RuledForm(Section):
+    """A form by its ruled lines, which place it on a page image."""
+
     height: float
+    lines: tuple[Box, ...]  # main ruled lines, horizontal or vertical
+    blank: tuple[Box, ...]  # where the other forms have a line and this one has none
+
+    @field_validator("lines", "blank")
+    @classmethod
+    def _straight(cls, value: tuple[Box, ...]) -> tuple[Box, ...]:
+        if any(x0 != x1 and y0 != y1 for x0, y0, x1, y1 in value):
+            raise ValueError("линия формы — горизонтальная или вертикальная: x0 = x1 или y0 = y1")
+        return value
+
+
+class TitleBlockForm(RuledForm):
     labels: dict[str, Point]
     min_labels: int
     sufficient_label: str | None = None
@@ -95,6 +110,7 @@ class MarginColumns(Section):
 class TitleBlockTemplate(Section):
     width: float
     forms: dict[int, TitleBlockForm]
+    continuation: RuledForm  # form 2a of the later sheets
     label_zone: tuple[Share, Share]
     label_row_tolerance: float
     scale_range: Span
@@ -140,6 +156,10 @@ class SpecificationTemplate(Section):
     word_range: Span
     row_tolerance: float
     designation_zone: Share
+    header_height: float  # the header row under the top line of the frame
+    row_height: float
+    other_columns: tuple[float, ...]  # column lines of other forms: a table with one of them is not read by rows
+    section_similarity: Share  # a row that is only a name this similar to a section name is its header
 
 
 class TechRequirementsTemplate(Section):
@@ -174,9 +194,29 @@ class ScanRules(Section):
 
 class ScanQuality(Section):
     sample_width: int
+    margin: Share
     min_contrast: float
     min_brightness: float
     min_sharpness: float
+
+
+class RegionRules(Section):
+    corner: Point  # mm: the bottom right corner of a page image where the title block is looked for
+    max_skew: float  # degrees
+    skew_steps: Span  # degrees: coarse and fine
+    sample: float  # px per mm
+    ink_density: tuple[Share, ...] = Field(min_length=1)
+    max_mask_ink: Share
+    line_ink: Share
+    max_line_width: float  # mm
+    line_band: float  # mm
+    edge_band: Span  # mm inside a long line
+    scale_tolerance: Share
+    min_form_lines: Share
+    line_on_image: Share
+    line_side: float  # mm
+    max_placements: int = Field(ge=0)
+    wipe_ink: Share
 
 
 class PageScale(Section):
@@ -211,6 +251,7 @@ class Ingest(Section):
     min_image_dpi: float
     scan: ScanRules
     quality: ScanQuality
+    regions: RegionRules
     page_scale: PageScale
     text: TextLayout
     confidence: MethodConfidence
@@ -239,6 +280,8 @@ class Dictionaries(Section):
     assembly_drawing_name: str
     document_codes: tuple[str, ...]
     litera_order: tuple[str, ...]
+    scales: tuple[str, ...]
+    see_table: Term
     latin_lookalikes: dict[str, str]
     digit_lookalikes: dict[str, str]
     heat_treatments: tuple[Term, ...]
@@ -268,8 +311,14 @@ class RuleSettings(Section):
     severity: Severity
 
 
+class NameMatch(Section):
+    methods: tuple[ExtractionMethod, ...]
+    min_similarity: Share
+
+
 class Checks(Section):
     rules: dict[str, RuleSettings]  # by rule id; kdcheck.checks.rules checks that every rule has its settings
+    names: NameMatch
 
 
 # ---------------------------------------------------------------- criticality.yaml
@@ -327,12 +376,27 @@ class PdfEngine(Section):
     backend: Literal["pdfium", "pymupdf"]
 
 
+class OcrCells(Section):
+    """Cells of a title block and of a specification table found by their ruled lines on a page image."""
+
+    languages: str
+    page_segmentation: int
+    text_height: float = Field(gt=0)  # px
+    text_range: Span  # mm
+    pixels_per_mm: float = Field(gt=0)
+    margin: float  # mm
+    min_ink: float = Field(ge=0)  # mm²
+    min_word_confidence: float = Field(ge=0, le=100)
+    characters: dict[str, str]  # what the cells of a field or a column may hold
+
+
 class OcrEngine(Section):
     engine: Literal["tesseract"]
     enabled: bool
     languages: str
     page_segmentation: int
     min_word_confidence: float = Field(ge=0, le=100)
+    cells: OcrCells
 
 
 TitleBlockField = Literal["designation", "name", "material", "mass", "scale", "litera", "sheet", "sheets"]

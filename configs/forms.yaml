@@ -55,6 +55,19 @@ title_block:                     # GOST 2.104
         scale: [167, 20, 185, 35]
         sheet: [135, 35, 155, 40]
         sheets: [155, 35, 185, 40]
+        changes: [0, 0, 7, 20]   # the «Изм.» column over the header of the change record table
+      lines:                     # main ruled lines, x0, y0, x1, y1: they place the block on a page image
+        - [0, 0, 185, 0]
+        - [0, 55, 185, 55]
+        - [0, 0, 0, 55]
+        - [185, 0, 185, 55]
+        - [65, 0, 65, 55]
+        - [65, 15, 185, 15]
+        - [135, 15, 135, 55]
+        - [65, 40, 135, 40]
+        - [135, 35, 185, 35]
+        - [135, 40, 185, 40]
+      blank: [[65, 30, 185, 30]] # no line where form 2 has one: its line under the designation
     2:                           # the first sheet of a specification
       height: 40
       labels:
@@ -68,6 +81,26 @@ title_block:                     # GOST 2.104
         litera: [135, 20, 150, 25]
         sheet: [150, 20, 165, 25]
         sheets: [165, 20, 185, 25]
+        changes: [0, 0, 7, 20]
+      lines:
+        - [0, 0, 185, 0]
+        - [0, 40, 185, 40]
+        - [0, 0, 0, 40]
+        - [185, 0, 185, 40]
+        - [65, 0, 65, 40]
+        - [65, 15, 185, 15]
+        - [135, 15, 135, 40]
+        - [135, 25, 185, 25]
+      blank: [[65, 25, 135, 25]] # no line where form 1 has one: its line over the material
+  continuation:                  # form 2a of the later sheets: it ends the specification table there
+    height: 15
+    lines:
+      - [0, 0, 185, 0]
+      - [0, 15, 185, 15]
+      - [0, 0, 0, 15]
+      - [185, 0, 185, 15]
+      - [175, 0, 175, 15]
+    blank: [[135, 0, 135, 15]]   # forms 1 and 2 have a line there
   label_zone: [0.4, 0.5]         # labels lie right of this share of the width and below this share of the height
   label_row_tolerance: 2.5       # labels of one row differ in height by less than this
   scale_range: [0.6, 1.6]        # a scale measured between labels is used within this range of the nominal one
@@ -116,6 +149,10 @@ specification:                   # GOST 2.106, form 1
   word_range: [-2, 187]          # words between these distances from the left edge of the table belong to it
   row_tolerance: 2.2             # words of one row differ in height by less than this
   designation_zone: 0.8          # without a title block the designation is looked for below this share of the height
+  header_height: 15              # on a page image: the header row under the top line of the frame
+  row_height: 8                  # and the rows under it, down to the title block
+  other_columns: [133, 143]      # column lines of form 5 of GOST 2.113 (variant B): its rows are not read as form 1
+  section_similarity: 0.65       # a row that is only a name this similar to a section name is its header: OCR misreads
 
 tech_requirements:               # the text block right above the title block; distances from its top left corner
   heading: технические требования

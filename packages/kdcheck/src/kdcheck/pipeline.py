@@ -119,7 +119,7 @@ class BaselinePipeline:
             if d.info.kind in ("part_drawing", "assembly_drawing", "drawing") and d.info.designation
         ]
         tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd)
-        discrepancies = check(tree, self.eskd, self.rules)
+        discrepancies = check(tree, self.eskd, self.rules, self.settings.checks.names)
         report_log += [LogEntry(level="warning", message=m) for m in tree.log]
 
         progress("Анализ требований", 0.93, None)

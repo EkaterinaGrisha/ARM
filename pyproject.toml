@@ -80,6 +80,7 @@ source_modules = ["arm_web"]
 forbidden_modules = [
   "kdcheck.config",
   "kdcheck.ingest",
+  "kdcheck.layout",
   "kdcheck.ocr",
   "kdcheck.extract",
   "kdcheck.normalize",
@@ -115,6 +116,7 @@ type = "forbidden"
 source_modules = ["kdcheck.schemas"]
 forbidden_modules = [
   "kdcheck.ingest",
+  "kdcheck.layout",
   "kdcheck.ocr",
   "kdcheck.extract",
   "kdcheck.normalize",

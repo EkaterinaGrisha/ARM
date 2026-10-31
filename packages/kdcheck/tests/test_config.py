@@ -34,6 +34,7 @@ KEPT: dict[str, dict[float, str]] = {
     },
     "ingest/pymupdf_backend.py": {180: "angles modulo a half turn"},
     "ocr/tesseract.py": {100: "top of the Tesseract confidence scale"},
+    "layout/raster.py": {255: "white of an 8-bit grey image, ink of a mask"},
     "params/parameters.py": {80: "length of a coating name in the report"},
     "pipeline.py": {
         0.6: "share of the progress bar",

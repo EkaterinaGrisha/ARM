@@ -13,6 +13,8 @@ ESKD = Designations(load_settings().dictionaries)
         ("АРМ 303411.201", "АРМ.303411.201"),
         ("АБВГ.123456.789-01", "АБВГ.123456.789-01"),
         ("АРМ.3О3411.0О5", "АРМ.303411.005"),  # letter О instead of zero (OCR error)
+        ("КТРМ 303411002 СБ", "КТРМ.303411.002 СБ"),  # OCR lost the dots
+        ("ЛМКР.721321,001", "ЛМКР.721321.001"),  # and read one as a comma
         ("Чертёж АРМ.303411.101 Корпус.pdf", "АРМ.303411.101"),
         ("АРМ.И.0412-25", None),  # a change notice number is not a designation
         ("Болт М12×40 ГОСТ 7798-70", None),

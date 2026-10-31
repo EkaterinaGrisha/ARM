@@ -7,19 +7,22 @@ regions they come from. A rule turned off in ``configs/checks.yaml`` reports not
 
 from __future__ import annotations
 
+import difflib
 from collections import defaultdict
 
 from kdcheck.checks.rules import ActiveRule
+from kdcheck.config import NameMatch
 from kdcheck.normalize.designations import Designations, base_designation, doc_code
 from kdcheck.schemas import Discrepancy, DocumentInfo, SourceRef, SpecRow, TreeNode
 from kdcheck.tree.product import ProductTree, text
 
 
 class Checker:
-    def __init__(self, tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule]) -> None:
+    def __init__(self, tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule], names: NameMatch) -> None:
         self.tree = tree
         self.eskd = eskd
         self.rules = rules
+        self.names = names
         self.sb = eskd.words.assembly_drawing_code
         self.discrepancies: list[Discrepancy] = []
         self._ids = 0
@@ -70,6 +73,16 @@ class Checker:
         self._check_names()
         self._check_litera()
         return self.discrepancies
+
+    def _same_name(self, a: str | None, b: str | None, *sources: SourceRef | None) -> bool:
+        """Whether two names are one: the same after normalization or, when one of them was read by OCR or a model,
+        close enough for the difference to be misread letters."""
+        first, second = self.eskd.normalize_name(a), self.eskd.normalize_name(b)
+        if first == second:
+            return True
+        if not any(s is not None and s.method in self.names.methods for s in sources):
+            return False
+        return difflib.SequenceMatcher(None, first, second).ratio() >= self.names.min_similarity
 
     def _check_missing(self) -> None:
         """Positions whose document is not in the kit, in the order of the tree."""
@@ -160,22 +173,29 @@ class Checker:
                     nodes=tree.node_index.get(des, []),
                     sources=[r.tb_source("revision") or r.tb_source("litera") for r in refs],
                 )
-        names: dict[str, dict[str, list[tuple[DocumentInfo, SpecRow]]]] = defaultdict(lambda: defaultdict(list))
+        names: dict[str, list[list[tuple[DocumentInfo, SpecRow]]]] = defaultdict(list)  # designation → rows by name
         for doc, spec in tree.specs:
             for r in spec.rows:
                 row_des = self.eskd.normalize_designation(text(r.designation))
-                if row_des:
-                    names[row_des][self.eskd.normalize_name(text(r.name))].append((doc, r))
+                if not row_des:
+                    continue
+                for rows in names[row_des]:
+                    first = rows[0][1]
+                    if self._same_name(text(first.name), text(r.name), _name_source(first), _name_source(r)):
+                        rows.append((doc, r))
+                        break
+                else:
+                    names[row_des].append([(doc, r)])
         for des, by_name in names.items():
             if len(by_name) > 1:
-                variants = [f"«{text(rows[0][1].name)}» ({rows[0][0].path})" for rows in by_name.values()]
+                variants = [f"«{text(rows[0][1].name)}» ({rows[0][0].path})" for rows in by_name]
                 self.add(
                     "B1.DUP.002",
                     des,
                     f"Обозначение {des} указано в спецификациях с разными наименованиями: " + ", ".join(variants),
-                    docs=[d.id for rows in by_name.values() for d, _ in rows],
+                    docs=[d.id for rows in by_name for d, _ in rows],
                     nodes=tree.node_index.get(des, []),
-                    sources=[r.source for rows in by_name.values() for _, r in rows],
+                    sources=[r.source for rows in by_name for _, r in rows],
                 )
         for des, items in tree.spec_by_des.items():
             if len(items) > 1:
@@ -195,12 +215,14 @@ class Checker:
                 expected = node.name
                 if not expected or node.kind == "document":
                     continue
+                row = tree.rows.get(node.id)
+                listed = _name_source(row) if row is not None else None
                 candidates = list(tree.drawings_by_des.get(des, []))
                 if node.kind == "assembly":
                     candidates = list(tree.drawings_by_des.get(f"{des} {self.sb}", []))
                 for ref in candidates:
                     actual = ref.tb_value("name") or ref.doc.name
-                    if not actual or self.eskd.normalize_name(str(actual)) == self.eskd.normalize_name(expected):
+                    if not actual or self._same_name(str(actual), expected, listed, ref.tb_source("name")):
                         continue
                     self.add(
                         "B1.NAME.001",
@@ -215,7 +237,8 @@ class Checker:
                 if node.kind == "assembly" and node.spec_document_id:
                     for _, spec in tree.spec_by_des.get(des, [])[:1]:
                         own = text(spec.name)
-                        if own and self.eskd.normalize_name(own) != self.eskd.normalize_name(expected):
+                        source = spec.name.source if spec.name else None
+                        if own and not self._same_name(own, expected, listed, source):
                             self.add(
                                 "B1.NAME.002",
                                 des,
@@ -224,7 +247,7 @@ class Checker:
                                 actual=own,
                                 docs=[node.spec_document_id],
                                 nodes=[node],
-                                sources=[spec.name.source if spec.name else None],
+                                sources=[source],
                             )
 
     def _check_litera(self) -> None:
@@ -274,6 +297,10 @@ class Checker:
                         )
 
 
-def check(tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule]) -> list[Discrepancy]:
+def _name_source(row: SpecRow) -> SourceRef | None:
+    return row.name.source if row.name is not None else None
+
+
+def check(tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule], names: NameMatch) -> list[Discrepancy]:
     """Discrepancies of the kit; the tree nodes they concern get their ids and the ``warning`` status."""
-    return Checker(tree, eskd, rules).run()
+    return Checker(tree, eskd, rules, names).run()

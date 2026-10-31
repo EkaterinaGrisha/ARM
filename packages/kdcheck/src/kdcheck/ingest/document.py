@@ -16,12 +16,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from PIL import Image, ImageFilter, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageStat
 
 from kdcheck.config import ScanQuality, Settings, Sheet
 from kdcheck.ingest.pdf import EncryptedPdfError, PdfBackend, PdfPage, get_backend
 from kdcheck.ingest.text import BBox, Line
-from kdcheck.ocr import tesseract
+from kdcheck.layout import raster
+from kdcheck.ocr import cells, tesseract
 from kdcheck.schemas import DocumentInfo, PageInfo, SourceRef
 
 log = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ class Page:
     confidence: float | None = None  # of values read by ``method`` when the lines give none
     format: str | None = None  # GOST 2.301 sheet format by the size of the page
     problem: str | None = None  # why the page was not read or parsed; the other pages were
+    regions: cells.Regions | None = None  # of a page image read by OCR: found by their ruled lines
 
     @property
     def mm(self) -> float:
@@ -204,6 +206,10 @@ def _ocr(page: Page, image: Image.Image, settings: Settings, scale: float, origi
     if lines:
         page.lines = lines
         page.read_by("ocr", ocr.engine, tesseract.version(), settings.ingest.confidence.ocr)
+        try:
+            page.regions = cells.find(image, scale, origin, page.mm / scale, settings)
+        except Exception:  # the page keeps the text read from the whole of it
+            log.warning("Страница %s: области по линиям не найдены из-за ошибки", page.number, exc_info=True)
 
 
 def _pages_to_read(doc: LoadedDocument, count: int, max_pages: int) -> int:
@@ -235,7 +241,7 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
             page.image_only = pg.has_images()
             image, origin, scale = _page_image(pg, settings)
             if index == 0:
-                doc.quality = image_quality(image, ingest.quality.sample_width)
+                doc.quality = image_quality(image, ingest.quality)
                 doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
             if use_ocr and not doc.unreadable:
                 _ocr(page, image, settings, scale, origin)
@@ -300,7 +306,7 @@ def _load_image(doc: LoadedDocument, data: bytes, settings: Settings) -> None:
                 size = (frame.width / dpi * MM_PER_INCH, frame.height / dpi * MM_PER_INCH)
                 page.format = sheet_format(*size, settings.forms.sheet)
             if index == 0:
-                doc.quality = image_quality(frame, ingest.quality.sample_width)
+                doc.quality = image_quality(frame, ingest.quality)
                 doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
             if use_ocr and not doc.unreadable:
                 _ocr(page, frame, settings, 1.0, (0.0, 0.0))
@@ -365,16 +371,44 @@ def _fill_page_info(doc: LoadedDocument) -> None:
     ]
 
 
-def image_quality(image: Image.Image, sample_width: int) -> dict[str, float]:
-    """Simple scan readability metrics: contrast and sharpness (edge energy)."""
+def image_quality(image: Image.Image, rules: ScanQuality) -> dict[str, float]:
+    """Readability of a scan whatever share of the sheet the drawing inks: contrast, sharpness and brightness.
+
+    Contrast is how far the ink is from the paper: the median grey levels either side of the Otsu threshold, as
+    eval/scan_quality.py measures them. Sharpness is the mean difference between neighbouring pixels on the ink and
+    next to it. Both stay put on a sparse sheet, where the spread of grey over the whole sheet is mostly paper. The
+    edges of the image, where the lid and the shadow of a scanner lie around the sheet, are left out.
+    """
     gray = image.convert("L")
-    if gray.width > sample_width:
-        gray = gray.resize((sample_width, round(gray.height * sample_width / gray.width)))
-    contrast = ImageStat.Stat(gray).stddev[0]
-    edges = gray.filter(ImageFilter.FIND_EDGES)
-    sharpness = ImageStat.Stat(edges).mean[0]
-    dark = ImageStat.Stat(gray).mean[0]
-    return {"contrast": round(contrast, 2), "sharpness": round(sharpness, 2), "brightness": round(dark, 2)}
+    if gray.width > rules.sample_width:
+        gray = gray.resize((rules.sample_width, round(gray.height * rules.sample_width / gray.width)))
+    cut = round(rules.margin * min(gray.size))
+    gray = gray.crop((cut, cut, gray.width - cut, gray.height - cut))
+    hist = gray.histogram()
+    level = raster.otsu(hist)
+    near = raster.ink_mask(gray, level).filter(ImageFilter.MaxFilter(3))
+    steps = ImageChops.add(
+        ImageChops.difference(gray, ImageChops.offset(gray, 1, 0)),
+        ImageChops.difference(gray, ImageChops.offset(gray, 0, 1)),
+    )
+    sharpness = ImageStat.Stat(steps, near).mean[0] if near.getbbox() else 0.0
+    contrast = _median(hist, level + 1, len(hist) - 1) - _median(hist, 0, level)
+    return {
+        "contrast": round(contrast, 2),
+        "sharpness": round(sharpness, 2),
+        "brightness": round(ImageStat.Stat(gray).mean[0], 2),
+    }
+
+
+def _median(hist: list[int], low: int, high: int) -> float:
+    """The median grey level of the pixels from ``low`` to ``high``."""
+    part = hist[low : high + 1]
+    seen, half = 0, sum(part) / 2
+    for i, count in enumerate(part):
+        seen += count
+        if seen >= half:
+            return float(low + i)
+    return float(high)
 
 
 def unreadable_reason(quality: dict[str, float], rules: ScanQuality) -> str | None:
