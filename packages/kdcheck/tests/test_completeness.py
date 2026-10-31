@@ -20,6 +20,7 @@ from kdcheck.schemas import (
     DocumentInfo,
     Extracted,
     PartRecord,
+    SourceRef,
     Specification,
     SpecRow,
     TitleBlock,
@@ -39,7 +40,7 @@ class Result(NamedTuple):
 
 def check(specs, drawings, checks: Checks = SETTINGS.checks) -> Result:
     tree = build_tree(specs, drawings, ESKD)
-    return Result(tree.roots, run_check(tree, ESKD, configured(checks)), tree.log)
+    return Result(tree.roots, run_check(tree, ESKD, configured(checks), checks.names), tree.log)
 
 
 def row(i: int, section: str, des: str = "", name: str = "", qty: float | None = 1, note: str = "") -> SpecRow:
@@ -296,6 +297,36 @@ def test_rule_stays_quiet_on_a_near_miss(rule_id):
     assert rule_id not in fired(CASES[rule_id][1]())
 
 
+def _read_by(extracted: Extracted | None, method: str) -> None:
+    assert extracted is not None
+    extracted.source = SourceRef(document_id="d", method=method)
+
+
+def _kit_with_name(on_drawing: str, method: str) -> Kit:
+    ref = drawing("d1", PART, on_drawing)
+    _read_by(ref.part.title_block.name, method)
+    return [product(part_row("Шайба специальная"))], [ref]
+
+
+def test_a_misread_letter_of_an_ocr_name_is_not_a_mismatch():
+    assert "B1.NAME.001" not in fired(_kit_with_name("Шацба специольная", "ocr"))
+
+
+def test_another_name_read_by_ocr_is_a_mismatch():
+    assert "B1.NAME.001" in fired(_kit_with_name("Планка", "ocr"))
+
+
+def test_the_text_layer_gets_no_margin():
+    assert "B1.NAME.001" in fired(_kit_with_name("Шацба специольная", "text_layer"))
+
+
+def test_positions_with_two_readings_of_one_name_are_not_a_duplicate():
+    one, other = part_row("Шайба специальная"), part_row("Шацба специольная")
+    _read_by(other.name, "ocr")
+    kit = [product(one, unit_row()), spec("s1", UNIT, "Узел", [other])], []
+    assert "B1.DUP.002" not in fired(kit)
+
+
 def test_rule_ids_are_unique_and_cover_every_discrepancy_type():
     ids = [rule.id for rule in RULES]
     assert len(ids) == len(set(ids))
@@ -306,9 +337,13 @@ def test_rule_ids_are_unique_and_cover_every_discrepancy_type():
 def test_settings_turn_a_rule_off_and_set_its_severity():
     kit = CASES["B1.NAME.001"][0]()
     rules = SETTINGS.checks.rules
-    off = Checks(rules={**rules, "B1.NAME.001": RuleSettings(enabled=False, severity="medium")})
+    off = SETTINGS.checks.model_copy(
+        update={"rules": {**rules, "B1.NAME.001": RuleSettings(enabled=False, severity="medium")}}
+    )
     assert "B1.NAME.001" not in fired(kit, off)
-    low = Checks(rules={**rules, "B1.NAME.001": RuleSettings(enabled=True, severity="low")})
+    low = SETTINGS.checks.model_copy(
+        update={"rules": {**rules, "B1.NAME.001": RuleSettings(enabled=True, severity="low")}}
+    )
     [name] = [d for d in check(*kit, checks=low).discrepancies if d.rule_id == "B1.NAME.001"]
     assert (name.type, name.severity, name.title) == (
         "name_mismatch",
@@ -322,7 +357,7 @@ def test_checks_yaml_lists_every_rule_and_only_known_ones():
     del rules["B1.NAME.002"]
     rules["B1.NAME.009"] = RuleSettings(enabled=True, severity="low")
     with pytest.raises(ConfigError, match=r"нет настроек правила B1\.NAME\.002\n.*неизвестное правило B1\.NAME\.009"):
-        configured(Checks(rules=rules))
+        configured(SETTINGS.checks.model_copy(update={"rules": rules}))
 
 
 def test_report_format_lists_every_rule_with_its_type_and_default_severity():

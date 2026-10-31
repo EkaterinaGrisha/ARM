@@ -17,6 +17,10 @@ assembly_drawing_name: сборочный чертеж  # in the name of an asse
 
 document_codes: [СБ, ВО, ТЧ, ГЧ, МЭ, МЧ, УЧ, ЭЗ, Э3, ПЗ, ТУ, ВП, ВД, ПЭ3, ТБ, РР, Д1]  # GOST 2.102
 litera_order: [П, Э, Т, О, О1, О2, О3, А, Б]  # GOST 2.103, from the earliest stage
+scales: ["1:1", "1:2", "1:2,5", "1:4", "1:5", "1:10", "1:15", "1:20", "1:25", "1:40", "1:50", "1:75", "1:100",
+  "1:200", "1:400", "1:500", "1:800", "1:1000", "2:1", "2,5:1", "4:1", "5:1", "10:1", "20:1", "40:1", "50:1", "100:1"]
+  # GOST 2.302: a scale cell whose colon OCR lost is the one of these its digits spell, when there is one
+see_table: {pattern: '[сc(]м\.?\s*т[аоo]бл', name: См. табл.}  # the mass of a group drawing, GOST 2.113, p. 4.1.10
 
 latin_lookalikes:                # Latin letters typed or recognized instead of Cyrillic ones
   "A": "А"

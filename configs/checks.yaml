@@ -14,3 +14,7 @@ rules:
   B1.VERSION.001: {enabled: true, severity: medium}  # copies of a document differ in change number or litera
   B1.LITERA.001: {enabled: true, severity: medium}   # a specification and its assembly drawing differ in litera
   B1.LITERA.002: {enabled: true, severity: medium}   # a component has a lower litera than its assembly (GOST 2.103)
+
+names:                           # a misread letter is not another name
+  methods: [ocr, vlm]            # when either of two names was read this way they may differ a little
+  min_similarity: 0.75           # 0–1, the share of letters in common: at this or more they are one name

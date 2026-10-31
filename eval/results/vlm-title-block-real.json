@@ -1,6 +1,6 @@
 {
   "command": "--model google/gemma-4-e4b --model qwen/qwen3.6-27b --real",
-  "date": "2026-10-27",
+  "date": "2026-10-31",
   "url": "http://127.0.0.1:1234/v1",
   "real": true,
   "inputs": {
@@ -55,8 +55,8 @@
         "name": {
           "total": 17,
           "right": 0,
-          "wrong": 0,
-          "missing": 17,
+          "wrong": 1,
+          "missing": 16,
           "accuracy": 0.0,
           "by_model": 0,
           "by_model_right": 0
@@ -73,8 +73,8 @@
         "mass": {
           "total": 10,
           "right": 0,
-          "wrong": 0,
-          "missing": 10,
+          "wrong": 1,
+          "missing": 9,
           "accuracy": 0.0,
           "by_model": 0,
           "by_model_right": 0
@@ -102,7 +102,7 @@
       "model_values_right": 0,
       "model_calls": 0,
       "conflicts": {},
-      "seconds": 14.7,
+      "seconds": 24.5,
       "problems": [],
       "sheets": {
         "izh250_p002.jpg": {
@@ -195,8 +195,8 @@
         "name": {
           "total": 17,
           "right": 0,
-          "wrong": 0,
-          "missing": 17,
+          "wrong": 1,
+          "missing": 16,
           "accuracy": 0.0,
           "by_model": 0,
           "by_model_right": 0
@@ -213,8 +213,8 @@
         "mass": {
           "total": 10,
           "right": 0,
-          "wrong": 0,
-          "missing": 10,
+          "wrong": 1,
+          "missing": 9,
           "accuracy": 0.0,
           "by_model": 0,
           "by_model_right": 0
@@ -240,9 +240,9 @@
       },
       "model_values": 0,
       "model_values_right": 0,
-      "model_calls": 0,
+      "model_calls": 2,
       "conflicts": {},
-      "seconds": 15.0,
+      "seconds": 31.2,
       "problems": [],
       "sheets": {
         "izh250_p002.jpg": {
@@ -335,8 +335,8 @@
         "name": {
           "total": 17,
           "right": 0,
-          "wrong": 0,
-          "missing": 17,
+          "wrong": 1,
+          "missing": 16,
           "accuracy": 0.0,
           "by_model": 0,
           "by_model_right": 0
@@ -353,8 +353,8 @@
         "mass": {
           "total": 10,
           "right": 0,
-          "wrong": 0,
-          "missing": 10,
+          "wrong": 1,
+          "missing": 9,
           "accuracy": 0.0,
           "by_model": 0,
           "by_model_right": 0
@@ -380,9 +380,9 @@
       },
       "model_values": 0,
       "model_values_right": 0,
-      "model_calls": 0,
+      "model_calls": 2,
       "conflicts": {},
-      "seconds": 14.9,
+      "seconds": 44.7,
       "problems": [],
       "sheets": {
         "izh250_p002.jpg": {

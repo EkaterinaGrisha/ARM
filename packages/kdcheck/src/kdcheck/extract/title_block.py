@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from kdcheck.config import ChangesTable, Forms, MarginColumns, TitleBlockTemplate
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.ingest.text import BBox, Line, lines_confidence
+from kdcheck.layout.raster import Placement
 from kdcheck.normalize.designations import Designations
 from kdcheck.schemas import Extracted, TitleBlock
 
@@ -31,20 +32,24 @@ class Geometry:
     width: float  # mm
     height: float  # mm
     pad: float  # mm added around each cell
+    angle: float = 0.0  # degrees: a scanned sheet turned on the glass, found by the ruled lines of the block
+
+    @property
+    def placement(self) -> Placement:
+        return Placement(self.x0, self.y0, self.s, self.angle)
 
     def rect(self, cell: BBox, pad: float | None = None) -> BBox:
+        """The page box of ``cell`` (mm from the top left corner of the block) with ``pad`` mm around it."""
         pad = self.pad if pad is None else pad
         x0, y0, x1, y1 = cell
-        return (
-            self.x0 + (x0 - pad) * self.s,
-            self.y0 + (y0 - pad) * self.s,
-            self.x0 + (x1 + pad) * self.s,
-            self.y0 + (y1 + pad) * self.s,
-        )
+        return self.placement.rect((x0 - pad, y0 - pad, x1 + pad, y1 + pad))
 
     @property
     def bbox(self) -> BBox:
         return self.rect((0, 0, self.width, self.height), pad=0)
+
+
+_EDGE_NOISE = " |[]{}‚„`_~^*!?;:<>"  # what ruled lines and specks leave at the edges of a recognized name, never a name
 
 
 def _key(word: str) -> str:
@@ -52,8 +57,13 @@ def _key(word: str) -> str:
 
 
 def locate(page: Page, forms: Forms) -> Geometry | None:
-    """Locate the title block on the page; None if there are no column labels."""
+    """Locate the title block on the page: on a page image by the ruled lines of its form, else by the column
+    labels; None without either."""
     template = forms.title_block
+    ruled = page.regions.block if page.regions is not None else None
+    if ruled is not None and ruled.form in template.forms:
+        p = ruled.placement
+        return _placed(template, ruled.form, p.x0, p.y0, p.s, anchored=True, angle=p.angle)
     labels = template.label_words
     zone_x, zone_y = template.label_zone
     found: dict[str, list[Point]] = {}
@@ -105,9 +115,11 @@ def _geometry(page: Page, template: TitleBlockTemplate, form: int, hits: dict[st
     return _placed(template, form, x0, y0, s, anchored=True)
 
 
-def _placed(template: TitleBlockTemplate, form: int, x0: float, y0: float, s: float, *, anchored: bool) -> Geometry:
+def _placed(
+    template: TitleBlockTemplate, form: int, x0: float, y0: float, s: float, *, anchored: bool, angle: float = 0.0
+) -> Geometry:
     height = template.forms[form].height
-    return Geometry(form, x0, y0, s, anchored, width=template.width, height=height, pad=template.cell_padding)
+    return Geometry(form, x0, y0, s, anchored, template.width, height, template.cell_padding, angle)
 
 
 def default_geometry(page: Page, forms: Forms, form: int = 1) -> Geometry:
@@ -158,13 +170,19 @@ def cell_value(field: str, text: str, eskd: Designations, labels: Collection[str
         found = eskd.find_designations(text)
         return found[0][0] if found else None
     if field in ("name", "material"):
-        return text or None
+        return text.strip(_EDGE_NOISE) or None
     if field == "mass":
+        if re.search(eskd.words.see_table.pattern, text, re.IGNORECASE):
+            return eskd.words.see_table.name
         m = re.search(r"\d+(?:[.,]\d+)?", text)
         return m.group(0) if m else None
     if field == "scale":
         m = re.search(r"\d+(?:[.,]\d+)?\s?:\s?\d+(?:[.,]\d+)?", text)
-        return m.group(0).replace(" ", "") if m else None
+        if m:
+            return m.group(0).replace(" ", "")
+        digits = re.sub(r"[^\d,]", "", text.replace(".", ","))
+        spelled = [scale for scale in eskd.words.scales if scale.replace(":", "") == digits]
+        return spelled[0] if len(spelled) == 1 else None
     if field == "litera":
         m = re.search(r"[ПЭТОИАБ0OAБ]\s?\d?", text.upper())
         return eskd.normalize_litera(m.group(0)) if m else None
@@ -180,6 +198,8 @@ def parse(doc: LoadedDocument, page: Page, geom: Geometry, forms: Forms, eskd: D
     cells = template.forms[geom.form].cells.model_dump(exclude_none=True)
     tb = TitleBlock()
     got: dict[str, list[Line]] = {name: lines_in(page, geom.rect(cell), row) for name, cell in cells.items()}
+    if page.regions is not None:  # the cells of a page image read one by one
+        got |= page.regions.cells
 
     # Designation: the largest line with an ESKD designation in column 2
     des_lines = got["designation"]
@@ -208,8 +228,8 @@ def parse(doc: LoadedDocument, page: Page, geom: Geometry, forms: Forms, eskd: D
 def _revision(doc: LoadedDocument, page: Page, geom: Geometry, changes: ChangesTable, row: float) -> Extracted | None:
     """Last change number: the largest number in the «Изм.» column above the header row."""
     s = geom.s
-    header_y = geom.y0 + changes.header_y * s
-    col = (geom.x0 + changes.column[0] * s, geom.x0 + changes.column[1] * s)
+    header_y = geom.placement.point(0, changes.header_y)[1]
+    col = (geom.placement.point(changes.column[0], 0)[0], geom.placement.point(changes.column[1], 0)[0])
     for ln in lines_in(page, geom.rect(changes.label_area), row):
         for w in ln.words:
             if _key(w.text) == changes.label:
@@ -217,7 +237,8 @@ def _revision(doc: LoadedDocument, page: Page, geom: Geometry, changes: ChangesT
                 col = (w.bbox[0] + changes.label_column[0] * s, w.bbox[0] + changes.label_column[1] * s)
                 break
     best: tuple[int, Line] | None = None
-    for ln in page.lines:
+    read = page.regions.cells.get("changes") if page.regions is not None else None  # the column of a page image
+    for ln in page.lines if read is None else read:
         if ln.vertical or not (geom.y0 - changes.top_tolerance * s <= ln.cy < header_y - changes.header_gap * s):
             continue
         for w in ln.words:
@@ -235,6 +256,8 @@ def _revision(doc: LoadedDocument, page: Page, geom: Geometry, changes: ChangesT
         and abs(x.cy - ln.cy) < changes.row_tolerance * s
         and x.bbox[0] < geom.x0 + changes.row_right * s
     ]
+    if ln not in entry:  # read from the column on its own
+        entry.append(ln)
     raw = " ".join(x.text for x in sorted(entry, key=lambda x: x.bbox[0]))
     return Extracted(value=num, raw=raw, source=doc.source(page, _union(entry), raw, lines_confidence(entry)))
 

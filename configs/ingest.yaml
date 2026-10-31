@@ -14,9 +14,28 @@ scan:                            # a PDF page that is one scanned image is read 
 
 quality:                         # a scan below any of the thresholds is unreadable
   sample_width: 1600             # px: a wider image is reduced before measuring
-  min_contrast: 18               # standard deviation of grey levels
+  margin: 0.05                   # share of the shorter side left out at each edge: the lid and shadow of a scanner
+  min_contrast: 15               # grey levels between the ink and the paper, either side of the Otsu threshold
   min_brightness: 60             # mean grey level
-  min_sharpness: 2.0             # mean edge strength
+  min_sharpness: 4               # mean difference between neighbouring pixels on the ink and next to it
+
+regions:                         # the frame, the title block and the specification table by their ruled lines on a page image
+  corner: [215, 85]              # mm: the bottom right corner of the image where the title block is looked for
+  max_skew: 3                    # degrees: the largest turn of a sheet on the scanner looked for
+  skew_steps: [0.25, 0.025]      # degrees: the coarse and the fine step of that search
+  sample: 4                      # px per mm of the copy of the ink the turn and the lines are measured on
+  ink_density: [0.25, 0.5, 0.75] # share of a pixel of that copy in ink for the pixel to be ink: the first that leaves lines on paper
+  max_mask_ink: 0.3              # share of that copy in ink above which it holds grain, which fills its pixels in part, and not lines on paper
+  line_ink: 0.6                  # share of the length of a ruled line in ink for the line to be there
+  max_line_width: 2.5            # mm: a wider dark band is the edge of the sheet or a shadow, not a ruled line
+  line_band: 0.6                 # mm: a line of a form is looked for this far either side of where the form puts it
+  edge_band: [1.5, 5]            # mm inside a long line: where the verticals of a block are looked for
+  scale_tolerance: 0.05          # scales between verticals this close to the resolution of the image are tried first
+  min_form_lines: 0.8            # share of the ruled lines of a form found for the block to be of that form
+  line_on_image: 0.8             # share of the length of a line of a form on the image for the line to count
+  line_side: 2                   # mm: paper this far to one side of a line tells it from grain and dark areas
+  max_placements: 50000          # placements of a form tried at each step of the search: hatching or grain costs seconds of a page, not minutes
+  wipe_ink: 0.8                  # share of a cell in ink for a line across it to be wiped: letters of a low cell reach 0.6
 
 page_scale:                      # pixels per millimetre of an image without resolution metadata
   aspect_tolerance: 0.08         # the image fits a paper format when their aspect ratios differ by less than this

@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-26",
+  "date": "2026-10-31",
   "machine": "Darwin arm64, Python 3.11.15",
   "versions": {
     "pypdfium2": "5.14.0",
@@ -11,18 +11,18 @@
   "page_times": {
     "pdfium": {
       "text_ms": 1.6,
-      "render_ms": 1.9
+      "render_ms": 1.6
     },
     "pymupdf": {
-      "text_ms": 1.3,
-      "render_ms": 22.5
+      "text_ms": 1.4,
+      "render_ms": 22.0
     }
   },
   "runs": [
     {
       "backend": "pdfium",
       "ocr": false,
-      "kit_seconds": 0.1,
+      "kit_seconds": 0.15,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -129,12 +129,12 @@
     {
       "backend": "pdfium",
       "ocr": true,
-      "kit_seconds": 0.62,
+      "kit_seconds": 1.25,
       "metrics": {
         "Расхождения — всего": {
-          "precision": 0.9,
+          "precision": 1.0,
           "recall": 1.0,
-          "f1": 0.947,
+          "f1": 1.0,
           "support": 9
         },
         "Отсутствует чертёж": {
@@ -150,9 +150,9 @@
           "support": 1
         },
         "Расхождение наименования": {
-          "precision": 0.5,
+          "precision": 1.0,
           "recall": 1.0,
-          "f1": 0.667,
+          "f1": 1.0,
           "support": 1
         },
         "Дублирование обозначения": {
@@ -194,7 +194,7 @@
           "support": 15
         },
         "Основная надпись: Масштаб": {
-          "accuracy": 0.867,
+          "accuracy": 0.933,
           "support": 15
         },
         "Основная надпись: Литера": {
@@ -218,7 +218,7 @@
           "support": 105
         },
         "Основная надпись — сканы": {
-          "accuracy": 0.375,
+          "accuracy": 0.438,
           "support": 16
         },
         "Параметры технических требований": {
@@ -236,7 +236,7 @@
     {
       "backend": "pymupdf",
       "ocr": false,
-      "kit_seconds": 0.14,
+      "kit_seconds": 0.2,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -343,7 +343,7 @@
     {
       "backend": "pymupdf",
       "ocr": true,
-      "kit_seconds": 0.77,
+      "kit_seconds": 1.37,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -408,11 +408,11 @@
           "support": 15
         },
         "Основная надпись: Масштаб": {
-          "accuracy": 0.867,
+          "accuracy": 0.933,
           "support": 15
         },
         "Основная надпись: Литера": {
-          "accuracy": 0.933,
+          "accuracy": 1.0,
           "support": 15
         },
         "Основная надпись: Номер изменения": {
@@ -432,7 +432,7 @@
           "support": 105
         },
         "Основная надпись — сканы": {
-          "accuracy": 0.375,
+          "accuracy": 0.5,
           "support": 16
         },
         "Параметры технических требований": {

@@ -9,6 +9,20 @@ ocr:
   languages: rus+eng
   page_segmentation: 11          # Tesseract --psm: sparse text in any order
   min_word_confidence: 30        # 0–100: words recognized with less are dropped
+  cells:                         # cells of a title block and a specification table found by their ruled lines
+    languages: rus               # Cyrillic, digits and signs; with eng the GOST lettering of «ПМЛС» reads «HMAC»
+    page_segmentation: 6         # Tesseract --psm: a block of text, one or two lines
+    text_height: 40              # px: the tallest line of text in a cell is resized to this before recognition
+    text_range: [1.5, 12]        # mm: a run of ink rows this high is a line of text; GOST 2.304 sizes start at 1.8
+    pixels_per_mm: 12            # a cell without one is resized to this, about 300 dpi
+    margin: 0.5                  # mm: a cell is read this far inside its ruled lines
+    min_ink: 0.5                 # mm² of ink below which a cell is empty and not read: less than one digit
+    min_word_confidence: 0       # 0–100: all words of a cell with ink are kept, their confidence goes to the report
+    characters:                  # what a cell may hold: Tesseract reads only these characters there, so the С of the
+                                 # GOST lettering is not read «(» and its 1 is not read «/»; elsewhere it costs more
+      designation: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789.-  # GOST 2.201
+      changes: "0123456789"
+      material: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя0123456789.,-/
 
 vlm:                             # a vision-language model reads title block cells (ADR-0014); off by default
   enabled: false                 # ARM_VLM=1 or kdcheck run --vlm turn it on

@@ -5,22 +5,45 @@ are the text drawn on the sheet, and ``boxes`` say where: the page and the box a
 left corner, as ``kdcheck.schemas.SourceRef`` gives them. On a scan the boxes follow the sheet through its skew and
 shift, and ``capture`` says how the pixels were made: by :mod:`synth.degrade` or through Augraphy
 (:mod:`synth.augraphy_scans`). The light scans of the demo kit keep the boxes of the sheet and have no ``capture``.
+
+A designation GOST 2.113 shortens to «-01» below the full one is written in full, and ``written`` keeps the text of
+the sheet. Fields added after the first truths were written leave the JSON while they hold their default, so the
+truths written before them, the committed truth of the demo kit among them, read and write back byte for byte.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, JsonValue, Tag
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    JsonValue,
+    SerializerFunctionWrapHandler,
+    Tag,
+    model_serializer,
+)
 
-from synth.model import Change, Drawing, Row, Spec
+from synth.model import Change, Drawing, Row, Spec, Variant
 from synth.render import Box as DrawnBox
 
 
 class Truth(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+    _sparse: ClassVar[tuple[str, ...]] = ()  # fields the JSON leaves out while they hold their default
+
+    @model_serializer(mode="wrap")
+    def _leave_defaults(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        for name in self._sparse:
+            if getattr(self, name) == type(self).model_fields[name].get_default(call_default_factory=True):
+                data.pop(name, None)
+        return data
 
 
 class Box(Truth):
@@ -168,7 +191,13 @@ def _boxes(drawn: dict[str, DrawnBox], prefix: str = "") -> dict[str, Box]:
 
 
 class RowTruth(Truth):
-    """A specification row as drawn, column by column."""
+    """A specification row as drawn, column by column.
+
+    In a group specification of GOST 2.113 by variant A, ``variant`` names the variant whose variable data hold the
+    row; by variant B, ``quantities`` give the quantity on each variant, «×» for a document, and ``qty`` is empty.
+    """
+
+    _sparse: ClassVar[tuple[str, ...]] = ("variant", "quantities", "written")
 
     section: str
     fmt: str = ""
@@ -177,7 +206,12 @@ class RowTruth(Truth):
     name: str = ""
     qty: str = ""
     note: str = ""
-    boxes: dict[str, Box] = Field({}, description="By column: fmt, pos, designation, name, qty, note")
+    boxes: dict[str, Box] = Field(
+        {}, description="By column: fmt, pos, designation, name, qty, note; qty:<variant> for each quantity"
+    )
+    variant: str = ""
+    quantities: dict[str, str] = Field({}, description="By the designation of the variant")
+    written: str | None = Field(None, description="The designation as the row writes it, «-01»; none when in full")
 
     @classmethod
     def of(cls, row: Row, drawn: dict[str, DrawnBox] | None = None, index: int = 0) -> RowTruth:
@@ -190,10 +224,17 @@ class RowTruth(Truth):
             qty=row.qty,
             note=row.note,
             boxes=_boxes(drawn or {}, f"row:{index}:"),
+            variant=row.variant,
+            quantities=dict(row.quantities),
+            written=row.written or None,
         )
 
 
 class SpecTruth(Truth):
+    """A specification; a group one of GOST 2.113 names its variant of layout in ``group`` and its variants."""
+
+    _sparse: ClassVar[tuple[str, ...]] = ("font_type", "group", "variants")
+
     kind: Literal["specification"] = "specification"
     designation: str
     name: str
@@ -201,9 +242,16 @@ class SpecTruth(Truth):
     revision: str | None
     rows: list[RowTruth]
     sheets: int = 1
-    boxes: dict[str, Box] = Field({}, description="Fields of the title block and of the left margin columns")
+    boxes: dict[str, Box] = Field(
+        {},
+        description="Fields of the title block and of the left margin columns; variant:<designation> for the heading"
+        " of the variable data of each variant",
+    )
     origin: Literal["vector", "raster", "scan"] = "vector"
     capture: CaptureRecord | None = None
+    font_type: Literal["A", "B"] = Field("A", description="The lettering of GOST 2.304 the document is drawn in")
+    group: Literal["A", "B"] | None = Field(None, description="Variant A or B of GOST 2.113; none for a single one")
+    variants: list[str] = Field([], description="The variants a group specification covers, the base one first")
 
     @classmethod
     def of(
@@ -220,15 +268,49 @@ class SpecTruth(Truth):
             boxes={k: v for k, v in _boxes(drawn).items() if not k.startswith("row:")},
             origin=spec.output.kind,
             capture=capture,
+            font_type=spec.font_type,
+            group=spec.group or None,
+            variants=list(spec.variants),
         )
 
 
 class ParameterTruth(Truth):
-    """A parameter of the technical requirements or the drawing field that extraction should find."""
+    """A parameter of the technical requirements or the drawing field that extraction should find.
+
+    The value, or the range, and the unit are given where the template of the item writes them: the depth of a layer
+    and the hardness of a heat treatment, a roughness, a tolerance of form; none for a parameter written by hand.
+    """
+
+    _sparse: ClassVar[tuple[str, ...]] = ("value", "value_min", "value_max", "unit")
 
     category: str
     name: str
     box: Box | None = None  # where the requirement or the annotation that holds it is drawn
+    value: float | None = None
+    value_min: float | None = None
+    value_max: float | None = None
+    unit: str | None = None
+
+
+class VariantTruth(Truth):
+    """A row of the table of variants of a group drawing, GOST 2.113, 4.1: the variant in full and as the row writes
+    it, its mass and its variable dimensions."""
+
+    designation: str
+    written: str | None = None
+    mass: str | None = None
+    data: dict[str, str] = Field({}, description="Variable dimensions by the column of the table: L, B, H")
+    boxes: dict[str, Box] = Field({}, description="designation, mass and each column of data")
+
+    @classmethod
+    def of(cls, variant: Variant, drawn: dict[str, DrawnBox], row: int) -> VariantTruth:
+        return cls(
+            designation=variant.designation,
+            written=variant.written or None,
+            mass=variant.mass or None,
+            data=dict(variant.data),
+            boxes=_boxes(drawn, f"variant:{row}:"),
+        )
 
 
 TITLE_FIELDS = (
@@ -248,7 +330,13 @@ TITLE_FIELDS = (
 
 
 class DrawingTruth(Truth):
-    """A drawing: the title block and the margin columns as drawn; none for a cell the blank does not have."""
+    """A drawing: the title block and the margin columns as drawn; none for a cell the blank does not have.
+
+    A group drawing of GOST 2.113 lists its variants in ``variants``, and its title block writes «См. табл.» for the
+    mass that changes from one variant to another.
+    """
+
+    _sparse: ClassVar[tuple[str, ...]] = ("font_type", "variants")
 
     kind: Literal["assembly_drawing", "part_drawing"]
     origin: Literal["vector", "raster", "scan"]
@@ -267,6 +355,8 @@ class DrawingTruth(Truth):
     boxes: dict[str, Box] = Field({}, description="Fields of the title block, the margin columns, general roughness")
     requirement_boxes: list[Box | None] = []
     capture: CaptureRecord | None = None
+    font_type: Literal["A", "B"] = Field("A", description="The lettering of GOST 2.304 the document is drawn in")
+    variants: list[VariantTruth] = Field([], description="The table of variants of a group drawing")
 
     @classmethod
     def of(
@@ -286,15 +376,25 @@ class DrawingTruth(Truth):
             revision=last_change(drawing.changes),
             archive_number=drawing.archive or None,
             first_use=drawing.first_use or None,
-            requirements=drawing.requirements,
+            requirements=[r.replace("\n", " ") for r in drawing.requirements],
             parameters=[
-                ParameterTruth(category=c, name=n, box=Box.of(drawn.get(key)))
-                for (c, n), key in zip(drawing.expected_params, keys, strict=True)
+                ParameterTruth(
+                    category=p.category,
+                    name=p.name,
+                    box=Box.of(drawn.get(key)),
+                    value=p.value,
+                    value_min=p.value_min,
+                    value_max=p.value_max,
+                    unit=p.unit,
+                )
+                for p, key in zip(drawing.expected_params, keys, strict=True)
             ],
             sheets=drawing.sheets,
             boxes={k: v for k, v in _boxes(drawn).items() if k in TITLE_FIELDS},
             requirement_boxes=[Box.of(drawn.get(f"requirement:{i}")) for i in range(len(drawing.requirements))],
             capture=capture,
+            font_type=drawing.font_type,
+            variants=[VariantTruth.of(v, drawn, row) for row, v in enumerate(drawing.variants)],
         )
 
 

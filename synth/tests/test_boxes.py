@@ -19,16 +19,20 @@ def _text_in(pdf: pdfium.PdfDocument, box: Box) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-@pytest.fixture(scope="module")
-def kit() -> kits.Kit:
-    for seed in range(1, 60):  # a clean kit with a drawing of several sheets and a wrapped name
+@pytest.fixture(scope="module", params=["A", "B"])
+def kit(request: pytest.FixtureRequest) -> kits.Kit:
+    """A clean kit in each lettering with a drawing of several sheets, a wrapped name, group specifications by both
+    variants of GOST 2.113 and a group drawing of a part."""
+    for seed in range(1, 120):
         kit = kits.build(seed, [], scan_share=0, raster_share=0)
         truth = kit.truth()
         several = any(isinstance(d, DrawingTruth) and d.sheets > 1 for d in truth.documents.values())
         wrapped = any("\n" in row.name for spec in kit.specs.values() for row in spec.rows)
-        if several and wrapped:
+        groups = {spec.group for spec in kit.specs.values()}
+        table = any(d.variants and not d.assembly for d in kit.drawings)
+        if kit.font_type == request.param and several and wrapped and {"A", "B"} <= groups and table:
             return kit
-    raise AssertionError("no kit has both")
+    raise AssertionError(f"no kit of type {request.param} has them all")
 
 
 def test_every_field_box_holds_its_value(kit):
@@ -52,14 +56,26 @@ def test_every_field_box_holds_its_value(kit):
         if isinstance(doc, SpecTruth):
             for row in doc.rows:
                 for column, box in row.boxes.items():
-                    assert getattr(row, column) in _text_in(pdf, box), (path, column, row.designation)
+                    if column.startswith("qty:"):
+                        value = row.quantities[column.removeprefix("qty:")]
+                    else:
+                        value = row.written if column == "designation" and row.written else getattr(row, column)
+                    assert value in _text_in(pdf, box), (path, column, row.designation)
                     checked += 1
+            for variant in doc.variants if doc.group == "A" else []:
+                assert variant in _text_in(pdf, doc.boxes[f"variant:{variant}"]), (path, variant)
         else:
             for text, box in zip(doc.requirements, doc.requirement_boxes, strict=True):
                 assert box is not None and text[:20] in _text_in(pdf, box), (path, text)
                 checked += 1
             for parameter in doc.parameters:
                 assert parameter.box is not None and _text_in(pdf, parameter.box), (path, parameter.name)
+            for variant in doc.variants:
+                values = {"designation": variant.written or variant.designation, "mass": variant.mass, **variant.data}
+                assert set(variant.boxes) == set(values), (path, variant.designation)
+                for column, value in values.items():
+                    assert value in _text_in(pdf, variant.boxes[column]), (path, variant.designation, column)
+                    checked += 1
     assert checked > 100
 
 
@@ -99,3 +115,14 @@ def test_a_long_name_wraps_and_the_truth_joins_its_lines(kit):
                 assert box[3] - box[1] > 0.03  # more than one line of 8 mm on an A4 sheet
                 return
     raise AssertionError("no wrapped name")
+
+
+def test_the_pages_are_drawn_in_the_lettering_of_the_kit_with_the_signs_type_b_lacks_from_type_a(kit):
+    """Every page names the font of the kit; a type B page that writes «Ø» takes the sign from type A."""
+    fonts: set[bytes] = set()
+    for path, data in kit.files.items():
+        types = set(re.findall(rb"/BaseFont /\w+\+OpenGostType([AB])TT", data))  # the subsets of the fonts
+        assert kit.font_type.encode() in types, path
+        fonts |= types
+    assert fonts == ({b"A", b"B"} if kit.font_type == "B" else {b"A"})
+    assert all(d.font_type == kit.font_type for d in kit.truth().documents.values())

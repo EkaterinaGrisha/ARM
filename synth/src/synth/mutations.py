@@ -4,7 +4,8 @@ A mutation of the ``documents`` stage changes the documents before they are draw
 the drawn files. Each picks a target no other mutation has used and writes into the truth what a correct check
 reports: the discrepancy type of the report, the designation, the Block 1 rule when the core has one, and the
 consequences, such as the drawings a lost specification leaves outside every specification. The rule ids are text,
-since synth does not import the core (ADR-0010); a mutation with no rule yet measures a gap of the check.
+since synth does not import the core (ADR-0010); a mutation with no rule yet measures a gap of the check. Group
+documents of GOST 2.113 are no targets: one of them covers several designations, and a mutation plants an error in one.
 """
 
 from __future__ import annotations
@@ -79,7 +80,7 @@ def drop_part_drawing(kit: Kit) -> bool:
 
 @_mutation("documents", "Удалить сборочный чертёж")
 def drop_assembly_drawing(kit: Kit) -> bool:
-    units = [u for u in kit.units() if u.designation not in kit.touched and kit.drawing(f"{u.designation} СБ")]
+    units = [u for u in kit.free_units() if kit.drawing(f"{u.designation} СБ")]
     if not units:
         return False
     unit = kit.rng.choice(units)
@@ -95,11 +96,8 @@ def drop_assembly_spec(kit: Kit) -> bool:
     """The assembly has only parts, so what it leaves behind is its parts' drawings outside every specification."""
     units = [
         u
-        for u in kit.units()
-        if u.parent is not None
-        and not u.units
-        and u.designation not in kit.touched
-        and not any(p.designation in kit.touched for p in u.parts)
+        for u in kit.free_units()
+        if u.parent is not None and not u.units and not any(p.designation in kit.touched for p in u.parts)
     ]
     if not units:
         return False
@@ -137,7 +135,7 @@ def rename_on_drawing(kit: Kit) -> bool:
 
 @_mutation("documents", "Изменить наименование в собственной спецификации сборочной единицы")
 def rename_assembly_spec(kit: Kit) -> bool:
-    units = [u for u in kit.units() if u.parent is not None and u.designation not in kit.touched]
+    units = [u for u in kit.free_units() if u.parent is not None]
     if not units:
         return False
     unit = kit.rng.choice(units)
@@ -153,7 +151,7 @@ def duplicate_designation(kit: Kit) -> bool:
     if not (free := kit.free_parts()):
         return False
     _, part, drawing = kit.rng.choice(free)
-    materials = sorted({m for kind in vocab.PART_KINDS for m in kind.materials} - {drawing.material})
+    materials = sorted({m.text for kind in vocab.PART_KINDS for m in kind.materials} - {drawing.material})
     twin = _copy(drawing, file=_beside(drawing.file, " (2)"), material=kit.rng.choice(materials))
     twin.mass = f"{float(drawing.mass.replace(',', '.')) * 1.5:.2f}".replace(".", ",")
     kit.drawings.append(twin)
@@ -166,12 +164,7 @@ def duplicate_designation(kit: Kit) -> bool:
 def duplicate_position(kit: Kit) -> bool:
     """The other specification names the part otherwise, so its row also differs from the drawing."""
     free = kit.free_parts()
-    pairs = [
-        (part, other)
-        for unit, part, _ in free
-        for other in kit.units()
-        if other is not unit and other.designation not in kit.touched
-    ]
+    pairs = [(part, other) for unit, part, _ in free for other in kit.free_units() if other is not unit]
     if not pairs:
         return False
     part, other = kit.rng.choice(pairs)
@@ -209,7 +202,7 @@ def _insert_part_row(rows: list[Row], row: Row) -> None:
 
 @_mutation("documents", "Литера сборочного чертежа ниже литеры спецификации")
 def litera_assembly_drawing(kit: Kit) -> bool:
-    units = [u for u in kit.units() if u.designation not in kit.touched and kit.drawing(f"{u.designation} СБ")]
+    units = [u for u in kit.free_units() if kit.drawing(f"{u.designation} СБ")]
     if not units:
         return False
     unit = kit.rng.choice(units)
