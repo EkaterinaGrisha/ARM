@@ -32,6 +32,7 @@
 | Основная надпись, сканы | 130 синтетических сканов | OCR 0,65; с Gemma 4 E4B 0,743; с Qwen3.6-27B 0,747 | [vlm-title-block.md](../eval/results/vlm-title-block.md) |
 | Расхождения Блока 1 | 20 синтетических комплектов | полнота 0,82, точность 0,27 с OCR; 0,70 и 0,24 без него | [synth-kits.md](../eval/results/synth-kits.md) |
 | Параметры чертежей, Блок 2 | векторные чертежи тех же комплектов | полнота 0,913, точность 0,996 | [synth-kits.md](../eval/results/synth-kits.md) |
+| Комплекты АРМ, первый прогон ядра | 3 реальных комплекта и 16 листов, 520 файлов | обозначение не получил ни один документ, дерево изделия пустое | [arm-kits.md](../eval/results/arm-kits.md) |
 | Согласие двух разметок эталона | 2 учебных комплекта | 1,00 и 0,94 | [gold-agreement.md](../eval/results/gold-agreement.md) |
 
 Синтетика проще реальных комплектов: эти цифры показывают работоспособность, а не качество на документах АРМ. Известные пробелы и порядок работ — в [PLAN.md](PLAN.md).
@@ -45,7 +46,7 @@
 | Открытые чертежи и учебные комплекты | `data/open_drawings/`, реестр — [eval/open_drawings.csv](../eval/open_drawings.csv) | `uv run python eval/open_drawings.py fetch` скачивает по реестру и сверяет sha256; источники — [DATA_SOURCES.md](DATA_SOURCES.md) |
 | Синтетические комплекты | `data/synth/` | `uv run python -m synth.kits data/synth/kits --kits 20 --seed 1` |
 | Стрессовый корпус: те же комплекты со сканами через Augraphy | `data/synth/stress/`, манифест — [eval/stress_corpus.json](../eval/stress_corpus.json) | `uv run --group augraphy python -m synth.stress build data/synth/stress` на Python 3.11; файлы сверяет `uv run python -m synth.stress verify data/synth/stress` |
-| Комплекты АРМ | `data/` | по правилам АРМ, вне git |
+| Комплекты АРМ | `data/arm/`: файлы, реестр комплектов и манифест sha256 | от АРМ, вне git; `uv run python eval/arm_kits.py verify` сверяет файлы с манифестом |
 
 ## Документы
 
