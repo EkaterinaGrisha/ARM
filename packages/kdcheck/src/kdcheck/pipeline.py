@@ -81,6 +81,7 @@ class BaselinePipeline:
         self.vlm_problem = self.vlm.unavailable() if self.vlm is not None else None
         self.vlm_used = False
         files = sorted(p for p in input_dir.rglob("*") if p.is_file())
+        report_log += self._unknown_designations(files)
         progress("Чтение файлов", 0.0, f"Файлов в комплекте: {len(files)}")
         docs: list[LoadedDocument] = []
         known: dict[str, str] = {}  # SHA-256 → the first file with these bytes
@@ -348,16 +349,30 @@ class BaselinePipeline:
             )
 
     def _filename_designation(self, file_name: str) -> str | None:
-        return self.eskd.normalize_designation(Path(file_name).stem)
+        return self.eskd.normalize_designation(Path(file_name).stem, file_name=True)
 
     def _filename_name(self, file_name: str) -> str | None:
-        stem = Path(file_name).stem
-        found = self.eskd.find_designations(stem)
+        stem = re.sub(self.settings.ingest.file_names.sheet_suffix, "", Path(file_name).stem)
+        found = self.eskd.find_designations(stem, file_name=True)
         if not found:
             return None
         rest = stem[found[0][2] :]
         rest = re.sub(r"^[\s_\-–.]+", "", rest).replace("_", " ").strip()
         return rest or None
+
+    def _unknown_designations(self, files: list[Path]) -> list[LogEntry]:
+        """A warning when most file names start with a designation no grammar knows (ADR-0016)."""
+        share = self.settings.ingest.file_names.unknown_shape_share
+        found = self.eskd.unknown_shape([p.stem for p in files], share)
+        if found is None:
+            return []
+        look, count = found
+        message = (
+            f"Имена {count} файлов из {len(files)} начинаются с обозначения вида {look}, но ни одна грамматика "
+            "его не знает: такие обозначения не читаются ни из имён файлов, ни из документов. Грамматики — раздел "
+            "designations в configs/dictionaries.yaml"
+        )
+        return [LogEntry(level="warning", message=message)]
 
 
 def _str(ex: Extracted | None) -> str | None:

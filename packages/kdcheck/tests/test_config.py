@@ -193,3 +193,17 @@ def test_the_model_is_switched_on_from_the_environment(monkeypatch):
     monkeypatch.setenv("ARM_VLM_URL", "https://models.example.com/v1")
     with pytest.raises(ConfigError, match="allow_remote"):
         load_settings()
+
+
+def test_a_grammar_writes_only_its_own_groups(tmp_path):
+    config = _copy(tmp_path)
+    _rewrite(config / "dictionaries.yaml", "canonical: '{org}.{body}'", "canonical: '{org}.{part}'")
+    with pytest.raises(ConfigError, match=r"dictionaries\.yaml: designations\.1.*нет групп \['part'\]"):
+        load_settings(config)
+
+
+def test_a_canonical_designation_has_no_spaces(tmp_path):
+    config = _copy(tmp_path)
+    _rewrite(config / "dictionaries.yaml", "canonical: '{model}-{num}'", "canonical: '{model} {num}'")
+    with pytest.raises(ConfigError, match=r"dictionaries\.yaml: designations\.2.*без пробелов"):
+        load_settings(config)

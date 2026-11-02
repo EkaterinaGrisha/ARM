@@ -1,13 +1,31 @@
-"""ESKD designations, names and literas: search in text and normalization by ``dictionaries.yaml``."""
+"""ESKD designations, names and literas: search in text and normalization by ``dictionaries.yaml``.
+
+Designations are found by the grammars of ``designations`` (ADR-0016), one per system of designation: the classifier
+of GOST 2.201 first, then the systems of a maker. Any grammar may be followed by an execution «-01» and a document code
+of GOST 2.102. A file name may also carry a code its maker writes only there, «СП» for a specification: it hints at
+the kind of the document and never becomes part of the designation.
+"""
 
 from __future__ import annotations
 
 import re
+from collections import Counter
+from dataclasses import dataclass
 
-from kdcheck.config import Dictionaries
+from kdcheck.config import DIGIT, Dictionaries, Grammar
 
 _SPACES = re.compile(r"\s+")
 _PUNCT = re.compile(r"[\"'«»“”.,;:()\-–—_]+")
+_BEFORE = r"(?<![\wА-Яа-яЁё])"
+_AFTER = r"(?![\wА-Яа-яЁё])"
+_LEAD = re.compile(r"[А-ЯЁA-Z\d][А-ЯЁA-Z\d.\-]*\d")  # the start of a file name that looks like a designation
+
+
+@dataclass(frozen=True)
+class _Compiled:
+    grammar: Grammar
+    text: re.Pattern[str]
+    file_name: re.Pattern[str]  # the same grammar with the codes written only into file names
 
 
 class Designations:
@@ -19,42 +37,69 @@ class Designations:
         self._lat_to_cyr = str.maketrans(words.latin_lookalikes)
         self._cyr_digits = str.maketrans(words.digit_lookalikes)
         digit = r"[\d" + "".join(re.escape(c) for c in words.digit_lookalikes) + "]"
-        self._pattern = re.compile(
-            r"(?<![\wА-Яа-яЁё])"
-            # the dots between the groups are kept by the text layer and may be lost or read as commas by OCR
-            r"(?P<org>[A-ZА-ЯЁ]{2,6})\s?[.,\s]?\s?"
-            rf"(?P<cls>{digit}{{6}})\s?[.,]?\s?"
-            rf"(?P<num>{digit}{{3}})"
-            r"(?:\s?-\s?(?P<exec>\d{2,3}))?"
-            r"(?:\s?(?P<code>" + "|".join(re.escape(c) for c in words.document_codes) + r"))?"
-            r"(?![\wА-Яа-яЁё])"
-        )
+        text_codes = (*words.document_codes,)
+        file_codes = (*words.document_codes, *words.filename_codes)
+        self._grammars = [
+            _Compiled(g, _compile(g, digit, text_codes), _compile(g, digit, file_codes)) for g in words.designations
+        ]
         self._assembly_name = re.compile(rf"\b{re.escape(words.assembly_drawing_name)}\b")
 
-    def normalize_designation(self, text: str | None) -> str | None:
-        """Bring a designation to the ``АБВГ.123456.789-01 СБ`` form; None if the text has none."""
+    def normalize_designation(self, text: str | None, *, file_name: bool = False) -> str | None:
+        """Bring the first designation of a text to the canonical form of its grammar, ``АБВГ.123456.789-01 СБ``.
+
+        None if the text has none. ``file_name``: the text is a file name, so the codes written only there count.
+        """
         if not text:
             return None
-        m = self._pattern.search(text.upper().translate(self._lat_to_cyr))
-        if not m:
-            return None
-        return self._format(m)
+        found = self.find_designations(text, file_name=file_name)
+        return found[0][0] if found else None
 
-    def _format(self, m: re.Match[str]) -> str:
-        org = m["org"].translate(self._lat_to_cyr)
-        cls = m["cls"].translate(self._cyr_digits)
-        num = m["num"].translate(self._cyr_digits)
-        result = f"{org}.{cls}.{num}"
+    def find_designations(self, text: str, *, file_name: bool = False) -> list[tuple[str, int, int]]:
+        """All designations in a string: (normalized, start, end), from left to right.
+
+        Where the matches of two grammars overlap, the one that starts first wins, and at one start the earlier grammar.
+        """
+        cased = text.translate(self._lat_to_cyr)
+        upper = text.upper().translate(self._lat_to_cyr)
+        found: list[tuple[int, int, int, str]] = []
+        for order, compiled in enumerate(self._grammars):
+            pattern = compiled.file_name if file_name else compiled.text
+            for m in pattern.finditer(upper if compiled.grammar.upper else cased):
+                found.append((m.start(), order, m.end(), self._format(compiled.grammar, m)))
+        result: list[tuple[str, int, int]] = []
+        for start, _, end, value in sorted(found):
+            if not result or start >= result[-1][2]:
+                result.append((value, start, end))
+        return result
+
+    def _format(self, grammar: Grammar, m: re.Match[str]) -> str:
+        parts = {name: value or "" for name, value in m.groupdict().items()}
+        for name in grammar.numbers:
+            parts[name] = parts[name].translate(self._cyr_digits)
+        result = grammar.canonical.format_map(parts)
         if m["exec"]:
             result += f"-{m['exec']}"
-        if m["code"]:
+        if m["code"] in self.words.document_codes:  # a code of the file name only is not part of the designation
             result += f" {m['code']}"
         return result
 
-    def find_designations(self, text: str) -> list[tuple[str, int, int]]:
-        """All designations in a string: (normalized, start, end)."""
-        upper = text.upper().translate(self._lat_to_cyr)
-        return [(self._format(m), m.start(), m.end()) for m in self._pattern.finditer(upper)]
+    def unknown_shape(self, stems: list[str], share: float) -> tuple[str, int] | None:
+        """The look of the designations most file names start with, when no grammar knows them: «АААА.99.999», count.
+
+        None unless such names are more than ``share`` of all. The look tells which grammar to add (ADR-0016); the core
+        never reads designations by it.
+        """
+        looks: Counter[str] = Counter()
+        for stem in stems:
+            if self.find_designations(stem, file_name=True):
+                continue
+            lead = _LEAD.match(stem.upper().translate(self._lat_to_cyr))
+            if lead:
+                looks[re.sub(r"\d", "9", re.sub(r"[А-ЯЁA-Z]", "А", lead.group(0)))] += 1
+        if not looks:
+            return None
+        look, count = looks.most_common(1)[0]
+        return (look, count) if count > share * len(stems) else None
 
     def normalize_name(self, name: str | None) -> str:
         """Name for comparison: ignores case, ё/е, punctuation and spaces."""
@@ -85,6 +130,11 @@ class Designations:
         if designation and doc_code(designation) == self.words.assembly_drawing_code:
             return True
         return self.words.assembly_drawing_name in (name or "").lower().replace("ё", "е")
+
+
+def _compile(grammar: Grammar, digit: str, codes: tuple[str, ...]) -> re.Pattern[str]:
+    tail = r"(?:\s?-\s?(?P<exec>\d{2,3}))?(?:\s?(?P<code>" + "|".join(re.escape(c) for c in codes) + r"))?"
+    return re.compile(_BEFORE + "(?:" + grammar.pattern.replace(DIGIT, digit) + ")" + tail + _AFTER)
 
 
 def base_designation(designation: str) -> str:

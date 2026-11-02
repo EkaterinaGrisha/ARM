@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import re
+import string
 from pathlib import Path
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
@@ -21,7 +22,7 @@ from urllib.parse import urlsplit
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from kdcheck.schemas import ExtractionMethod, NodeKind, Severity
+from kdcheck.schemas import DocumentKind, ExtractionMethod, NodeKind, Severity
 
 CONFIG_DIR_ENV = "ARM_CONFIG_DIR"
 PROMPTS_DIR_ENV = "ARM_PROMPTS_DIR"
@@ -245,6 +246,17 @@ class Review(Section):
     min_confidence: Share
 
 
+class FileNames(Section):
+    sheet_suffix: str
+    unknown_shape_share: Share
+
+    @field_validator("sheet_suffix")
+    @classmethod
+    def _compiles(cls, value: str) -> str:
+        re.compile(value)
+        return value
+
+
 class Ingest(Section):
     max_pages_per_file: int = Field(ge=0)
     render_dpi: float
@@ -256,6 +268,7 @@ class Ingest(Section):
     text: TextLayout
     confidence: MethodConfidence
     review: Review
+    file_names: FileNames
 
 
 # ---------------------------------------------------------------- dictionaries.yaml
@@ -272,6 +285,34 @@ class Term(Section):
         return value
 
 
+DIGIT = "{d}"  # in a designation grammar: a digit, or a letter recognized instead of one
+CORE_GROUPS = ("exec", "code")  # groups the core adds after every grammar: the execution and the document code
+
+
+class Grammar(Section):
+    """A system of designation (ADR-0016): its parts, the way its value is written, examples of both kinds."""
+
+    name: str
+    pattern: str
+    canonical: str
+    numbers: tuple[str, ...] = ()
+    upper: bool
+    examples: dict[str, str] = Field(min_length=1)
+    counterexamples: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _groups_agree(self) -> Grammar:
+        groups = set(re.compile(self.pattern.replace(DIGIT, r"\d")).groupindex)
+        if taken := groups & set(CORE_GROUPS):
+            raise ValueError(f"группы {sorted(taken)} добавляет ядро после каждой грамматики")
+        wanted = {field for _, field, _, _ in string.Formatter().parse(self.canonical) if field}
+        if missing := (wanted | set(self.numbers)) - groups:
+            raise ValueError(f"в pattern нет групп {sorted(missing)}")
+        if any(c.isspace() for c in self.canonical):
+            raise ValueError("canonical без пробелов: после пробела идёт код документа")
+        return self
+
+
 class Dictionaries(Section):
     spec_sections: dict[str, NodeKind]
     needs_drawing: tuple[NodeKind, ...]
@@ -279,6 +320,8 @@ class Dictionaries(Section):
     assembly_drawing_code: str
     assembly_drawing_name: str
     document_codes: tuple[str, ...]
+    filename_codes: dict[str, DocumentKind]
+    designations: tuple[Grammar, ...] = Field(min_length=1)
     litera_order: tuple[str, ...]
     scales: tuple[str, ...]
     see_table: Term

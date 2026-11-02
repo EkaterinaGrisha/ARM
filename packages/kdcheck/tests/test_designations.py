@@ -3,21 +3,33 @@ from kdcheck.config import load_settings
 from kdcheck.normalize.designations import Designations
 
 ESKD = Designations(load_settings().dictionaries)
+GRAMMARS = ESKD.words.designations
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [(text, want) for g in GRAMMARS for text, want in g.examples.items()],
+    ids=[f"{g.name}: {text}" for g in GRAMMARS for text in g.examples],
+)
+def test_examples_of_every_grammar(text, expected):
+    assert ESKD.normalize_designation(text) == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [text for g in GRAMMARS for text in g.counterexamples],
+    ids=[f"{g.name}: {text}" for g in GRAMMARS for text in g.counterexamples],
+)
+def test_counterexamples_hold_no_designation(text):
+    assert ESKD.find_designations(text) == []
 
 
 @pytest.mark.parametrize(
     "text, expected",
     [
-        ("АРМ.303411.000", "АРМ.303411.000"),
-        ("APM.303411.000 СБ", "АРМ.303411.000 СБ"),  # Latin letters instead of Cyrillic
-        ("АРМ 303411.201", "АРМ.303411.201"),
-        ("АБВГ.123456.789-01", "АБВГ.123456.789-01"),
-        ("АРМ.3О3411.0О5", "АРМ.303411.005"),  # letter О instead of zero (OCR error)
-        ("КТРМ 303411002 СБ", "КТРМ.303411.002 СБ"),  # OCR lost the dots
-        ("ЛМКР.721321,001", "ЛМКР.721321.001"),  # and read one as a comma
-        ("Чертёж АРМ.303411.101 Корпус.pdf", "АРМ.303411.101"),
-        ("АРМ.И.0412-25", None),  # a change notice number is not a designation
-        ("Болт М12×40 ГОСТ 7798-70", None),
+        ("Чертёж АРМ.303411.101 Корпус.pdf", "АРМ.303411.101"),  # within a longer text
+        ("от 27.05.2010 по АБВГ.02.115", "АБВГ.02.115"),  # a date in lower case is not one
+        ("абвг.02.115", None),  # a maker's system is compared as typed: its letters are capitals
         ("", None),
     ],
 )
@@ -28,6 +40,28 @@ def test_normalize_designation(text, expected):
 def test_find_designations_with_assembly_code():
     found = [d for d, _, _ in ESKD.find_designations("АРМ.303411.000 СБ Сборочный чертёж; АРМ.303411.100")]
     assert found == ["АРМ.303411.000 СБ", "АРМ.303411.100"]
+
+
+def test_designations_of_several_systems_in_one_text():
+    found = ESKD.find_designations("АРМ.303411.000 СБ; АБВГ.02.115; А1Б23-1234567 СБ; АБ12.34-56.78.901")
+    assert [d for d, _, _ in found] == ["АРМ.303411.000 СБ", "АБВГ.02.115", "А1Б23-1234567 СБ", "АБ12.34-56.78.901"]
+
+
+def test_a_code_of_file_names_hints_and_stays_out_of_the_designation():
+    stem = "АБВГ.02.115 СП Рама в сборе"
+    assert ESKD.normalize_designation(stem, file_name=True) == "АБВГ.02.115"
+    (_, _, end), *_ = ESKD.find_designations(stem, file_name=True)
+    assert stem[end:] == " Рама в сборе"  # the code is taken up with the designation, so the name follows
+    (_, _, end), *_ = ESKD.find_designations(stem)
+    assert stem[end:] == " СП Рама в сборе"  # in a document «СП» is no code
+    assert ESKD.normalize_designation("А1Б23-1234567СБ - Рама", file_name=True) == "А1Б23-1234567 СБ"
+
+
+def test_the_look_of_unknown_designations_is_named():
+    stems = ["ЖЖ-12-345 Рама", "ЖЖ-12-346 Ось", "ЖЖ-12-347 Вал(2)", "АБВГ.02.115 Плита", "IMG_2041"]
+    assert ESKD.unknown_shape(stems, 0.5) == ("АА-99-999", 3)
+    assert ESKD.unknown_shape(stems, 0.8) is None  # three of five
+    assert ESKD.unknown_shape(["АБВГ.02.115 Плита", "АБВГ.02.116 Рама"], 0.5) is None  # every one is known
 
 
 def test_normalize_name_ignores_case_yo_and_punctuation():

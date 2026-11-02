@@ -12,6 +12,7 @@ from kdcheck.config import settings_sha256
 from kdcheck.extract import review
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.schemas import Report
+from PIL import Image
 from reportlab.pdfgen.canvas import Canvas
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -159,3 +160,23 @@ def test_a_page_that_fails_to_parse_keeps_the_rest_of_the_drawing(tmp_path, sett
     assert doc.status == "warning" and doc.pages[0].problem == "ошибка разбора параметров: сбой разбора"
     assert part.title_block.designation and part.title_block.designation.value == "АРМ.303411.002"
     assert part.requirements and part.parameters  # the technical requirements were parsed before the page failed
+
+
+def test_file_names_of_a_maker_give_designations_and_names_without_sheets(tmp_path, settings):
+    scan = Image.open(KIT / "Чертежи" / "АРМ.303411.203.jpg")
+    for quality, name in enumerate(("АБВГ.02.115 СП Рама в сборе(1).jpg", "А1Б23-1234567СБ - Рама.jpg"), start=80):
+        scan.save(tmp_path / name, quality=quality, dpi=scan.info["dpi"])  # other bytes: no byte copy of each other
+    report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")  # OCR off: scans keep file names
+    assert {d.designation: d.name for d in report.documents} == {
+        "АБВГ.02.115": "Рама в сборе",
+        "А1Б23-1234567 СБ": "Рама",
+    }
+    assert not [e for e in report.log if "грамматика" in e.message]
+
+
+def test_a_kit_of_unknown_designations_says_which_look_to_add(tmp_path, settings):
+    scan = KIT / "Чертежи" / "АРМ.303411.203.jpg"
+    for name in ("ЖЖ-12-345 Рама.jpg", "ЖЖ-12-346 Ось.jpg"):
+        shutil.copy(scan, tmp_path / name)
+    report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
+    assert [e.level for e in report.log if "вида АА-99-999" in e.message] == ["warning"]
