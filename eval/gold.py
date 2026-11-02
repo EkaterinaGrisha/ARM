@@ -7,27 +7,36 @@ data/gold_sheets (outside git). The truth of either is a ``synth.truth.KitTruth`
 the same code compares a report with both. Each labelling is a draft made from the documents alone, without the report
 of the core: eval/gold/drafts/<folder>.<label>.json, the label a short tag such as ``a``. Two drafts are compared value
 by value on the documents both hold, each disagreement is settled by the sheet, and the settled truth is
-eval/gold/<folder>.json. The labelling rules: eval/gold/README.md.
+eval/gold/<folder>.json. The labelling rules: eval/gold/README.md. ``kits`` runs the core on every kit with a settled
+truth and compares its discrepancies with the truth by type and designation: the labels name types, not rules.
 
     uv run python eval/gold.py template github/snowlue_ITMO_works --by a
     uv run python eval/gold.py sheets
     uv run python eval/gold.py template sheets --by a --only vl60_p025.pdf izh250_p002.jpg
     uv run python eval/gold.py check
     uv run python eval/gold.py agree
+    uv run python eval/gold.py kits
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import json
+import platform
 import re
 import sys
+from collections import Counter
+from datetime import UTC, datetime
 from itertools import combinations
 from pathlib import Path
-from typing import get_args
+from typing import Any, get_args
 
 import pypdfium2 as pdfium
 from kdcheck.config import load_settings
+from kdcheck.normalize.designations import Designations
+from kdcheck.pipeline import BaselinePipeline
+from kdcheck.run import ocr_available
 from kdcheck.schemas import DiscrepancyType
 from pydantic import ValidationError
 from synth.truth import DrawingTruth, KitTruth, OtherTruth, SpecTruth
@@ -288,6 +297,61 @@ def agree() -> int:
     return 0
 
 
+def kits() -> int:
+    """Block 1 on the kits with a settled truth: found, missed and extra discrepancies by type and designation."""
+    settings = load_settings()
+    eskd = Designations(settings.dictionaries)
+    pipeline = BaselinePipeline(settings)
+
+    def key(kind: str, designation: str | None) -> tuple[str, str]:
+        return kind, eskd.normalize_designation(designation) or (designation or "").strip()
+
+    measured: dict[str, dict[str, Any]] = {}
+    for path in sorted(GOLD.glob("github/*.json")):
+        folder = _folder(path)
+        truth = KitTruth.read(path)
+        report = pipeline.run(CORPUS / folder, kit_id=folder, kit_name=folder)
+        want = Counter(key(d.type, d.designation) for d in truth.discrepancies)
+        got = Counter(key(d.type, d.designation) for d in report.discrepancies)
+        measured[folder] = {
+            "expected": sum(want.values()),
+            "found": sum((want & got).values()),
+            "missed": sorted(f"{t}: {d}" for t, d in (want - got).elements()),
+            "extra": sorted(f"{t}: {d}" for t, d in (got - want).elements()),
+            "tree_items": report.summary.tree_items,
+        }
+    result = {
+        "date": datetime.now(UTC).date().isoformat(),
+        "machine": f"{platform.system()} {platform.machine()}, Python {platform.python_version()}",
+        "ocr": ocr_available(settings),
+        "kits": measured,
+    }
+    lines = [
+        "# Блок 1 на размеченных комплектах",
+        "",
+        f"Получено `uv run python eval/gold.py kits` {result['date']}; {result['machine']}; "
+        f"OCR {'включён' if result['ocr'] else 'выключен'}. Комплекты — учебные с GitHub из корпуса открытых "
+        "чертежей, разметка — [eval/gold/github](../gold/github). В разметке — типы расхождений, а не правила ядра, "
+        "поэтому расхождение найдено, если в отчёте есть тот же тип с тем же обозначением после нормализации. "
+        "Пропуски и лишние по комплектам — в [gold-kits.json](gold-kits.json).",
+        "",
+        "| Комплект | Элементов дерева | В разметке | Найдено | Пропущено | Лишних | Лишние по типам |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for folder, k in measured.items():
+        extra = Counter(e.split(":")[0] for e in k["extra"])
+        by_type = ", ".join(f"`{t}` {n}" for t, n in sorted(extra.items())) or "—"
+        lines.append(
+            f"| {folder} | {k['tree_items']} | {k['expected']} | {k['found']} | {len(k['missed'])} "
+            f"| {len(k['extra'])} | {by_type} |"
+        )
+    out = EVAL / "results" / "gold-kits"
+    out.with_suffix(".json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    out.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -298,11 +362,14 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("sheets", help="вырезать листы эталона из корпуса в data/gold_sheets")
     sub.add_parser("check", help="формат файлов эталона, пути по реестру и список листов")
     sub.add_parser("agree", help="согласие двух черновиков одного комплекта или набора листов")
+    sub.add_parser("kits", help="Блок 1 на комплектах с согласованной разметкой: ядро против разметки")
     args = parser.parse_args(argv)
     if args.command == "template":
         return template(args.folder, args.by, args.only)
     if args.command == "sheets":
         return sheets()
+    if args.command == "kits":
+        return kits()
     return check() if args.command == "check" else agree()
 
 

@@ -1,5 +1,5 @@
-# ESKD dictionaries: the terms parsers look for. Grammars of designations, sizes and roughness stay in code.
-# Patterns are case-insensitive regular expressions.
+# ESKD dictionaries: the terms parsers look for, and the grammars of designations (ADR-0016). Grammars of sizes and
+# roughness stay in code. Patterns of terms are case-insensitive regular expressions.
 
 spec_sections:                   # specification sections, GOST 2.106, and the product tree node each one gives
   Документация: document
@@ -16,6 +16,64 @@ assembly_drawing_code: СБ
 assembly_drawing_name: сборочный чертеж  # in the name of an assembly drawing; ё is compared as е
 
 document_codes: [СБ, ВО, ТЧ, ГЧ, МЭ, МЧ, УЧ, ЭЗ, Э3, ПЗ, ТУ, ВП, ВД, ПЭ3, ТБ, РР, Д1]  # GOST 2.102
+filename_codes: {СП: specification}  # codes a maker writes only into file names, and the kind of document each means
+
+# Grammars of designations, one per system of designation, tried in this order (ADR-0016). Where two matches overlap,
+# the one that starts first wins, at one start the earlier grammar. {d} is a digit or a letter recognized instead of
+# one (digit_lookalikes); the groups in `numbers` get their digits back. upper: compared upper-cased, otherwise as
+# typed. A kit is read by the grammars its file names show and by those `always` on; with no designation in its file
+# names, by all: a look of another system in a kit is more likely its own designation cut or split by OCR. An
+# execution «-01» and a document code may follow any grammar. Examples and counterexamples are checked by
+# the tests: they are invented designations of the same look, never the customer's ones; a counterexample holds no
+# designation by any grammar.
+designations:
+  - name: classifier             # GOST 2.201: code of the developer, classification characteristic, number
+    # the dots between the groups are kept by the text layer and may be lost or read as commas by OCR
+    pattern: '(?P<org>[A-ZА-ЯЁ]{2,6})\s?[.,\s]?\s?(?P<cls>{d}{6})\s?[.,]?\s?(?P<num>{d}{3})'
+    canonical: '{org}.{cls}.{num}'
+    numbers: [cls, num]
+    upper: true
+    always: true                 # borrowed and standard documents keep it in a kit of any maker
+    examples:
+      АРМ.303411.000: АРМ.303411.000
+      APM.303411.000 СБ: АРМ.303411.000 СБ
+      АРМ 303411.201: АРМ.303411.201
+      АБВГ.123456.789-01: АБВГ.123456.789-01
+      АРМ.3О3411.0О5: АРМ.303411.005
+      КТРМ 303411002 СБ: КТРМ.303411.002 СБ
+      ЛМКР.721321,001: ЛМКР.721321.001
+    counterexamples: [АРМ.И.0412-25, Болт М12×40 ГОСТ 7798-70]
+  - name: decimal                # letters of the product, then the numbers of its unit and part through dots
+    # after a space, at least two groups of the number: so «ОТ 27.05» of a date is not a designation
+    pattern: '(?P<org>[А-ЯЁ]{2,6})(?:\.|\s(?={d}{2,4}(?:\.{d}{2,3}){2}))(?P<body>{d}{2,4}(?:\.{d}{2,3}){1,3})'
+    canonical: '{org}.{body}'
+    numbers: [body]
+    upper: false
+    examples:
+      АБВГ.02.115: АБВГ.02.115
+      АБВГ.02.115 СБ: АБВГ.02.115 СБ
+      СУИР.06.06.01: СУИР.06.06.01
+      ПМИГ 2208.23.001: ПМИГ.2208.23.001
+      МПСТ.01.00.01: МПСТ.01.00.01
+    counterexamples: [от 27.05.2010, ГОСТ 2.104-2006, ГОСТ 30893.1-2002, НВ 241...285, Сталь 45 ГОСТ 1050-2013]
+  - name: model                  # the code of a model, then the number through a dash
+    pattern: '(?P<model>[А-ЯЁ][А-ЯЁ\d]{2,5})\s?[-–—]\s?(?P<num>{d}{6,8})'
+    canonical: '{model}-{num}'
+    numbers: [num]
+    upper: false
+    examples:
+      А1Б23-1234567: А1Б23-1234567
+      А1Б23 – 1234567 СБ: А1Б23-1234567 СБ
+    counterexamples: [ГОСТ Р 53228-2008, ТУ 14-3Р-55-2001, "Ra 6,3"]
+  - name: series                 # letters with the series through a dot, then the number through dots
+    pattern: '(?P<org>[А-ЯЁ]{2,4})(?P<series>{d}{2}\.{d}{2})-(?P<body>{d}{2}(?:\.{d}{2,3}){1,3})'
+    canonical: '{org}{series}-{body}'
+    numbers: [series, body]
+    upper: false
+    examples:
+      АБ12.34-56.78.901: АБ12.34-56.78.901
+      АБ12.34-56.00.000 СБ: АБ12.34-56.00.000 СБ
+    counterexamples: [М12-6g, 10.9-12.5]
 litera_order: [П, Э, Т, О, О1, О2, О3, А, Б]  # GOST 2.103, from the earliest stage
 scales: ["1:1", "1:2", "1:2,5", "1:4", "1:5", "1:10", "1:15", "1:20", "1:25", "1:40", "1:50", "1:75", "1:100",
   "1:200", "1:400", "1:500", "1:800", "1:1000", "2:1", "2,5:1", "4:1", "5:1", "10:1", "20:1", "40:1", "50:1", "100:1"]

@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-02",
+  "machine": "Darwin arm64, Python 3.11.15",
+  "ocr": true,
+  "kits": {
+    "github/AiuRat_breadboard-power-qcpd": {
+      "expected": 11,
+      "found": 0,
+      "missed": [
+        "missing_drawing: ",
+        "missing_drawing: ",
+        "missing_specification: ",
+        "name_mismatch: ",
+        "name_mismatch: ",
+        "name_mismatch: ",
+        "name_mismatch: ",
+        "orphan_drawing: ",
+        "position_anomaly: ",
+        "position_anomaly: ",
+        "position_anomaly: "
+      ],
+      "extra": [],
+      "tree_items": 0
+    },
+    "github/UshliyOrk_Ucheba": {
+      "expected": 5,
+      "found": 5,
+      "missed": [],
+      "extra": [
+        "duplicate_designation: ПМИГ.2208.23.001",
+        "duplicate_designation: ПМИГ.2208.23.002",
+        "duplicate_designation: ПМИГ.2208.23.003",
+        "name_mismatch: ПМИГ.2208.23.000",
+        "name_mismatch: ПМИГ.2208.23.001",
+        "name_mismatch: ПМИГ.2208.23.002",
+        "name_mismatch: ПМИГ.2208.23.003"
+      ],
+      "tree_items": 13
+    },
+    "github/snowlue_ITMO_works": {
+      "expected": 7,
+      "found": 6,
+      "missed": [
+        "orphan_drawing: СУИР.06.06.00"
+      ],
+      "extra": [
+        "revision_mismatch: СУИР.06.06.00"
+      ],
+      "tree_items": 12
+    }
+  }
+}
