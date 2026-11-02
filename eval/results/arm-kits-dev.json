@@ -1,0 +1,99 @@
+{
+  "date": "2026-11-02",
+  "machine": "Darwin arm64, Python 3.11.15",
+  "role": "dev",
+  "ocr": true,
+  "engines": {
+    "pdfium": "156.0.8076.0",
+    "pypdfium2": "5.14.0",
+    "tesseract": "5.5.2",
+    "pillow": "13.0.0"
+  },
+  "kits": {
+    "arm-1": {
+      "role": "dev",
+      "files": 53,
+      "pages": 53,
+      "documents_by_name": 48,
+      "multi_sheet": 4,
+      "multi_sheet_files": 9,
+      "origin": {
+        "scan": 53
+      },
+      "status": {
+        "ok": 48,
+        "warning": 5
+      },
+      "kinds": {
+        "СП": {
+          "specification": 10,
+          "unknown": 5,
+          "part_drawing": 1
+        },
+        "СБ": {
+          "assembly_drawing": 11
+        },
+        "прочие": {
+          "part_drawing": 26
+        }
+      },
+      "documents_with_designation": 47,
+      "specifications": 10,
+      "specifications_with_designation": 0,
+      "spec_rows": 64,
+      "rows_with_designation": 58,
+      "rows_designation_parsed": 1,
+      "drawings": 38,
+      "title_block": {
+        "designation": 38,
+        "name": 38,
+        "material": 27,
+        "mass": 34,
+        "scale": 13,
+        "litera": 1,
+        "revision": 31,
+        "sheets": 37
+      },
+      "tree_items": 74,
+      "root": false,
+      "discrepancies": {
+        "B1.ORPHAN.001": 29,
+        "B1.NAME.001": 8
+      },
+      "log": {
+        "info": 1,
+        "warning": 1
+      },
+      "seconds": 91.6,
+      "seconds_per_page": 1.73,
+      "images": {
+        "count": 53,
+        "dpi": {
+          "median": 300,
+          "min": 200,
+          "max": 300
+        },
+        "paper": {
+          "median": 255,
+          "min": 255,
+          "max": 255
+        },
+        "specks": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.1
+        },
+        "uneven": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "skew": {
+          "median": 0.05,
+          "min": 0.0,
+          "max": 0.05
+        }
+      }
+    }
+  }
+}
