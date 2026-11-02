@@ -9,5 +9,6 @@
 | `bench_requirements.v1.txt` | Текст блока технических требований, ответ — JSON | `eval/vlm_bench.py` |
 | `bench_ocr_plain.v1.txt` | Весь текст изображения для OCR-модели, которая принимает инструкцию | `eval/vlm_bench.py` |
 | `bench_ocr_paddle.v1.txt` | Команда распознавания PaddleOCR-VL | `eval/vlm_bench.py` |
+| `bench_ocr_markdown.v1.txt` | Распознавание в Markdown — промпт из карточки Qianfan-OCR | `eval/vlm_bench.py` |
 
 Каталог задаёт `ARM_PROMPTS_DIR`, по умолчанию — `prompts/` рабочей копии.
