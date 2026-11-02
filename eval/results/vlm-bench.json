@@ -1,0 +1,171 @@
+{
+  "command": "uv run python eval/vlm_bench.py --score --model qwen/qwen3.6-27b --model google/gemma-4-e4b --text-model paddleocr-vl-1.6=bench_ocr_paddle.v1",
+  "date": "2026-11-02",
+  "machine": "Darwin arm64, Python 3.11.15",
+  "tesseract": "tesseract 5.5.2",
+  "items": {
+    "sheets": 17,
+    "requirements": 30,
+    "cells": 112
+  },
+  "prompts": {
+    "bench_ocr_paddle.v1": "4c235da2da13",
+    "bench_requirements.v1": "95a734131986",
+    "bench_sheet_fields.v1": "604d543ae465",
+    "title_block_cell.v1": "6052401c9576"
+  },
+  "models": [
+    {
+      "model": "tesseract",
+      "prompt": null,
+      "tasks": {
+        "sheets": {
+          "items": 17,
+          "read": 17,
+          "total": 50,
+          "right": 0,
+          "in_reply": 13,
+          "blank": 52,
+          "invented": 0,
+          "seconds": 13.7,
+          "unread": 0,
+          "distance": 0.0
+        },
+        "requirements": {
+          "items": 30,
+          "read": 30,
+          "total": 61,
+          "ranges": 30,
+          "ranges_right": 9,
+          "right": 19,
+          "seconds": 4.0,
+          "unread": 0,
+          "distance": 0.0
+        },
+        "cells": {
+          "items": 112,
+          "read": 112,
+          "total": 112,
+          "right": 49,
+          "seconds": 2.4,
+          "unread": 0,
+          "distance": 18.936
+        }
+      }
+    },
+    {
+      "model": "qwen/qwen3.6-27b",
+      "prompt": null,
+      "tasks": {
+        "sheets": {
+          "items": 17,
+          "read": 17,
+          "total": 50,
+          "right": 40,
+          "in_reply": 42,
+          "blank": 52,
+          "invented": 4,
+          "seconds": 1147.0,
+          "unread": 0,
+          "distance": 0.0
+        },
+        "requirements": {
+          "items": 30,
+          "read": 30,
+          "total": 61,
+          "right": 52,
+          "ranges": 30,
+          "ranges_right": 28,
+          "seconds": 565.5,
+          "unread": 0,
+          "distance": 0.0
+        },
+        "cells": {
+          "items": 112,
+          "read": 112,
+          "total": 112,
+          "right": 102,
+          "seconds": 617.3,
+          "unread": 0,
+          "distance": 5.833
+        }
+      }
+    },
+    {
+      "model": "google/gemma-4-e4b",
+      "prompt": null,
+      "tasks": {
+        "sheets": {
+          "items": 17,
+          "read": 17,
+          "total": 50,
+          "right": 5,
+          "in_reply": 6,
+          "blank": 52,
+          "invented": 10,
+          "seconds": 43.7,
+          "unread": 0,
+          "distance": 0.0
+        },
+        "requirements": {
+          "items": 30,
+          "read": 30,
+          "total": 61,
+          "right": 38,
+          "ranges": 30,
+          "ranges_right": 28,
+          "seconds": 86.3,
+          "unread": 0,
+          "distance": 0.0
+        },
+        "cells": {
+          "items": 112,
+          "read": 112,
+          "total": 112,
+          "right": 82,
+          "seconds": 178.3,
+          "unread": 0,
+          "distance": 12.237
+        }
+      }
+    },
+    {
+      "model": "paddleocr-vl-1.6",
+      "prompt": "bench_ocr_paddle.v1",
+      "tasks": {
+        "sheets": {
+          "items": 17,
+          "read": 3,
+          "total": 9,
+          "right": 0,
+          "in_reply": 0,
+          "blank": 9,
+          "invented": 0,
+          "seconds": 48.0,
+          "unread": 14,
+          "distance": 0.0
+        },
+        "requirements": {
+          "items": 30,
+          "read": 30,
+          "total": 61,
+          "right": 39,
+          "ranges": 30,
+          "ranges_right": 12,
+          "seconds": 49.4,
+          "unread": 0,
+          "distance": 0.0
+        },
+        "cells": {
+          "items": 112,
+          "read": 112,
+          "total": 112,
+          "right": 83,
+          "seconds": 40.8,
+          "unread": 0,
+          "distance": 9.607
+        }
+      }
+    }
+  ]
+}
