@@ -66,7 +66,8 @@ class BaselinePipeline:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.pdf = get_backend(settings.models.pdf.backend)
-        self.eskd = Designations(settings.dictionaries)
+        self.designations = Designations(settings.dictionaries)  # every grammar; a run narrows them to its kit
+        self.eskd = self.designations
         self.rules = rules.configured(settings.checks)
         self.parameters = parameters.Parser(settings.dictionaries)
         vlm = settings.models.vlm
@@ -81,7 +82,8 @@ class BaselinePipeline:
         self.vlm_problem = self.vlm.unavailable() if self.vlm is not None else None
         self.vlm_used = False
         files = sorted(p for p in input_dir.rglob("*") if p.is_file())
-        report_log += self._unknown_designations(files)
+        self.eskd = self.designations.for_kit([p.stem for p in files])
+        report_log += self._designation_systems(files)
         progress("Чтение файлов", 0.0, f"Файлов в комплекте: {len(files)}")
         docs: list[LoadedDocument] = []
         known: dict[str, str] = {}  # SHA-256 → the first file with these bytes
@@ -360,19 +362,24 @@ class BaselinePipeline:
         rest = re.sub(r"^[\s_\-–.]+", "", rest).replace("_", " ").strip()
         return rest or None
 
-    def _unknown_designations(self, files: list[Path]) -> list[LogEntry]:
-        """A warning when most file names start with a designation no grammar knows (ADR-0016)."""
+    def _designation_systems(self, files: list[Path]) -> list[LogEntry]:
+        """Which grammars read the kit, and a warning when most file names start with a designation none knows."""
+        found: list[LogEntry] = []
+        if self.eskd is not self.designations:
+            names = ", ".join(self.eskd.grammars)
+            message = f"Обозначения комплекта читаются по грамматикам {names}: их показывают имена файлов"
+            found.append(LogEntry(level="info", message=message))
         share = self.settings.ingest.file_names.unknown_shape_share
-        found = self.eskd.unknown_shape([p.stem for p in files], share)
-        if found is None:
-            return []
-        look, count = found
-        message = (
-            f"Имена {count} файлов из {len(files)} начинаются с обозначения вида {look}, но ни одна грамматика "
-            "его не знает: такие обозначения не читаются ни из имён файлов, ни из документов. Грамматики — раздел "
-            "designations в configs/dictionaries.yaml"
-        )
-        return [LogEntry(level="warning", message=message)]
+        unknown = self.designations.unknown_shape([p.stem for p in files], share)
+        if unknown is not None:
+            look, count = unknown
+            message = (
+                f"Имена {count} файлов из {len(files)} начинаются с обозначения вида {look}, но ни одна грамматика "
+                "его не знает: такие обозначения не читаются ни из имён файлов, ни из документов. Грамматики — раздел "
+                "designations в configs/dictionaries.yaml"
+            )
+            found.append(LogEntry(level="warning", message=message))
+        return found
 
 
 def _str(ex: Extracted | None) -> str | None:

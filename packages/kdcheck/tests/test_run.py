@@ -171,7 +171,8 @@ def test_file_names_of_a_maker_give_designations_and_names_without_sheets(tmp_pa
         "АБВГ.02.115": "Рама в сборе",
         "А1Б23-1234567 СБ": "Рама",
     }
-    assert not [e for e in report.log if "грамматика" in e.message]
+    assert not [e for e in report.log if "ни одна грамматика" in e.message]  # no look left unknown
+    assert any("по грамматикам classifier, decimal, model:" in e.message for e in report.log)
 
 
 def test_a_kit_of_unknown_designations_says_which_look_to_add(tmp_path, settings):

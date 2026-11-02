@@ -1,13 +1,15 @@
 """ESKD designations, names and literas: search in text and normalization by ``dictionaries.yaml``.
 
 Designations are found by the grammars of ``designations`` (ADR-0016), one per system of designation: the classifier
-of GOST 2.201 first, then the systems of a maker. Any grammar may be followed by an execution «-01» and a document code
-of GOST 2.102. A file name may also carry a code its maker writes only there, «СП» for a specification: it hints at
-the kind of the document and never becomes part of the designation.
+of GOST 2.201 first, then the systems of a maker. A kit is read by the grammars its file names show and by those always
+on; with no designation in its file names, by all of them. Any grammar may be followed by an execution «-01» and a
+document code of GOST 2.102. A file name may also carry a code its maker writes only there, «СП» for a specification:
+it hints at the kind of the document and never becomes part of the designation.
 """
 
 from __future__ import annotations
 
+import copy
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -54,11 +56,33 @@ class Designations:
         found = self.find_designations(text, file_name=file_name)
         return found[0][0] if found else None
 
+    @property
+    def grammars(self) -> list[str]:
+        """Names of the grammars in effect, in their order."""
+        return [compiled.grammar.name for compiled in self._grammars]
+
+    def for_kit(self, stems: list[str]) -> Designations:
+        """The same rules with the grammars a kit is written in: those its file names show, and those always on.
+
+        A kit is drawn in one system of designation, so a look of another system in its text is more likely a misread
+        designation of its own, cut or split by OCR. When no file name holds a designation, every grammar stays on.
+        """
+        used = {self._grammars[order].grammar.name for stem in stems for _, order, _, _ in self._found(stem, True)}
+        if not used:
+            return self
+        kit = copy.copy(self)
+        kit._grammars = [c for c in self._grammars if c.grammar.always or c.grammar.name in used]
+        return kit
+
     def find_designations(self, text: str, *, file_name: bool = False) -> list[tuple[str, int, int]]:
         """All designations in a string: (normalized, start, end), from left to right.
 
         Where the matches of two grammars overlap, the one that starts first wins, and at one start the earlier grammar.
         """
+        return [(value, start, end) for value, _, start, end in self._found(text, file_name)]
+
+    def _found(self, text: str, file_name: bool) -> list[tuple[str, int, int, int]]:
+        """Designations of a string with the grammar of each: (normalized, grammar index, start, end)."""
         cased = text.translate(self._lat_to_cyr)
         upper = text.upper().translate(self._lat_to_cyr)
         found: list[tuple[int, int, int, str]] = []
@@ -66,10 +90,10 @@ class Designations:
             pattern = compiled.file_name if file_name else compiled.text
             for m in pattern.finditer(upper if compiled.grammar.upper else cased):
                 found.append((m.start(), order, m.end(), self._format(compiled.grammar, m)))
-        result: list[tuple[str, int, int]] = []
-        for start, _, end, value in sorted(found):
-            if not result or start >= result[-1][2]:
-                result.append((value, start, end))
+        result: list[tuple[str, int, int, int]] = []
+        for start, order, end, value in sorted(found):
+            if not result or start >= result[-1][3]:
+                result.append((value, order, start, end))
         return result
 
     def _format(self, grammar: Grammar, m: re.Match[str]) -> str:

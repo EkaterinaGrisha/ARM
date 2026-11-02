@@ -81,3 +81,17 @@ def test_document_codes_come_from_the_dictionary():
     assert ESKD.normalize_designation("АРМ.303411.000 ЖЖ") == "АРМ.303411.000"  # not a code: left out
     eskd = Designations(words.model_copy(update={"document_codes": (*words.document_codes, "ЖЖ")}))
     assert eskd.normalize_designation("АРМ.303411.000 ЖЖ") == "АРМ.303411.000 ЖЖ"
+
+
+def test_a_kit_reads_designations_by_the_grammars_its_file_names_show():
+    cut = "ИМКР.7152.001"  # a classifier designation OCR has cut: it looks like the decimal system
+    assert ESKD.find_designations(cut) != []  # every grammar is on outside a kit
+    classifier = ESKD.for_kit(["АБВГ.123456.001 Вал", "АБВГ.123456.002 СБ Привод"])
+    assert classifier.grammars == ["classifier"] and classifier.find_designations(cut) == []
+    maker = ESKD.for_kit(["АБВГ.02.115 Плита", "АБВГ.02.116 СБ Рама"])
+    assert maker.grammars == ["classifier", "decimal"]  # the classifier is always on: borrowed documents keep it
+    assert [d for d, _, _ in maker.find_designations("АБВГ.02.115; АРМ.303411.000; А1Б23-1234567")] == [
+        "АБВГ.02.115",
+        "АРМ.303411.000",
+    ]
+    assert ESKD.for_kit(["Плита", "IMG_2041"]) is ESKD  # no designation in the names: every grammar stays on

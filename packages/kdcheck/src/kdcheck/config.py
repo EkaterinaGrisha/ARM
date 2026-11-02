@@ -297,6 +297,7 @@ class Grammar(Section):
     canonical: str
     numbers: tuple[str, ...] = ()
     upper: bool
+    always: bool = False  # on in every kit; any other grammar only in a kit whose file names show it
     examples: dict[str, str] = Field(min_length=1)
     counterexamples: tuple[str, ...] = ()
 
