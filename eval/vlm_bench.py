@@ -77,8 +77,13 @@ class Profile:
     prompt: str | None = None
 
     @property
+    def label(self) -> str:
+        """The model, and the prompt of an OCR model: one model may be measured both ways."""
+        return self.name if self.prompt is None else f"{self.name}={self.prompt}"
+
+    @property
     def slug(self) -> str:
-        return re.sub(r"[^\w.-]+", "_", self.name)
+        return re.sub(r"[^\w.-]+", "_", self.label)
 
 
 @dataclass
@@ -408,8 +413,9 @@ def markdown(result: dict[str, Any]) -> str:
         lost = sum(t["unread"] for t in row["tasks"].values())
         right = share(s.get("right"), s.get("total")) if row["model"] != BASELINE and not row["prompt"] else "—"
         invented = share(s.get("invented"), s.get("blank")) if right != "—" else "—"
+        label = Profile(row["model"], row["prompt"]).label
         lines.append(
-            f"| {row['model']} | {right} | {share(s.get('in_reply'), s.get('total'))} | {invented} "
+            f"| {label} | {right} | {share(s.get('in_reply'), s.get('total'))} | {invented} "
             f"| {s['seconds'] / max(s.get('read', 0), 1):.1f} "
             f"| {share(b.get('right'), b.get('total'))} | {share(b.get('ranges_right'), b.get('ranges'))} "
             f"| {b['seconds'] / max(b.get('read', 0), 1):.1f} "
