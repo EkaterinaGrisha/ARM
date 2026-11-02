@@ -1,0 +1,303 @@
+{
+  "date": "2026-11-02",
+  "machine": "Darwin arm64, Python 3.11.15",
+  "role": null,
+  "ocr": true,
+  "engines": {
+    "pdfium": "156.0.8076.0",
+    "pypdfium2": "5.14.0",
+    "tesseract": "5.5.2",
+    "pillow": "13.0.0"
+  },
+  "kits": {
+    "arm-1": {
+      "role": "dev",
+      "files": 53,
+      "pages": 53,
+      "documents_by_name": 48,
+      "multi_sheet": 4,
+      "multi_sheet_files": 9,
+      "origin": {
+        "scan": 53
+      },
+      "status": {
+        "ok": 48,
+        "warning": 5
+      },
+      "kinds": {
+        "СП": {
+          "specification": 10,
+          "unknown": 5,
+          "part_drawing": 1
+        },
+        "СБ": {
+          "part_drawing": 11
+        },
+        "прочие": {
+          "part_drawing": 26
+        }
+      },
+      "documents_with_designation": 0,
+      "specifications": 10,
+      "specifications_with_designation": 0,
+      "spec_rows": 64,
+      "rows_with_designation": 58,
+      "rows_designation_parsed": 0,
+      "drawings": 38,
+      "title_block": {
+        "designation": 0,
+        "name": 38,
+        "material": 27,
+        "mass": 34,
+        "scale": 13,
+        "litera": 1,
+        "revision": 31,
+        "sheets": 37
+      },
+      "tree_items": 0,
+      "root": false,
+      "discrepancies": {},
+      "log": {},
+      "seconds": 91.4,
+      "seconds_per_page": 1.72,
+      "images": {
+        "count": 53,
+        "dpi": {
+          "median": 300,
+          "min": 200,
+          "max": 300
+        },
+        "paper": {
+          "median": 255,
+          "min": 255,
+          "max": 255
+        },
+        "specks": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.1
+        },
+        "uneven": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "skew": {
+          "median": 0.05,
+          "min": 0.0,
+          "max": 0.05
+        }
+      }
+    },
+    "arm-2": {
+      "role": "test",
+      "files": 332,
+      "pages": 332,
+      "documents_by_name": 256,
+      "multi_sheet": 41,
+      "multi_sheet_files": 117,
+      "origin": {
+        "scan": 332
+      },
+      "status": {
+        "ok": 271,
+        "warning": 61
+      },
+      "kinds": {
+        "СП": {
+          "specification": 42,
+          "part_drawing": 12,
+          "unknown": 21
+        },
+        "СБ": {
+          "part_drawing": 64,
+          "unknown": 25,
+          "assembly_drawing": 1
+        },
+        "прочие": {
+          "part_drawing": 152,
+          "unknown": 15
+        }
+      },
+      "documents_with_designation": 0,
+      "specifications": 42,
+      "specifications_with_designation": 0,
+      "spec_rows": 232,
+      "rows_with_designation": 213,
+      "rows_designation_parsed": 0,
+      "drawings": 229,
+      "title_block": {
+        "designation": 0,
+        "name": 221,
+        "material": 164,
+        "mass": 202,
+        "scale": 104,
+        "litera": 3,
+        "revision": 136,
+        "sheets": 218
+      },
+      "tree_items": 0,
+      "root": false,
+      "discrepancies": {},
+      "log": {},
+      "seconds": 555.7,
+      "seconds_per_page": 1.67,
+      "images": {
+        "count": 332,
+        "dpi": {
+          "median": 300.0,
+          "min": 200,
+          "max": 300
+        },
+        "paper": {
+          "median": 255.0,
+          "min": 255,
+          "max": 255
+        },
+        "specks": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.2
+        },
+        "uneven": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.1
+        },
+        "skew": {
+          "median": 0.05,
+          "min": 0.0,
+          "max": 0.05
+        }
+      }
+    },
+    "arm-3": {
+      "role": "test",
+      "files": 119,
+      "pages": 129,
+      "documents_by_name": 119,
+      "multi_sheet": 0,
+      "multi_sheet_files": 0,
+      "origin": {
+        "vector": 119
+      },
+      "status": {
+        "ok": 119
+      },
+      "kinds": {
+        "СБ": {
+          "assembly_drawing": 14,
+          "part_drawing": 2
+        },
+        "прочие": {
+          "part_drawing": 103
+        }
+      },
+      "documents_with_designation": 0,
+      "specifications": 0,
+      "specifications_with_designation": 0,
+      "spec_rows": 0,
+      "rows_with_designation": 0,
+      "rows_designation_parsed": 0,
+      "drawings": 119,
+      "title_block": {
+        "designation": 0,
+        "name": 119,
+        "material": 103,
+        "mass": 117,
+        "scale": 119,
+        "litera": 0,
+        "revision": 0,
+        "sheets": 95
+      },
+      "tree_items": 0,
+      "root": false,
+      "discrepancies": {},
+      "log": {
+        "warning": 1
+      },
+      "seconds": 0.5,
+      "seconds_per_page": 0.0,
+      "images": {
+        "count": 0,
+        "dpi": null,
+        "paper": null,
+        "specks": null,
+        "uneven": null,
+        "skew": null
+      }
+    },
+    "arm-4": {
+      "role": "aside",
+      "files": 16,
+      "pages": 16,
+      "documents_by_name": 12,
+      "multi_sheet": 2,
+      "multi_sheet_files": 6,
+      "origin": {
+        "scan": 16
+      },
+      "status": {
+        "warning": 16
+      },
+      "kinds": {
+        "прочие": {
+          "unknown": 16
+        }
+      },
+      "documents_with_designation": 0,
+      "specifications": 0,
+      "specifications_with_designation": 0,
+      "spec_rows": 0,
+      "rows_with_designation": 0,
+      "rows_designation_parsed": 0,
+      "drawings": 0,
+      "title_block": {
+        "designation": 0,
+        "name": 0,
+        "material": 0,
+        "mass": 0,
+        "scale": 0,
+        "litera": 0,
+        "revision": 0,
+        "sheets": 0
+      },
+      "tree_items": 0,
+      "root": false,
+      "discrepancies": {},
+      "log": {
+        "warning": 1
+      },
+      "seconds": 6.6,
+      "seconds_per_page": 0.41,
+      "images": {
+        "count": 16,
+        "dpi": {
+          "median": 300.0,
+          "min": 300,
+          "max": 450
+        },
+        "paper": {
+          "median": 255.0,
+          "min": 255,
+          "max": 255
+        },
+        "specks": {
+          "median": 5.25,
+          "min": 0.5,
+          "max": 13.0
+        },
+        "uneven": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "skew": {
+          "median": 0.15,
+          "min": 0.15,
+          "max": 0.15
+        }
+      }
+    }
+  }
+}
