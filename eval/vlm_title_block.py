@@ -97,9 +97,14 @@ def score(report: Report, truth: KitTruth, labels: dict[str, str], tally: dict[s
             m = CONFLICT.search(note)
             if m and m["label"] in by_label:
                 want = getattr(doc, by_label[m["label"]])
+                model_right, kept_right = norm(m["vlm"]) == norm(want), norm(m["ocr"]) == norm(want)
                 tally["conflicts"]["total"] += 1
-                tally["conflicts"]["model_right"] += norm(m["vlm"]) == norm(want)
-                tally["conflicts"]["kept_right"] += norm(m["ocr"]) == norm(want)
+                tally["conflicts"]["model_right"] += model_right
+                tally["conflicts"]["kept_right"] += kept_right
+                if want not in (None, ""):  # a scored field: the modes below change its value
+                    tally["conflicts"]["scored"] += 1
+                    tally["conflicts"]["scored_model_right"] += model_right
+                    tally["conflicts"]["scored_kept_right"] += kept_right
 
 
 def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path, KitTruth]) -> dict[str, Any]:
@@ -127,7 +132,7 @@ def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path,
         }
     total = sum(f["total"] for f in fields.values())
     right = sum(f["right"] for f in fields.values())
-    return {
+    result = {
         "name": name,
         "model": model,
         "prompt": pipeline.vlm.version if pipeline.vlm else None,
@@ -146,6 +151,36 @@ def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path,
             for key, c in sorted(tally.items())
             if key.startswith("sheet:")
         },
+    }
+    if verify and total:
+        result["modes"] = modes(fields, tally["conflicts"], total, right)
+    return result
+
+
+def modes(fields: dict[str, dict[str, Any]], conflicts: Counter[str], total: int, right: int) -> dict[str, Any]:
+    """What a verify run gives under each policy for a conflict, counted on the scored fields.
+
+    ``fill_empty`` keeps the OCR value, as the pipeline does; ``model_wins`` takes the model's; ``review`` keeps the
+    OCR value and marks it for a check. ``agreement``: OCR filled the cell and the model read the same.
+    """
+    wrong = sum(f["wrong"] for f in fields.values())
+    scored, model_right, kept_right = (conflicts[k] for k in ("scored", "scored_model_right", "scored_kept_right"))
+    by_model = sum(f["by_model"] for f in fields.values())
+    by_model_right = sum(f["by_model_right"] for f in fields.values())
+    agreed = right + wrong - by_model - scored
+    return {
+        "fill_empty": {"accuracy": round(right / total, 3), "unflagged_wrong": wrong, "flagged": 0},
+        "model_wins": {
+            "accuracy": round((right - kept_right + model_right) / total, 3),
+            "unflagged_wrong": wrong + kept_right - model_right,
+            "flagged": 0,
+        },
+        "review": {
+            "accuracy": round(right / total, 3),
+            "unflagged_wrong": wrong - scored + kept_right,
+            "flagged": scored,
+        },
+        "agreement": {"total": agreed, "right": right - by_model_right - kept_right},
     }
 
 
@@ -222,6 +257,27 @@ def markdown(result: dict[str, Any]) -> str:
         for r in verify:
             c = r["conflicts"]
             lines.append(f"| {r['name']} | {c['total']} | {c.get('model_right', 0)} | {c.get('kept_right', 0)} |")
+    with_modes = [r for r in result["runs"] if r.get("modes")]
+    if with_modes:
+        lines += [
+            "",
+            "Режимы при расхождении OCR и модели, по полям эталона: «дочитывание» оставляет OCR, как конвейер сейчас; "
+            "«модель» берёт значение модели; «проверить» оставляет OCR и отмечает поле. «Неверных без пометки» — "
+            "неверные значения, которые отчёт выдаст как есть.",
+            "",
+            "| Прогон | Режим | Доля верных полей | Неверных без пометки | Отмечено «проверить» |",
+            "| --- | --- | ---: | ---: | ---: |",
+        ]
+        names = {"fill_empty": "дочитывание", "model_wins": "модель", "review": "проверить"}
+        for r in with_modes:
+            for key, label in names.items():
+                m = r["modes"][key]
+                lines.append(f"| {r['name']} | {label} | {m['accuracy']} | {m['unflagged_wrong']} | {m['flagged']} |")
+        lines += ["", "Поля, где OCR прочёл значение и модель с ним не разошлась: верно из всех.", ""]
+        lines += ["| Прогон | Верно | Всего |", "| --- | ---: | ---: |"]
+        for r in with_modes:
+            a = r["modes"]["agreement"]
+            lines.append(f"| {r['name']} | {a['right']} | {a['total']} |")
     if result["real"]:
         inputs = result["inputs"]
         lines += ["", "По листам — верно из полей, которые есть на бланке:", ""]
