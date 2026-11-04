@@ -13,7 +13,10 @@ eval/results/vlm-title-block-real.json and .md, with a table by sheet. A field t
 is not scored, as in backend/arm_web/evaluate.py.
 
     uv run python eval/vlm_title_block.py --model google/gemma-4-e4b --model qwen/qwen3.6-27b \
-        [--verify google/gemma-4-e4b] [--real]
+        [--verify google/gemma-4-e4b] [--real] [--append]
+
+``--append`` keeps the runs of the earlier results file, replaces the runs of the models given and adds the new
+ones; the command written to the results is the union of both.
 """
 
 from __future__ import annotations
@@ -313,25 +316,42 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--kits", type=int, default=10)
     parser.add_argument("--seed", type=int, default=2)
     parser.add_argument("--real", action="store_true", help="листы эталона из data/gold_sheets вместо синтетики")
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="оставить прогоны прежнего файла результатов и добавить или заменить прогоны этих моделей",
+    )
     args = parser.parse_args(argv)
     if not ocr_available(load_settings(use_ocr=True)):
         parser.error("нужен Tesseract с языками rus+eng: замер сравнивает модель с OCR")
     if args.real and not SHEETS.is_dir():
         parser.error("нет data/gold_sheets: листы вырезает uv run python eval/gold.py sheets")
+    name = "vlm-title-block-real" if args.real else "vlm-title-block"
+    earlier = json.loads((OUT / f"{name}.json").read_text(encoding="utf-8")) if args.append else None
+    if earlier is not None and (earlier["kits"], earlier["seed"]) != (args.kits, args.seed):
+        parser.error("--append: у прежних результатов другие --kits или --seed")
     truths = {SHEETS: KitTruth.read(GOLD / "sheets.json")} if args.real else corpus(args.kits, args.seed)
     runs = [run("OCR", None, args.url, False, truths)]
     for model in args.model:
         runs.append(run(f"OCR + {model}", model, args.url, False, truths))
     for model in args.verify:
         runs.append(run(f"OCR + {model}, проверка", model, args.url, True, truths))
+    models, verify = list(args.model), list(args.verify)
+    if earlier is not None:
+        # The runs are deterministic, so the union of both commands reproduces the merged file.
+        flags = re.findall(r"--(model|verify) (\S+)", earlier["command"])
+        models = [*(m for flag, m in flags if flag == "model" and m not in models), *models]
+        verify = [*(m for flag, m in flags if flag == "verify" and m not in verify), *verify]
+        fresh = {r["name"]: r for r in runs}
+        runs = [fresh.pop(r["name"], r) for r in earlier["runs"]] + list(fresh.values())
     tesseract = next(
         (e.version for e in BaselinePipeline(load_settings(use_ocr=True)).engines() if e.name == "tesseract"), None
     )
     result = {
         "command": " ".join(
             [
-                *(f"--model {m}" for m in args.model),
-                *(f"--verify {m}" for m in args.verify),
+                *(f"--model {m}" for m in models),
+                *(f"--verify {m}" for m in verify),
                 *(["--real"] if args.real else []),
             ]
         ),
@@ -349,7 +369,6 @@ def main(argv: list[str] | None = None) -> int:
         "runs": runs,
     }
     OUT.mkdir(exist_ok=True)
-    name = "vlm-title-block-real" if args.real else "vlm-title-block"
     (OUT / f"{name}.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (OUT / f"{name}.md").write_text(markdown(result), encoding="utf-8")
     print(markdown(result))
