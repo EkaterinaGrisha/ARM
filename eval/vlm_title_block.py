@@ -13,7 +13,10 @@ eval/results/vlm-title-block-real.json and .md, with a table by sheet. A field t
 is not scored, as in backend/arm_web/evaluate.py.
 
     uv run python eval/vlm_title_block.py --model google/gemma-4-e4b --model qwen/qwen3.6-27b \
-        [--verify google/gemma-4-e4b] [--real]
+        [--verify google/gemma-4-e4b] [--real] [--append]
+
+``--append`` keeps the runs of the earlier results file, replaces the runs of the models given and adds the new
+ones; the command written to the results is the union of both.
 """
 
 from __future__ import annotations
@@ -97,9 +100,14 @@ def score(report: Report, truth: KitTruth, labels: dict[str, str], tally: dict[s
             m = CONFLICT.search(note)
             if m and m["label"] in by_label:
                 want = getattr(doc, by_label[m["label"]])
+                model_right, kept_right = norm(m["vlm"]) == norm(want), norm(m["ocr"]) == norm(want)
                 tally["conflicts"]["total"] += 1
-                tally["conflicts"]["model_right"] += norm(m["vlm"]) == norm(want)
-                tally["conflicts"]["kept_right"] += norm(m["ocr"]) == norm(want)
+                tally["conflicts"]["model_right"] += model_right
+                tally["conflicts"]["kept_right"] += kept_right
+                if want not in (None, ""):  # a scored field: the modes below change its value
+                    tally["conflicts"]["scored"] += 1
+                    tally["conflicts"]["scored_model_right"] += model_right
+                    tally["conflicts"]["scored_kept_right"] += kept_right
 
 
 def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path, KitTruth]) -> dict[str, Any]:
@@ -127,7 +135,7 @@ def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path,
         }
     total = sum(f["total"] for f in fields.values())
     right = sum(f["right"] for f in fields.values())
-    return {
+    result = {
         "name": name,
         "model": model,
         "prompt": pipeline.vlm.version if pipeline.vlm else None,
@@ -146,6 +154,36 @@ def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path,
             for key, c in sorted(tally.items())
             if key.startswith("sheet:")
         },
+    }
+    if verify and total:
+        result["modes"] = modes(fields, tally["conflicts"], total, right)
+    return result
+
+
+def modes(fields: dict[str, dict[str, Any]], conflicts: Counter[str], total: int, right: int) -> dict[str, Any]:
+    """What a verify run gives under each policy for a conflict, counted on the scored fields.
+
+    ``fill_empty`` keeps the OCR value, as the pipeline does; ``model_wins`` takes the model's; ``review`` keeps the
+    OCR value and marks it for a check. ``agreement``: OCR filled the cell and the model read the same.
+    """
+    wrong = sum(f["wrong"] for f in fields.values())
+    scored, model_right, kept_right = (conflicts[k] for k in ("scored", "scored_model_right", "scored_kept_right"))
+    by_model = sum(f["by_model"] for f in fields.values())
+    by_model_right = sum(f["by_model_right"] for f in fields.values())
+    agreed = right + wrong - by_model - scored
+    return {
+        "fill_empty": {"accuracy": round(right / total, 3), "unflagged_wrong": wrong, "flagged": 0},
+        "model_wins": {
+            "accuracy": round((right - kept_right + model_right) / total, 3),
+            "unflagged_wrong": wrong + kept_right - model_right,
+            "flagged": 0,
+        },
+        "review": {
+            "accuracy": round(right / total, 3),
+            "unflagged_wrong": wrong - scored + kept_right,
+            "flagged": scored,
+        },
+        "agreement": {"total": agreed, "right": right - by_model_right - kept_right},
     }
 
 
@@ -222,6 +260,27 @@ def markdown(result: dict[str, Any]) -> str:
         for r in verify:
             c = r["conflicts"]
             lines.append(f"| {r['name']} | {c['total']} | {c.get('model_right', 0)} | {c.get('kept_right', 0)} |")
+    with_modes = [r for r in result["runs"] if r.get("modes")]
+    if with_modes:
+        lines += [
+            "",
+            "Режимы при расхождении OCR и модели, по полям эталона: «дочитывание» оставляет OCR, как конвейер сейчас; "
+            "«модель» берёт значение модели; «проверить» оставляет OCR и отмечает поле. «Неверных без пометки» — "
+            "неверные значения, которые отчёт выдаст как есть.",
+            "",
+            "| Прогон | Режим | Доля верных полей | Неверных без пометки | Отмечено «проверить» |",
+            "| --- | --- | ---: | ---: | ---: |",
+        ]
+        names = {"fill_empty": "дочитывание", "model_wins": "модель", "review": "проверить"}
+        for r in with_modes:
+            for key, label in names.items():
+                m = r["modes"][key]
+                lines.append(f"| {r['name']} | {label} | {m['accuracy']} | {m['unflagged_wrong']} | {m['flagged']} |")
+        lines += ["", "Поля, где OCR прочёл значение и модель с ним не разошлась: верно из всех.", ""]
+        lines += ["| Прогон | Верно | Всего |", "| --- | ---: | ---: |"]
+        for r in with_modes:
+            a = r["modes"]["agreement"]
+            lines.append(f"| {r['name']} | {a['right']} | {a['total']} |")
     if result["real"]:
         inputs = result["inputs"]
         lines += ["", "По листам — верно из полей, которые есть на бланке:", ""]
@@ -257,25 +316,42 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--kits", type=int, default=10)
     parser.add_argument("--seed", type=int, default=2)
     parser.add_argument("--real", action="store_true", help="листы эталона из data/gold_sheets вместо синтетики")
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="оставить прогоны прежнего файла результатов и добавить или заменить прогоны этих моделей",
+    )
     args = parser.parse_args(argv)
     if not ocr_available(load_settings(use_ocr=True)):
         parser.error("нужен Tesseract с языками rus+eng: замер сравнивает модель с OCR")
     if args.real and not SHEETS.is_dir():
         parser.error("нет data/gold_sheets: листы вырезает uv run python eval/gold.py sheets")
+    name = "vlm-title-block-real" if args.real else "vlm-title-block"
+    earlier = json.loads((OUT / f"{name}.json").read_text(encoding="utf-8")) if args.append else None
+    if earlier is not None and (earlier["kits"], earlier["seed"]) != (args.kits, args.seed):
+        parser.error("--append: у прежних результатов другие --kits или --seed")
     truths = {SHEETS: KitTruth.read(GOLD / "sheets.json")} if args.real else corpus(args.kits, args.seed)
     runs = [run("OCR", None, args.url, False, truths)]
     for model in args.model:
         runs.append(run(f"OCR + {model}", model, args.url, False, truths))
     for model in args.verify:
         runs.append(run(f"OCR + {model}, проверка", model, args.url, True, truths))
+    models, verify = list(args.model), list(args.verify)
+    if earlier is not None:
+        # The runs are deterministic, so the union of both commands reproduces the merged file.
+        flags = re.findall(r"--(model|verify) (\S+)", earlier["command"])
+        models = [*(m for flag, m in flags if flag == "model" and m not in models), *models]
+        verify = [*(m for flag, m in flags if flag == "verify" and m not in verify), *verify]
+        fresh = {r["name"]: r for r in runs}
+        runs = [fresh.pop(r["name"], r) for r in earlier["runs"]] + list(fresh.values())
     tesseract = next(
         (e.version for e in BaselinePipeline(load_settings(use_ocr=True)).engines() if e.name == "tesseract"), None
     )
     result = {
         "command": " ".join(
             [
-                *(f"--model {m}" for m in args.model),
-                *(f"--verify {m}" for m in args.verify),
+                *(f"--model {m}" for m in models),
+                *(f"--verify {m}" for m in verify),
                 *(["--real"] if args.real else []),
             ]
         ),
@@ -293,7 +369,6 @@ def main(argv: list[str] | None = None) -> int:
         "runs": runs,
     }
     OUT.mkdir(exist_ok=True)
-    name = "vlm-title-block-real" if args.real else "vlm-title-block"
     (OUT / f"{name}.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (OUT / f"{name}.md").write_text(markdown(result), encoding="utf-8")
     print(markdown(result))
