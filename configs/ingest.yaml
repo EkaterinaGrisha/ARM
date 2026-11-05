@@ -35,6 +35,9 @@ regions:                         # the frame, the title block and the specificat
   line_on_image: 0.8             # share of the length of a line of a form on the image for the line to count
   line_side: 2                   # mm: paper this far to one side of a line tells it from grain and dark areas
   max_placements: 50000          # placements of a form tried at each step of the search: hatching or grain costs seconds of a page, not minutes
+  corner_slack: [30, 25]         # mm, right and below: the bottom right corner of a title block lies this near that of the image,
+                                 # the frame margin and a sheet shifted on the glass or framed by Augraphy: 25 and 16 at most on
+                                 # synthetic scans; form 2a over the top of form 2 lies 30 up, over form 1 45 up, form 1 over a table 50 left
   wipe_ink: 0.8                  # share of a cell in ink for a line across it to be wiped: letters of a low cell reach 0.6
 
 page_scale:                      # pixels per millimetre of an image without resolution metadata

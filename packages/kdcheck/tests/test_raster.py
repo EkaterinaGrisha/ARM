@@ -115,6 +115,41 @@ def test_specification_table_by_its_column_lines(settings):
     assert other is not None and other.other_form  # form 5 of GOST 2.113: its rows are not read as form 1
 
 
+def test_a_later_sheet_of_a_specification_places_form_2a_at_the_frame(settings):
+    """Rows of the table above form 2a are rectangles of its size, and the change record table has a column line
+    7 mm in: the block still sits in the corner of the frame at the resolution of the image, and the table is found."""
+    spec = settings.forms.specification
+    edges = sorted({edge for pair in spec.columns.model_dump().values() for edge in pair} - {0.0, 185.0})
+    image = _sheet(settings, None, (210, 297), columns=edges)
+    draw = ImageDraw.Draw(image)
+    x, y = 210 - 5 - 185, 297 - 5 - 15
+    rows = [(x, top, x + 185, top) for top in range(5 + round(spec.header_height), y, round(spec.row_height))]
+    record = [(x + u, y, x + u, y + 15) for u in (7, 17, 40, 55, 65)] + [(x, y + v, x + 65, y + v) for v in (5, 10)]
+    for x0, y0, x1, y1 in [*rows, *record, (x + 175, y + 7, x + 185, y + 7)]:
+        draw.line([(x0 * PX, y0 * PX), (x1 * PX, y1 * PX)], fill=0, width=round(0.7 * PX))
+    found = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
+    assert found is not None and found.block.form is None
+    assert _corner(found) == pytest.approx((x, y), abs=0.5)
+    assert found.block.s == pytest.approx(PX, rel=0.01)
+    table = raster.find_table(image, found, settings.forms, settings.ingest.regions)
+    assert table is not None and not table.other_form
+
+
+def test_form_2a_over_the_top_of_form_1_is_not_a_later_sheet(settings):
+    """The top of form 1 holds the lines of form 2a: with a speck where form 2a has its «Лист» cell and a line of
+    form 1 faded, form 2a fits there better than form 1 does, but its corner lies 45 mm above that of the sheet."""
+    image = _sheet(settings, 1, (210, 297))
+    draw = ImageDraw.Draw(image)
+    x, y = 210 - 5 - 185, 297 - 5 - 55
+    record = [(x + u, y, x + u, y + 25) for u in (7, 17, 40, 55)] + [(x, y + v, x + 65, y + v) for v in (5, 10, 15, 20)]
+    for x0, y0, x1, y1 in [*record, (x + 175, y, x + 175, y + 15), (x + 175, y + 7, x + 185, y + 7)]:
+        draw.line([(x0 * PX, y0 * PX), (x1 * PX, y1 * PX)], fill=0, width=round(0.7 * PX))
+    draw.line([((x + 65) * PX, (y + 40) * PX), ((x + 135) * PX, (y + 40) * PX)], fill=255, width=round(2 * PX))
+    found = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
+    assert found is not None and found.block.form == 1
+    assert _corner(found) == pytest.approx((x, y), abs=0.5)
+
+
 def test_a_drawing_has_no_specification_table(settings):
     image = _sheet(settings, 1)
     found = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)

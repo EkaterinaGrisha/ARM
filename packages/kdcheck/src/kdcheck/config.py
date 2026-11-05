@@ -217,6 +217,7 @@ class RegionRules(Section):
     line_on_image: Share
     line_side: float  # mm
     max_placements: int = Field(ge=0)
+    corner_slack: Point  # mm, right and below: how far the corner of a title block may lie from that of the image
     wipe_ink: Share
 
 

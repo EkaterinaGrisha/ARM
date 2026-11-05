@@ -268,6 +268,15 @@ def find_corner(gray: Image.Image, ppmm: float, forms: Forms, rules: RegionRules
             return None
         return x0 + (x1 - x0) * t0, y0 + (y1 - y0) * t0, x0 + (x1 - x0) * t1, y0 + (y1 - y0) * t1
 
+    def in_corner(x0: float, y0: float, s: float, height: float) -> bool:
+        """Whether the bottom right corner of a block placed on the mask lies by the corner of the image, as GOST 2.104
+        puts the block in the bottom right corner of the frame: within its margin and a sheet shifted on the glass.
+        Form 2a laid over the top of form 1, which holds the same lines, or form 1 laid over the rows and columns of a
+        table lies tens of millimetres away."""
+        cx, cy = turn.original(window[0] + (x0 + template.width * s) / k, window[1] + (y0 + height * s) / k)
+        right, below = rules.corner_slack
+        return gray.width - cx <= right * ppmm and gray.height - cy <= below * ppmm
+
     nominal = rules.sample  # mask pixels per mm at the resolution of the image
     lowest, highest = template.scale_range
     widest = rules.max_line_width * nominal
@@ -279,8 +288,8 @@ def find_corner(gray: Image.Image, ppmm: float, forms: Forms, rules: RegionRules
             verticals = runs(profile(strip, vertical=True), rules.line_ink, widest)
             widths = {b - a for a in verticals for b in verticals if b > a}
             anchors.append((y, top, bottom, anchor, verticals, widths))
-    # forms 1 and 2 before form 2a of the later sheets, which has few lines; the resolution of the image and the
-    # scales near it before any scale in the range
+    # the resolution of the image and the scales near it before any scale in the range; at each, forms 1 and 2 and
+    # form 2a of the later sheets compete, as form 1 laid over the rows of a table above form 2a finds most of its lines
     near_nominal = (1 - rules.scale_tolerance, 1 + rules.scale_tolerance)
     first: list[tuple[int | None, RuledForm]] = list(template.forms.items())
     later: list[tuple[int | None, RuledForm]] = [(None, template.continuation)]
@@ -311,22 +320,23 @@ def find_corner(gray: Image.Image, ppmm: float, forms: Forms, rules: RegionRules
                                 yield number, form, x0, y0, s
 
     best: tuple[float, int, Block] | None = None
-    for candidates, (low, high) in itertools.product((first, later), (near_nominal, (lowest, highest))):
-        for number, form, x0, y0, s in itertools.islice(placements(candidates, low, high), rules.max_placements):
-            scored = _form_score(mask, form, x0, y0, s, rules, visible)
-            if scored is None or scored[0] < rules.min_form_lines:
-                continue
-            if best is None or scored > best[:2]:
-                found = Block(
-                    number,
-                    window[0] + x0 / k,
-                    window[1] + y0 / k,
-                    s / k,
-                    scored[0],
-                    template.width,
-                    form.height,
-                )
-                best = (*scored, found)
+    for low, high in (near_nominal, (lowest, highest)):
+        for candidates in (first, later):
+            for number, form, x0, y0, s in itertools.islice(placements(candidates, low, high), rules.max_placements):
+                scored = _form_score(mask, form, x0, y0, s, rules, visible)
+                if scored is None or scored[0] < rules.min_form_lines:
+                    continue
+                if (best is None or scored > best[:2]) and in_corner(x0, y0, s, form.height):
+                    found = Block(
+                        number,
+                        window[0] + x0 / k,
+                        window[1] + y0 / k,
+                        s / k,
+                        scored[0],
+                        template.width,
+                        form.height,
+                    )
+                    best = (*scored, found)
         if best is not None:
             break
     return Corner(turn, level, best[2]) if best is not None else None

@@ -100,6 +100,16 @@ title_block:                     # GOST 2.104
       - [0, 0, 0, 15]
       - [185, 0, 185, 15]
       - [175, 0, 175, 15]
+      # the change record table and the «Лист» cell: with the outer lines alone the block fits table rows above it
+      # and fits one column in, at a scale 4 % off
+      - [7, 0, 7, 15]
+      - [17, 0, 17, 15]
+      - [40, 0, 40, 15]
+      - [55, 0, 55, 15]
+      - [65, 0, 65, 15]
+      - [0, 5, 65, 5]
+      - [0, 10, 65, 10]
+      - [175, 7, 185, 7]
     blank: [[135, 0, 135, 15]]   # forms 1 and 2 have a line there
   label_zone: [0.4, 0.5]         # labels lie right of this share of the width and below this share of the height
   label_row_tolerance: 2.5       # labels of one row differ in height by less than this

@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-02",
+  "date": "2026-11-04",
   "machine": "Darwin arm64, Python 3.11.15",
   "tesseract": "5.5.2",
   "corpus": {
@@ -3586,10 +3586,10 @@
         },
         "captured:dimension_tolerance": {
           "expected": 85,
-          "found": 15,
-          "extra": 18,
-          "precision": 0.455,
-          "recall": 0.176
+          "found": 14,
+          "extra": 20,
+          "precision": 0.412,
+          "recall": 0.165
         },
         "captured:general_tolerance": {
           "expected": 48,
@@ -3621,10 +3621,10 @@
         },
         "captured:roughness": {
           "expected": 128,
-          "found": 43,
-          "extra": 28,
-          "precision": 0.606,
-          "recall": 0.336
+          "found": 42,
+          "extra": 29,
+          "precision": 0.592,
+          "recall": 0.328
         },
         "vector:coating": {
           "expected": 168,
