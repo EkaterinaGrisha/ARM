@@ -6,7 +6,9 @@ render_dpi: 200                  # a page without text that is not one scan is r
 min_image_dpi: 50                # image resolution metadata below this is ignored
 
 scan:                            # a PDF page that is one scanned image is read at its own pixels
-  min_coverage: 0.5              # the image covers at least this share of the page
+  min_coverage: 0.5              # the image covers at least this share of the page; images over this share of a page with
+                                 # text make the text a recognition layer, and the page is read as a scan: 0.84 and more
+                                 # on scans with such a layer, 0.12 at most on vector drawings with images
   max_stretch: 0.02              # its horizontal and vertical scales differ by less than this share
   check_size: 120                # px: the long side of the thumbnails that compare the image with the rendered page
   min_check_size: 4              # px: a smaller thumbnail is not trusted
