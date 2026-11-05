@@ -15,12 +15,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.4"
+SCHEMA_VERSION = "1.5"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
 DocumentStatus = Literal[
-    "ok", "warning", "damaged", "unreadable", "foreign", "unsupported", "encrypted", "duplicate_file"
+    "ok", "warning", "damaged", "unreadable", "blank", "foreign", "unsupported", "encrypted", "duplicate_file"
 ]
 ExtractedStatus = Literal["ok", "low_confidence", "missing", "conflict"]
 DocumentOrigin = Literal["vector", "scan", "mixed", "unknown"]

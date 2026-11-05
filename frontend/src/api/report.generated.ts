@@ -81,7 +81,8 @@ export interface DocumentInfo {
   pages: PageInfo[];
   kind: "specification" | "assembly_drawing" | "part_drawing" | "drawing" | "other" | "unknown";
   origin: "vector" | "scan" | "mixed" | "unknown";
-  status: "ok" | "warning" | "damaged" | "unreadable" | "foreign" | "unsupported" | "encrypted" | "duplicate_file";
+  status:
+    "ok" | "warning" | "damaged" | "unreadable" | "blank" | "foreign" | "unsupported" | "encrypted" | "duplicate_file";
   /**
    * Пояснение для проблемных файлов
    */

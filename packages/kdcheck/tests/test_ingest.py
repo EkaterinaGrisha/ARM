@@ -78,7 +78,10 @@ def test_file_without_read_access_is_damaged(tmp_path, settings):
 def _tiff_with_a_broken_frame(path: Path) -> Path:
     frames = [Image.new("L", (400, 300), 255) for _ in range(3)]
     for i, frame in enumerate(frames):
-        ImageDraw.Draw(frame).text((20, 20), f"page {i + 1}", fill=0)
+        draw = ImageDraw.Draw(frame)
+        draw.text((20, 20), f"page {i + 1}", fill=0)
+        for y in range(40, 300, 30):  # lines, so that the page is no blank sheet
+            draw.line((0, y, 400, y), fill=0, width=2)
     buf = io.BytesIO()
     frames[0].save(buf, "TIFF", save_all=True, append_images=frames[1:], compression="tiff_lzw", dpi=(150, 150))
     data = bytearray(buf.getvalue())

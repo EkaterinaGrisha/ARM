@@ -26,7 +26,10 @@ def test_the_limit_counts_only_inside_a_sheet():
 def _tiff(path, frames=3):
     pages = [Image.new("L", (400, 300), 255) for _ in range(frames)]
     for i, page in enumerate(pages):
-        ImageDraw.Draw(page).text((20, 20), f"page {i + 1}", fill=0)
+        draw = ImageDraw.Draw(page)
+        draw.text((20, 20), f"page {i + 1}", fill=0)
+        for y in range(40, 300, 30):  # lines, so that the page is no blank sheet
+            draw.line((0, y, 400, y), fill=0, width=2)
     buf = io.BytesIO()
     pages[0].save(buf, "TIFF", save_all=True, append_images=pages[1:], dpi=(150, 150))
     path.write_bytes(buf.getvalue())

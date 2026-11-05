@@ -4120,7 +4120,8 @@
     "Чертежи_архив.pdf": "damaged",
     "скан_0034.jpg": "unreadable",
     "Акт приёмки КД.pdf": "foreign",
-    "Thumbs.db": "unsupported"
+    "Thumbs.db": "unsupported",
+    "скан_0035.jpg": "blank"
   },
   "seed": 7,
   "mutations": [],
