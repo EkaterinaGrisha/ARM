@@ -1,6 +1,7 @@
 # Reading files and pages: limits, rasters, scans and the text lines of a page.
 
 max_pages_per_file: 500          # pages read per file, 0 — all; bounds the time one huge file takes. ARM_MAX_PAGES overrides
+page_timeout_sec: 300            # time to read one sheet, 0 — no limit: a slower sheet gets a problem, the others are read
 render_dpi: 200                  # a page without text that is not one scan is rendered at this resolution for OCR
 min_image_dpi: 50                # image resolution metadata below this is ignored
 

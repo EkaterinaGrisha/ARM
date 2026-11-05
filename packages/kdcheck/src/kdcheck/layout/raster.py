@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 
 from PIL import Image, ImageStat
 
+from kdcheck import limits
 from kdcheck.config import Forms, RegionRules, RuledForm
 
 Box = tuple[float, float, float, float]
@@ -323,6 +324,7 @@ def find_corner(gray: Image.Image, ppmm: float, forms: Forms, rules: RegionRules
     for low, high in (near_nominal, (lowest, highest)):
         for candidates in (first, later):
             for number, form, x0, y0, s in itertools.islice(placements(candidates, low, high), rules.max_placements):
+                limits.check()
                 scored = _form_score(mask, form, x0, y0, s, rules, visible)
                 if scored is None or scored[0] < rules.min_form_lines:
                     continue
