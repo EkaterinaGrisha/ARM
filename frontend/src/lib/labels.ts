@@ -19,11 +19,13 @@ export const DISCREPANCY_TYPES: Record<DiscrepancyType, { label: string; hint: s
   duplicate_designation: { label: "Дублирование обозначения", hint: "Одно обозначение у нескольких документов или позиций" },
   revision_mismatch: { label: "Литера / номер изменения", hint: "Разные версии документа или несогласованные литеры" },
   missing_specification: { label: "Нет спецификации СЕ", hint: "Сборочная единица указана, но её спецификации нет" },
+  sheets_missing: { label: "Не хватает листов", hint: "В комплекте меньше листов документа, чем в основной надписи" },
 };
 export const DISCREPANCY_ORDER: DiscrepancyType[] = [
   "missing_drawing",
   "missing_specification",
   "orphan_drawing",
+  "sheets_missing",
   "duplicate_designation",
   "revision_mismatch",
   "name_mismatch",

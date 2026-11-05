@@ -99,11 +99,12 @@ def parse(doc: LoadedDocument, forms: Forms, eskd: Designations) -> Specificatio
             geom = title_block.locate(page, forms)
             if geom is not None and geom.form == 2:
                 tb = title_block.parse(doc, page, geom, forms, eskd)
-                spec.designation, spec.name, spec.litera, spec.revision = (
+                spec.designation, spec.name, spec.litera, spec.revision, spec.sheets = (
                     tb.designation,
                     tb.name,
                     tb.litera,
                     tb.revision,
+                    tb.sheets,
                 )
         ruled = page.regions.table if page.regions is not None else None
         if ruled is not None:  # read row by row by its ruled lines
@@ -114,6 +115,10 @@ def parse(doc: LoadedDocument, forms: Forms, eskd: Designations) -> Specificatio
         if table is None:
             continue
         section = _parse_page(doc, page, table, rows, section, forms.specification, sections, eskd)
+    if spec.designation is None:  # a later sheet kept in a file of its own names its document in form 2a
+        first = next((p for p in doc.pages if p.lines), None)
+        later = title_block.later_sheet(doc, first, forms, eskd) if first is not None else None
+        spec.designation = later.designation if later is not None else None
     if spec.designation is None:
         spec.designation = _designation_fallback(doc, forms.specification, eskd)
     spec.rows = rows

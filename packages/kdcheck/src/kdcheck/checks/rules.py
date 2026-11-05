@@ -33,6 +33,7 @@ RULES: tuple[Rule, ...] = (
     Rule("B1.VERSION.001", "revision_mismatch", "Разные версии одного документа"),
     Rule("B1.LITERA.001", "revision_mismatch", "Литера спецификации и сборочного чертежа различается"),
     Rule("B1.LITERA.002", "revision_mismatch", "Литера составной части ниже литеры изделия"),
+    Rule("B1.SHEETS.001", "sheets_missing", "Не хватает листов документа"),
 )
 
 

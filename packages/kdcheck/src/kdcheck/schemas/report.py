@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.3"
+SCHEMA_VERSION = "1.4"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
@@ -33,6 +33,7 @@ DiscrepancyType = Literal[
     "duplicate_designation",
     "revision_mismatch",
     "missing_specification",
+    "sheets_missing",
 ]
 Severity = Literal["high", "medium", "low"]
 ParameterCategory = Literal[
@@ -116,6 +117,20 @@ class DocumentInfo(Model):
     problem: str | None = Field(None, description="Пояснение для проблемных файлов")
     designation: str | None = None
     name: str | None = None
+    sheet: int | None = Field(
+        None,
+        description=(
+            "Номер листа документа, с которого начинается файл: по основной надписи, иначе по номеру в скобках "
+            "в конце имени файла. С версии 1.4"
+        ),
+    )
+    sheet_of: str | None = Field(
+        None,
+        description=(
+            "Файл — последующий лист документа, начатого в файле с этим id; спецификация и запись детали — "
+            "по тому файлу. Пусто у первого листа и у документа в одном файле. С версии 1.4"
+        ),
+    )
     notes: list[str] = []
 
 
@@ -186,6 +201,7 @@ class Specification(Model):
     name: Extracted | None = None
     litera: Extracted | None = None
     revision: Extracted | None = None
+    sheets: Extracted | None = Field(None, description="«Листов» основной надписи первого листа. С версии 1.4")
     rows: list[SpecRow] = []
 
 

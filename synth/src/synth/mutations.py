@@ -263,7 +263,7 @@ def drop_sheet(kit: Kit) -> bool:
     kept = [(p, k) for p, k in zip(drawing.expected_params, drawing.param_keys, strict=True) if not k.startswith(gone)]
     drawing.expected_params, drawing.param_keys = [p for p, _ in kept], [k for _, k in kept]
     kit.touched.add(part.designation)
-    kit.expect("sheets_missing", part.designation, None, "drop_sheet")
+    kit.expect("sheets_missing", part.designation, "B1.SHEETS.001", "drop_sheet")
     return True
 
 
