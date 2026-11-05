@@ -37,6 +37,7 @@ from kdcheck.config import Settings
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.run import load_settings, ocr_available
 from kdcheck.schemas import Report
+from scoring import norm
 from synth.truth import DrawingTruth, KitTruth
 
 from synth import kits
@@ -48,15 +49,8 @@ SHEETS = ROOT / "data" / "gold_sheets"
 GOLD = ROOT / "eval" / "gold"
 OUT = Path(__file__).resolve().parent / "results"
 FIELDS = ("designation", "name", "material", "mass", "scale", "litera")
+UNREAD = re.compile(r"Ячейку «[^»]+» модель не прочитала: (?P<why>.+)")
 CONFLICT = re.compile(r"«(?P<label>[^»]+)»: прочитано «(?P<ocr>[^»]*)», модель прочла «(?P<vlm>[^»]*)»")
-
-
-def norm(value: object) -> str:
-    """Values compare after case, «ё», decimal comma and spaces: the rules of samples/demo_kit_truth.json."""
-    if value is None:
-        return ""
-    text = str(value).lower().replace("ё", "е").replace(",", ".")
-    return re.sub(r"\s+", "", text)
 
 
 def settings_for(model: str | None, url: str, verify: bool) -> Settings:
@@ -116,11 +110,19 @@ def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path,
     tally: dict[str, Counter[str]] = {key: Counter() for key in (*FIELDS, "drawings", "conflicts")}
     started = time.monotonic()
     problems = []
+    failed: Counter[str] = Counter()  # the cells the model did not read, by the reason
     for folder, truth in truths.items():
         report = pipeline.run(folder, kit_id=folder.name, kit_name=folder.name)
         problems += [e.message for e in report.log if "Модель" in e.message]
+        failed.update(m["why"] for d in report.documents for note in d.notes if (m := UNREAD.match(note)))
         score(report, truth, dict(settings.models.vlm.fields), tally)
     seconds = round(time.monotonic() - started, 1)
+    calls = pipeline.vlm.calls if pipeline.vlm else 0
+    if calls and failed.total() >= calls:
+        # A run where the model answered nothing is no measurement: the server, say, had no memory to load it.
+        why = failed.most_common(1)[0][0]
+        raise RuntimeError(f"{name}: модель не прочитала ни одной ячейки из {calls} — {why}")
+    problems += [f"Модель не прочитала ячеек: {n} — {why}" for why, n in failed.most_common()]
     fields = {}
     for field in FIELDS:
         c = tally[field]

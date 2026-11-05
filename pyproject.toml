@@ -67,7 +67,9 @@ module = ["kdcheck.ingest.pymupdf_backend"]
 disallow_untyped_calls = false
 
 [tool.pytest.ini_options]
-testpaths = ["backend/tests", "packages/kdcheck/tests", "synth/tests"]
+testpaths = ["backend/tests", "packages/kdcheck/tests", "synth/tests", "eval/tests"]
+# The evaluation scripts import each other by module name, as when run from the root: `uv run python eval/...`.
+pythonpath = ["eval"]
 
 # Import boundaries of the core (ADR-0010, ADR-0011). Run: uv run lint-imports
 [tool.importlinter]

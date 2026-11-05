@@ -24,7 +24,6 @@ import argparse
 import csv
 import json
 import platform
-import re
 import sys
 from collections import Counter
 from datetime import UTC, datetime
@@ -39,6 +38,7 @@ from kdcheck.pipeline import BaselinePipeline
 from kdcheck.run import ocr_available
 from kdcheck.schemas import DiscrepancyType
 from pydantic import ValidationError
+from scoring import norm
 from synth.truth import DrawingTruth, KitTruth, OtherTruth, SpecTruth
 
 EVAL = Path(__file__).resolve().parent
@@ -64,11 +64,6 @@ NOT_DOCUMENTS = ("illustration", "text")  # a picture, a title page, a process s
 TITLE = ("designation", "name", "litera", "revision", "sheets")
 DRAWING = (*TITLE, "material", "mass", "scale", "archive_number", "first_use")
 ROW = ("section", "fmt", "pos", "designation", "name", "qty", "note")
-# What looks the same on the sheet but differs as typed: Latin letters like Cyrillic ones (configs/dictionaries.yaml),
-# dashes and quotes
-FOLD = str.maketrans(
-    load_settings().dictionaries.latin_lookalikes | dict.fromkeys("‐‑‒–—−", "-") | dict.fromkeys("«»“”„", '"')
-)
 
 
 def read_registry() -> list[dict[str, str]]:
@@ -80,14 +75,6 @@ def read_sheets() -> list[dict[str, str]]:
     """The sheets of the gold set: file name, source document in the registry, page from 1, form, kind."""
     with SHEETS.open(encoding="utf-8", newline="") as f:
         return list(csv.DictReader(f))
-
-
-def norm(value: object) -> str:
-    """Values compare after case, «ё», decimal comma, spaces, Latin letters like Cyrillic ones, dashes and quotes."""
-    if value is None:
-        return ""
-    text = str(value).translate(FOLD).lower().replace("ё", "е").replace(",", ".")
-    return re.sub(r"\s+", "", text)
 
 
 def _listed(folder: str) -> list[tuple[str, str, str, int]]:

@@ -9,7 +9,7 @@ Each model is loaded alone on the server of this machine, LM Studio by default, 
   finding a block is not measured. The text goes through ``kdcheck.params.parameters.Parser``;
 - ``cells``: title block values of the same documents, cut by the box of the truth.
 
-Tesseract reads the same images as the baseline. Values compare by the rule of ``eval/gold.py``. Replies are kept in
+Tesseract reads the same images as the baseline. Values compare by the rule of ``eval/scoring.py``. Replies are kept in
 data/vlm_bench, outside git: a run continues where it stopped, and ``--score`` recounts them with no server. Writes
 eval/results/vlm-bench.json and eval/results/vlm-bench.md.
 
@@ -37,12 +37,12 @@ from pathlib import Path
 from typing import Any
 
 import pypdfium2 as pdfium
-from gold import norm
 from kdcheck.params.parameters import Parser
 from kdcheck.run import load_settings
 from kdcheck.schemas import Extracted
 from kdcheck.vlm.client import load_prompt
 from PIL import Image
+from scoring import norm
 from synth.truth import Box, DrawingTruth, KitTruth
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -399,10 +399,10 @@ def markdown(result: dict[str, Any]) -> str:
         f"Листы — {result['items']['sheets']} реальных сканов эталона, чаще всего не по ГОСТ 2.104: модель с "
         "JSON-схемой заполняет поля, OCR-модель выдаёт текст листа. ТТ и ячейки — синтетические растры и сканы, "
         "вырезанные по рамке разметки, поэтому поиск области не измерен и это верхняя граница. Значения сравниваются "
-        "по правилу `eval/gold.py`. «В ответе» — значение целиком есть в тексте ответа, «выдумано» — непустое значение "
-        "там, где на листе поля нет. Параметры ТТ — категории, которые пишутся только в блоке; часть их формулировок "
-        "ядро не знает (пробелы этапа 5), поэтому 100 % здесь недостижимы ни для кого. Это сравнение моделей, а не "
-        "итоговая метрика.",
+        "по правилу `eval/scoring.py`. «В ответе» — значение целиком есть в тексте ответа, «выдумано» — непустое "
+        "значение там, где на листе поля нет. Параметры ТТ — категории, которые пишутся только в блоке; часть их "
+        "формулировок ядро не знает (пробелы этапа 5), поэтому 100 % здесь недостижимы ни для кого. Это сравнение "
+        "моделей, а не итоговая метрика.",
         "",
         "| Модель | Листы: поля верно | в ответе | выдумано | с на лист | ТТ: параметры | диапазоны | с на блок "
         "| Ячейки: верно | CER | с на ячейку | Не прочитано |",

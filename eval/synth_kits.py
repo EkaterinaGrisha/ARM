@@ -8,8 +8,9 @@ on each kit with OCR and without, and compares the report with the truth of the 
 - false discrepancies on the clean kits;
 - statuses of the problem files;
 - parameters of the drawings by category, on vector drawings and on rasters and scans, by the rule of
-  ``arm_web.evaluate``: one to one by category, the name of the truth within the name, qualifier and text of the
-  found parameter; the parameters of technical requirements a vector drawing loses, by the wording of their item.
+  ``eval/scoring.py``: one to one by category, the name of the truth within the name, qualifier and text of the
+  found parameter; of those found, whether the numbers and the unit the truth gives are right; the parameters of
+  technical requirements a vector drawing loses, by the wording of their item.
 
 Writes eval/results/synth-kits.json and eval/results/synth-kits.md.
 
@@ -29,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from arm_web.evaluate import _norm as norm
+import scoring
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.report.labels import PARAMETER_CATEGORY
 from kdcheck.run import load_settings, ocr_available
@@ -133,10 +134,13 @@ def compare(report: Report, truth: KitTruth) -> dict[str, Any]:
     }
 
 
-def parameters(report: Report, truth: KitTruth, tally: dict[str, Counter[str]], lost: Counter[str]) -> None:
+def parameters(
+    report: Report, truth: KitTruth, tally: dict[str, Counter[str]], lost: Counter[str], wrong: Counter[str]
+) -> None:
     """Parameters of the drawings against the truth: in ``tally`` by «<input>:<category>», what is expected, found
-    and extra; in ``lost``, the wordings of the items of technical requirements whose parameters a vector drawing
-    loses, digits as N."""
+    and extra, and of the found ones with a number or a unit in the truth, how many have them right; in ``lost``, the
+    wordings of the items of technical requirements whose parameters a vector drawing loses, digits as N; in
+    ``wrong``, the values found wrong, as «category: truth → report»."""
     ids = {d.path: d.id for d in report.documents}
     parts = {p.document_id: p for p in report.parts}
     for path, doc in truth.documents.items():
@@ -145,23 +149,30 @@ def parameters(report: Report, truth: KitTruth, tally: dict[str, Counter[str]], 
         part = parts.get(ids.get(path, ""))
         got = list(part.parameters) if part else []
         source = "vector" if doc.origin == "vector" else "captured"
-        used: set[int] = set()
-        for want in doc.parameters:
+        matches = scoring.match_parameters(doc.parameters, got)
+        for want, index in zip(doc.parameters, matches, strict=True):
             counts = tally[f"{source}:{want.category}"]
             counts["expected"] += 1
-            for i, found in enumerate(got):
-                hay = norm(f"{found.name} {found.qualifier or ''} {found.text}")
-                if i not in used and found.category == want.category and norm(want.name) in hay:
-                    used.add(i)
-                    counts["found"] += 1
-                    break
-            else:
-                if source == "vector" and want.box is not None and want.box in doc.requirement_boxes:
-                    wording = re.sub(r"\d+", "N", doc.requirements[doc.requirement_boxes.index(want.box)])
-                    lost[f"{PARAMETER_CATEGORY.get(want.category, want.category)}: {wording}"] += 1
+            if index is not None:
+                counts["found"] += 1
+                if scoring.has_value(want):
+                    counts["valued"] += 1
+                    if scoring.value_right(want, got[index]):
+                        counts["value_right"] += 1
+                    else:
+                        wrong[f"{want.category}: {_values(want)} → {_values(got[index])}"] += 1
+            elif source == "vector" and want.box is not None and want.box in doc.requirement_boxes:
+                wording = re.sub(r"\d+", "N", doc.requirements[doc.requirement_boxes.index(want.box)])
+                lost[f"{PARAMETER_CATEGORY.get(want.category, want.category)}: {wording}"] += 1
         for i, found in enumerate(got):
-            if i not in used:
+            if i not in matches:
                 tally[f"{source}:{found.category}"]["extra"] += 1
+
+
+def _values(p: scoring.Wanted) -> str:
+    numbers = {"=": p.value, "от": p.value_min, "до": p.value_max}
+    shown = [f"{k} {_number(v)}" for k, v in numbers.items() if v is not None]
+    return " ".join(shown + [p.unit or ""]).strip() or "—"
 
 
 def _ratio(numerator: int, denominator: int) -> float | None:
@@ -178,9 +189,10 @@ def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
     other: Counter[str] = Counter()
     tally: dict[str, Counter[str]] = defaultdict(Counter)
     lost: Counter[str] = Counter()
+    wrong: Counter[str] = Counter()
     for name, truth in truths.items():
         report = pipeline.run(CORPUS / name, kit_id=name, kit_name=name)
-        parameters(report, truth, tally, lost)
+        parameters(report, truth, tally, lost, wrong)
         result = compare(report, truth)
         for part in ("expected", "found", "missed", "extra"):
             for (rule, _), count in result[part].items():
@@ -238,13 +250,15 @@ def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
         "errors": errors,
         "parameters": {
             key: {
-                **{part: counts[part] for part in ("expected", "found", "extra")},
+                **{part: counts[part] for part in ("expected", "found", "extra", "valued", "value_right")},
                 "precision": _ratio(counts["found"], counts["found"] + counts["extra"]),
                 "recall": _ratio(counts["found"], counts["expected"]),
+                "value_accuracy": _ratio(counts["value_right"], counts["valued"]),
             }
             for key, counts in sorted(tally.items())
         },
         "lost_requirements": dict(lost.most_common()),
+        "wrong_values": dict(wrong.most_common()),
     }
 
 
@@ -315,8 +329,10 @@ def _parameters_section(run_: dict[str, Any]) -> list[str]:
         f"### Блок 2: параметры чертежей, OCR {'включён' if run_['ocr'] else 'выключен'}",
         "",
         "Параметры технических требований, поля чертежа и знака общей шероховатости из разметки против параметров "
-        "отчёта — по правилу `arm_web.evaluate`: один к одному по категории, имя из разметки — внутри имени, "
-        "уточнения и текста найденного параметра. Лишний — параметр отчёта без пары в разметке.",
+        "отчёта — по правилу [eval/gold/README.md](../gold/README.md#что-считается-верным-извлечением): один к одному "
+        "по категории, имя из разметки — внутри имени, уточнения и текста найденного параметра. Лишний — параметр "
+        "отчёта без пары в разметке. Значение верно, если у найденного параметра те же числа и единица, что задаёт "
+        "разметка; считаются только параметры, у которых разметка их задаёт.",
         "",
         "| Категория | Вектор: ожидалось | найдено | лишних | Растры и сканы: ожидалось | найдено | лишних |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -326,17 +342,25 @@ def _parameters_section(run_: dict[str, Any]) -> list[str]:
         cells = []
         for source in ("vector", "captured"):
             counts = params.get(f"{source}:{category}", {})
-            total[source].update({k: counts.get(k, 0) for k in ("expected", "found", "extra")})
+            total[source].update({k: counts.get(k, 0) for k in ("expected", "found", "extra", "valued", "value_right")})
             cells += [str(counts.get("expected", 0)), str(counts.get("found", 0)), str(counts.get("extra", 0))]
         if any(c != "0" for c in cells):
             lines.append(f"| {title} | " + " | ".join(cells) + " |")
     for source, title in (("vector", "вектор"), ("captured", "растры и сканы")):
         t = total[source]
         recall, precision = _ratio(t["found"], t["expected"]), _ratio(t["found"], t["found"] + t["extra"])
-        lines.append(f"\nВсего, {title}: полнота {_number(recall)}, точность {_number(precision)}.")
+        lines.append(
+            f"\nВсего, {title}: полнота {_number(recall)}, точность {_number(precision)}; значение верно у "
+            f"{t['value_right']} из {t['valued']} найденных параметров с числом или единицей в разметке."
+        )
     if run_["lost_requirements"]:
         lines += ["", "| Параметр, потерянный в пункте ТТ на векторе, и формулировка пункта | Число |", "| --- | --- |"]
         lines += [f"| {wording} | {count} |" for wording, count in list(run_["lost_requirements"].items())[:25]]
+    if run_["wrong_values"]:
+        lines += ["", "| Неверное значение: категория, разметка → отчёт | Число |", "| --- | --- |"]
+        for value, count in list(run_["wrong_values"].items())[:25]:
+            category, values = value.split(": ", 1)
+            lines.append(f"| {PARAMETER_CATEGORY.get(category, category)}: {values} | {count} |")
     return lines
 
 
