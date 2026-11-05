@@ -36,3 +36,16 @@ def test_a_value_is_right_only_with_the_numbers_and_unit_of_the_truth():
     assert not scoring.value_right(want, _found())
     plain = ParameterTruth(category="coating", name="Хим. Окс. прм")
     assert not scoring.has_value(plain) and scoring.value_right(plain, _found(category="coating"))
+
+
+CELL = (1, (0.70, 0.90, 0.80, 0.92))
+NEXT = (1, (0.70, 0.93, 0.80, 0.95))
+
+
+def test_a_region_is_right_when_it_points_to_the_value_and_to_no_other():
+    assert scoring.region_right(CELL, (1, (0.69, 0.895, 0.82, 0.925)), [CELL, NEXT])
+    assert scoring.region_problem(CELL, None, [CELL, NEXT]) == "нет области"
+    assert scoring.region_problem(CELL, (2, CELL[1]), [CELL, NEXT]) == "другая страница"
+    assert scoring.region_problem(CELL, NEXT, [CELL, NEXT]) == "не там, где значение"
+    whole_block = (1, (0.6, 0.85, 0.99, 0.99))
+    assert scoring.region_problem(CELL, whole_block, [CELL, NEXT]) == "захватывает другое значение"

@@ -10,7 +10,9 @@ on each kit with OCR and without, and compares the report with the truth of the 
 - parameters of the drawings by category, on vector drawings and on rasters and scans, by the rule of
   ``eval/scoring.py``: one to one by category, the name of the truth within the name, qualifier and text of the
   found parameter; of those found, whether the numbers and the unit the truth gives are right; the parameters of
-  technical requirements a vector drawing loses, by the wording of their item.
+  technical requirements a vector drawing loses, by the wording of their item;
+- the regions of the values against the boxes of the truth, the traceability of the case: title block fields, the
+  designation and name of specification rows matched by designation, and the found parameters.
 
 Writes eval/results/synth-kits.json and eval/results/synth-kits.md.
 
@@ -34,8 +36,8 @@ import scoring
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.report.labels import PARAMETER_CATEGORY
 from kdcheck.run import load_settings, ocr_available
-from kdcheck.schemas import Report
-from synth.truth import DrawingTruth, KitTruth, SpecTruth
+from kdcheck.schemas import Extracted, Parameter, Report
+from synth.truth import Box, DrawingTruth, KitTruth, SpecTruth
 
 from synth import kits, mutations
 
@@ -169,6 +171,91 @@ def parameters(
                 tally[f"{source}:{found.category}"]["extra"] += 1
 
 
+TITLE_REGIONS = ("designation", "name", "material", "mass", "scale", "litera", "archive_number", "sheet", "sheets")
+ROW_REGIONS = {"designation": "designation", "name": "name"}  # the column of the truth: the field of the report row
+NOT_ON_SHEET = ("filename", "rule", "manual")  # methods of a value taken from elsewhere than the sheet: no region
+
+
+def _boxes(doc: DrawingTruth | SpecTruth) -> list[scoring.Region]:
+    """Every box of the truth of a document: its fields, its rows, its requirements and parameters."""
+    boxes: list[Box | None] = [*doc.boxes.values()]
+    if isinstance(doc, SpecTruth):
+        boxes += [b for row in doc.rows for b in row.boxes.values()]
+    else:
+        boxes += [*doc.requirement_boxes, *(p.box for p in doc.parameters)]
+    return [(b.page, b.bbox) for b in boxes if b is not None]
+
+
+def _region(value: Extracted | Parameter | None) -> scoring.Region | None:
+    src = value.source if value is not None else None
+    return (src.page, src.bbox) if src is not None and src.bbox is not None else None
+
+
+def regions(report: Report, truth: KitTruth, tally: dict[str, Counter[str]], wrong: Counter[str]) -> None:
+    """The regions the report gives for the values of the truth that have a box: in ``tally`` by
+    «<input>:<what>», how many values have a region to check and how many are right; in ``wrong``, why the others
+    are not, as «what: why». A value the core did not give is not counted, its reading is measured elsewhere; nor is one
+    taken from the file name, which has no region on the sheet."""
+    ids = {d.path: d.id for d in report.documents}
+    parts = {p.document_id: p for p in report.parts}
+    specs = {sp.document_id: sp for sp in report.specifications}
+    for path, doc in truth.documents.items():
+        if not isinstance(doc, DrawingTruth | SpecTruth):
+            continue
+        source = "vector" if doc.origin == "vector" else "captured"
+        others = _boxes(doc)
+        pairs: list[tuple[str, Box, Extracted | Parameter]] = []
+        if isinstance(doc, DrawingTruth):
+            part = parts.get(ids.get(path, ""))
+            if part is None:
+                continue
+            for field in TITLE_REGIONS:
+                got = getattr(part.title_block, field)
+                if field in doc.boxes and got is not None and got.value not in (None, ""):
+                    pairs.append(("основная надпись", doc.boxes[field], got))
+            matches = scoring.match_parameters(doc.parameters, part.parameters)
+            for want, index in zip(doc.parameters, matches, strict=True):
+                if want.box is not None and index is not None:
+                    pairs.append(("параметр", want.box, part.parameters[index]))
+        else:
+            spec = specs.get(ids.get(path, ""))
+            if spec is None:
+                continue
+            for field in ("designation", "name", "litera", "sheets"):
+                got = getattr(spec, field)
+                if field in doc.boxes and got is not None and got.value not in (None, ""):
+                    pairs.append(("основная надпись", doc.boxes[field], got))
+            rows = list(spec.rows)
+            for row in doc.rows:
+                key = scoring.norm(row.designation)
+                index = next(
+                    (
+                        i
+                        for i, r in enumerate(rows)
+                        if key and r.designation and scoring.norm(r.designation.value) == key
+                    ),
+                    None,
+                )
+                if index is None:
+                    continue
+                got_row = rows.pop(index)
+                for column, field in ROW_REGIONS.items():
+                    got = getattr(got_row, field)
+                    if column in row.boxes and got is not None and got.value not in (None, ""):
+                        pairs.append(("строка спецификации", row.boxes[column], got))
+        for what, box, value in pairs:
+            if value is not None and value.source is not None and value.source.method in NOT_ON_SHEET:
+                continue
+            region = _region(value)
+            counts = tally[f"{source}:{what}"]
+            counts["values"] += 1
+            problem = scoring.region_problem((box.page, box.bbox), region, others)
+            if problem is None:
+                counts["right"] += 1
+            else:
+                wrong[f"{what}, {'вектор' if source == 'vector' else 'растры и сканы'}: {problem}"] += 1
+
+
 def _values(p: scoring.Wanted) -> str:
     numbers = {"=": p.value, "от": p.value_min, "до": p.value_max}
     shown = [f"{k} {_number(v)}" for k, v in numbers.items() if v is not None]
@@ -190,9 +277,12 @@ def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
     tally: dict[str, Counter[str]] = defaultdict(Counter)
     lost: Counter[str] = Counter()
     wrong: Counter[str] = Counter()
+    places: dict[str, Counter[str]] = defaultdict(Counter)
+    misplaced: Counter[str] = Counter()
     for name, truth in truths.items():
         report = pipeline.run(CORPUS / name, kit_id=name, kit_name=name)
         parameters(report, truth, tally, lost, wrong)
+        regions(report, truth, places, misplaced)
         result = compare(report, truth)
         for part in ("expected", "found", "missed", "extra"):
             for (rule, _), count in result[part].items():
@@ -259,6 +349,11 @@ def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
         },
         "lost_requirements": dict(lost.most_common()),
         "wrong_values": dict(wrong.most_common()),
+        "regions": {
+            key: {**dict(counts), "share": _ratio(counts["right"], counts["values"])}
+            for key, counts in sorted(places.items())
+        },
+        "wrong_regions": dict(misplaced.most_common()),
     }
 
 
@@ -319,7 +414,35 @@ def markdown(result: dict[str, Any]) -> str:
             other = ", ".join(f"{k}: {v}" for k, v in sorted(run_["other_statuses"].items()))
             lines += ["", f"Прочие непустые статусы документов, не заложенные как проблемные файлы: {other}."]
         lines += _parameters_section(run_)
+        lines += _regions_section(run_)
     return "\n".join(lines) + "\n"
+
+
+def _regions_section(run_: dict[str, Any]) -> list[str]:
+    places = run_.get("regions", {})
+    lines = [
+        "",
+        f"### Прослеживаемость: области значений, OCR {'включён' if run_['ocr'] else 'выключен'}",
+        "",
+        "Область, которую отчёт даёт значению, против области, где генератор нарисовал значение, — по правилу "
+        "[eval/gold/README.md](../gold/README.md#что-считается-верным-извлечением): та же страница, внутри — центр "
+        "области из разметки и ни одного центра других её областей того же документа. Считаются значения, которые "
+        "ядро прочитало с листа, а не взяло из имени файла: поля основной надписи, обозначение и наименование строк "
+        "спецификации, найденные параметры.",
+        "",
+        "| Что | Вектор: значений | область верна | Растры и сканы: значений | область верна |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+    for what in ("основная надпись", "строка спецификации", "параметр"):
+        cells = []
+        for source in ("vector", "captured"):
+            counts = places.get(f"{source}:{what}", {})
+            cells += [str(counts.get("values", 0)), str(counts.get("right", 0))]
+        lines.append(f"| {what.capitalize()} | " + " | ".join(cells) + " |")
+    if run_.get("wrong_regions"):
+        lines += ["", "| Неверная область: что, вход, причина | Число |", "| --- | --- |"]
+        lines += [f"| {why} | {count} |" for why, count in run_["wrong_regions"].items()]
+    return lines
 
 
 def _parameters_section(run_: dict[str, Any]) -> list[str]:
