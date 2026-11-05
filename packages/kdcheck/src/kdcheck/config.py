@@ -81,6 +81,18 @@ class RuledForm(Section):
         return value
 
 
+class ContinuationCells(Section):
+    designation: Box
+    sheet: Box
+
+
+class ContinuationForm(RuledForm):
+    """Form 2a of the later sheets: the designation of the document and the number of the sheet."""
+
+    cells: ContinuationCells
+    sheet_label: str  # over the sheet cell: on a page with a text layer it tells form 2a from other text
+
+
 class TitleBlockForm(RuledForm):
     labels: dict[str, Point]
     min_labels: int
@@ -111,7 +123,7 @@ class MarginColumns(Section):
 class TitleBlockTemplate(Section):
     width: float
     forms: dict[int, TitleBlockForm]
-    continuation: RuledForm  # form 2a of the later sheets
+    continuation: ContinuationForm  # form 2a of the later sheets
     label_zone: tuple[Share, Share]
     label_row_tolerance: float
     scale_range: Span
@@ -254,8 +266,14 @@ class FileNames(Section):
     @field_validator("sheet_suffix")
     @classmethod
     def _compiles(cls, value: str) -> str:
-        re.compile(value)
+        if re.compile(value).groups != 1:
+            raise ValueError("в выражении суффикса листа одна группа — номер листа")
         return value
+
+    def sheet(self, stem: str) -> int | None:
+        """The number of the sheet a file name gives: «Рама в сборе(2)» → 2."""
+        m = re.search(self.sheet_suffix, stem)
+        return int(m.group(1)) if m else None
 
 
 class Ingest(Section):
@@ -361,9 +379,14 @@ class NameMatch(Section):
     min_similarity: Share
 
 
+class SheetCount(Section):
+    count_methods: tuple[ExtractionMethod, ...]
+
+
 class Checks(Section):
     rules: dict[str, RuleSettings]  # by rule id; kdcheck.checks.rules checks that every rule has its settings
     names: NameMatch
+    sheets: SheetCount
 
 
 # ---------------------------------------------------------------- criticality.yaml

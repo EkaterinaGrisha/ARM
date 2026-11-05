@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from kdcheck.normalize.designations import Designations
 from kdcheck.schemas import DocumentInfo, Extracted, NodeKind, PartRecord, SourceRef, Specification, SpecRow, TreeNode
+from kdcheck.tree.documents import SheetSet
 
 
 @dataclass
@@ -53,6 +54,7 @@ class ProductTree:
     referenced: set[str] = field(default_factory=set)  # designations the specifications name
     rows: dict[str, SpecRow] = field(default_factory=dict)  # node id → the specification row of the node
     parents: dict[str, TreeNode] = field(default_factory=dict)  # node id → the assembly that lists the node
+    documents: list[SheetSet] = field(default_factory=list)  # the documents of the kit with their sheets
 
     def nodes(self) -> Iterator[TreeNode]:
         """Every node, depth first, each before its children."""
@@ -211,6 +213,12 @@ def _qty(row: SpecRow | None) -> float | None:
 
 
 def build_tree(
-    specs: list[tuple[DocumentInfo, Specification]], drawings: list[DrawingRef], eskd: Designations
+    specs: list[tuple[DocumentInfo, Specification]],
+    drawings: list[DrawingRef],
+    eskd: Designations,
+    documents: list[SheetSet] | None = None,
 ) -> ProductTree:
-    return _Builder(specs, drawings, eskd).build()
+    """The tree of the specifications and drawings of the kit, one of each per document of its sheets."""
+    tree = _Builder(specs, drawings, eskd).build()
+    tree.documents = documents or []
+    return tree

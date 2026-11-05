@@ -11,18 +11,26 @@ import difflib
 from collections import defaultdict
 
 from kdcheck.checks.rules import ActiveRule
-from kdcheck.config import NameMatch
+from kdcheck.config import NameMatch, SheetCount
 from kdcheck.normalize.designations import Designations, base_designation, doc_code
 from kdcheck.schemas import Discrepancy, DocumentInfo, SourceRef, SpecRow, TreeNode
 from kdcheck.tree.product import ProductTree, text
 
 
 class Checker:
-    def __init__(self, tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule], names: NameMatch) -> None:
+    def __init__(
+        self,
+        tree: ProductTree,
+        eskd: Designations,
+        rules: dict[str, ActiveRule],
+        names: NameMatch,
+        sheets: SheetCount,
+    ) -> None:
         self.tree = tree
         self.eskd = eskd
         self.rules = rules
         self.names = names
+        self.sheets = sheets
         self.sb = eskd.words.assembly_drawing_code
         self.discrepancies: list[Discrepancy] = []
         self._ids = 0
@@ -72,6 +80,7 @@ class Checker:
         self._check_duplicates()
         self._check_names()
         self._check_litera()
+        self._check_sheets()
         return self.discrepancies
 
     def _same_name(self, a: str | None, b: str | None, *sources: SourceRef | None) -> bool:
@@ -144,9 +153,6 @@ class Checker:
         for des, refs in tree.drawings_by_des.items():
             if len(refs) < 2:
                 continue
-            sheets = [ref.tb_value("sheet") for ref in refs]
-            if all(s is not None for s in sheets) and len(set(sheets)) == len(sheets):
-                continue  # a multi-sheet document split into files
             files = ", ".join(r.doc.path for r in refs)
             self.add(
                 "B1.DUP.001",
@@ -207,6 +213,35 @@ class Checker:
                     docs=[d.id for d, _ in items],
                     sources=[s.designation.source if s.designation else None for _, s in items],
                 )
+
+    def _check_sheets(self) -> None:
+        """A document whose title block counts more sheets than the kit has, or whose sheets skip a number."""
+        for doc in self.tree.documents:
+            if doc.apart or not doc.found:
+                continue
+            count = doc.sheets
+            read = count.source.method if count is not None and count.source is not None else None
+            trusted = count is not None and read in self.sheets.count_methods
+            counted = count.value if count is not None and trusted and isinstance(count.value, int) else None
+            last = max(counted or 0, *doc.found)
+            gone = [n for n in range(1, last + 1) if n not in doc.found]
+            if not gone:
+                continue
+            listed = ", ".join(map(str, gone))
+            have = ", ".join(map(str, doc.found))
+            told = f"в основной надписи листов {counted}, " if counted is not None else ""
+            source = count.source if counted is not None and count is not None else None
+            files = ", ".join(f.path for f in doc.files)
+            self.add(
+                "B1.SHEETS.001",
+                doc.designation,
+                f"Документ {doc.designation} ({files}): {told}в комплекте листы {have}; нет листов {listed}",
+                expected=str(last),
+                actual=have,
+                docs=[f.id for f in doc.files],
+                nodes=self.tree.node_index.get(doc.designation, []),
+                sources=[source],
+            )
 
     def _check_names(self) -> None:
         tree = self.tree
@@ -301,6 +336,8 @@ def _name_source(row: SpecRow) -> SourceRef | None:
     return row.name.source if row.name is not None else None
 
 
-def check(tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule], names: NameMatch) -> list[Discrepancy]:
+def check(
+    tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule], names: NameMatch, sheets: SheetCount
+) -> list[Discrepancy]:
     """Discrepancies of the kit; the tree nodes they concern get their ids and the ``warning`` status."""
-    return Checker(tree, eskd, rules, names).run()
+    return Checker(tree, eskd, rules, names, sheets).run()

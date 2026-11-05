@@ -130,6 +130,58 @@ def default_geometry(page: Page, forms: Forms, form: int = 1) -> Geometry:
     return _placed(template, form, x0, y0, s, anchored=False)
 
 
+@dataclass
+class LaterSheet:
+    """Form 2a of a later sheet: where it sits, the designation of the document and the number of the sheet."""
+
+    placement: Placement
+    designation: Extracted | None
+    sheet: Extracted | None
+
+    def holds(self, line: Line, forms: Forms) -> bool:
+        """Whether ``line`` lies in the block."""
+        x0, y0, x1, y1 = self.placement.rect((0, 0, forms.title_block.width, forms.title_block.continuation.height))
+        edge = forms.title_block.edge_tolerance * self.placement.s
+        return x0 - edge <= line.cx <= x1 and y0 - edge <= line.cy <= y1
+
+
+def later_sheet(doc: LoadedDocument, page: Page, forms: Forms, eskd: Designations) -> LaterSheet | None:
+    """Form 2a on ``page``: on a page image by its ruled lines, on a page with a text layer by the label «Лист» over
+    its sheet cell and a designation in its designation cell; None without either."""
+    template = forms.title_block
+    shape, row, pad = template.continuation, template.line_row_height, template.cell_padding
+    ruled = page.regions.block if page.regions is not None else None
+    if ruled is not None and ruled.form is not None:
+        return None
+    if ruled is not None and page.regions is not None:
+        placement = ruled.placement
+        got = page.regions.cells
+    else:
+        margin, s = forms.sheet.frame_margin, page.mm
+        x0, y0 = page.width - (margin + template.width) * s, page.height - (margin + shape.height) * s
+        placement = Placement(x0, y0, s, 0.0)
+
+        def rect(cell: BBox) -> BBox:
+            u0, v0, u1, v1 = cell
+            return placement.rect((u0 - pad, v0 - pad, u1 + pad, v1 + pad))
+
+        sx0, sy0, sx1, _ = shape.cells.sheet
+        label = lines_in(page, rect((sx0, 0, sx1, sy0)), row)
+        if not any(_key(w.text) == shape.sheet_label for ln in label for w in ln.words):
+            return None
+        got = {name: lines_in(page, rect(cell), row) for name, cell in shape.cells.model_dump().items()}
+    candidates = [(ln, d) for ln in got.get("designation", []) for d, _, _ in eskd.find_designations(ln.text)]
+    designation = None
+    if candidates:
+        ln, d = max(candidates, key=lambda c: c[0].size)
+        designation = _extracted(doc, page, [ln], d)
+    if ruled is None and designation is None:
+        return None
+    sheet_lines = got.get("sheet", [])
+    sheet = _extracted(doc, page, sheet_lines, cell_value("sheet", _cell_text(sheet_lines, {shape.sheet_label}), eskd))
+    return LaterSheet(placement, designation, sheet)
+
+
 def lines_in(page: Page, rect: BBox, row_height: float, *, vertical: bool = False) -> list[Line]:
     """Lines centred in ``rect``, in reading order by rows ``row_height`` page units high."""
     x0, y0, x1, y1 = rect

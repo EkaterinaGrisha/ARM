@@ -14,6 +14,11 @@ rules:
   B1.VERSION.001: {enabled: true, severity: medium}  # copies of a document differ in change number or litera
   B1.LITERA.001: {enabled: true, severity: medium}   # a specification and its assembly drawing differ in litera
   B1.LITERA.002: {enabled: true, severity: medium}   # a component has a lower litera than its assembly (GOST 2.103)
+  B1.SHEETS.001: {enabled: true, severity: high}     # a document has fewer sheets than its title block counts (ADR-0017)
+
+sheets:                          # B1.SHEETS.001 (ADR-0017)
+  count_methods: [text_layer]    # «Листов» read this way counts the sheets of a document; OCR reads the 1 of the GOST
+                                 # lettering as 7, so without it a document is short of sheets only by a gap in their numbers
 
 names:                           # a misread letter is not another name
   methods: [ocr, vlm]            # when either of two names was read this way they may differ a little
