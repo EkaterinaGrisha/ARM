@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pypdfium2 as pdfium
 from kdcheck.cli import main
 from kdcheck.config import settings_sha256
 from kdcheck.extract import review
@@ -181,3 +182,45 @@ def test_a_kit_of_unknown_designations_says_which_look_to_add(tmp_path, settings
         shutil.copy(scan, tmp_path / name)
     report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
     assert [e.level for e in report.log if "вида АА-99-999" in e.message] == ["warning"]
+
+
+def _one_sheet_per_file(pdf: Path) -> list[Path]:
+    """Each page of ``pdf`` a file of its own, «<stem> (N).pdf», as a kit keeps a document one sheet per file."""
+    source = pdfium.PdfDocument(pdf)
+    paths = []
+    for i in range(len(source)):
+        sheet = pdfium.PdfDocument.new()
+        sheet.import_pages(source, [i])
+        paths.append(pdf.with_name(f"{pdf.stem} ({i + 1}).pdf"))
+        sheet.save(paths[-1])
+    source.close()
+    pdf.unlink()
+    return paths
+
+
+def _rows(report: Report, designation: str) -> list[tuple[str | None, str | None]]:
+    return [
+        (row.section, str(row.designation.value) if row.designation else None)
+        for spec in report.specifications
+        if spec.designation is not None and spec.designation.value == designation
+        for row in spec.rows
+    ]
+
+
+def test_a_specification_kept_one_sheet_per_file_is_one_document(tmp_path, settings):
+    root = "АРМ.303411.000"
+    whole = BaselinePipeline(settings).run(KIT, kit_id="t", kit_name="t")
+    kit = tmp_path / "kit"
+    shutil.copytree(KIT, kit)
+    first, second = _one_sheet_per_file(kit / "Спецификации" / f"{root} Редуктор колёсный.pdf")
+    split = BaselinePipeline(settings).run(kit, kit_id="t", kit_name="t")
+    assert _rows(split, root) == _rows(whole, root) and len(_rows(whole, root)) > 0
+    files = {d.path.rsplit("/", 1)[-1]: d for d in split.documents}
+    one, two = files[first.name], files[second.name]
+    assert (one.sheet, one.sheet_of, two.sheet, two.sheet_of) == (1, None, 2, one.id)
+    found = {(x.rule_id, x.designation) for x in split.discrepancies}
+    assert found == {(x.rule_id, x.designation) for x in whole.discrepancies}
+
+    second.unlink()  # the title block of the first sheet still counts two
+    lost = BaselinePipeline(settings).run(kit, kit_id="t", kit_name="t")
+    assert ("B1.SHEETS.001", root) in {(x.rule_id, x.designation) for x in lost.discrepancies}

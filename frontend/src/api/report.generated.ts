@@ -88,6 +88,14 @@ export interface DocumentInfo {
   problem?: string | null;
   designation?: string | null;
   name?: string | null;
+  /**
+   * Номер листа документа, с которого начинается файл: по основной надписи, иначе по номеру в скобках в конце имени файла. С версии 1.4
+   */
+  sheet?: number | null;
+  /**
+   * Файл — последующий лист документа, начатого в файле с этим id; спецификация и запись детали — по тому файлу. Пусто у первого листа и у документа в одном файле. С версии 1.4
+   */
+  sheet_of?: string | null;
   notes: string[];
 }
 /**
@@ -114,6 +122,10 @@ export interface Specification {
   name?: Extracted | null;
   litera?: Extracted | null;
   revision?: Extracted | null;
+  /**
+   * «Листов» основной надписи первого листа. С версии 1.4
+   */
+  sheets?: Extracted | null;
   rows: SpecRow[];
 }
 /**
@@ -199,7 +211,8 @@ export interface Discrepancy {
     | "name_mismatch"
     | "duplicate_designation"
     | "revision_mismatch"
-    | "missing_specification";
+    | "missing_specification"
+    | "sheets_missing";
   severity: "high" | "medium" | "low";
   designation?: string | null;
   title: string;

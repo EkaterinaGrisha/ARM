@@ -66,10 +66,11 @@ def find(
 
     x0, y0 = place(block.x0, block.y0)
     found = Regions(FoundBlock(block.form, raster.Placement(x0, y0, block.s * scale, turn.angle)))
-    if block.form in forms.title_block.forms:
-        for name, (u0, v0, u1, v1) in forms.title_block.forms[block.form].cells.model_dump(exclude_none=True).items():
-            box = (block.x0 + u0 * block.s, block.y0 + v0 * block.s, block.x0 + u1 * block.s, block.y0 + v1 * block.s)
-            found.cells[name] = read_cell(gray, corner, box, settings, place, name)
+    template = forms.title_block
+    shape = template.continuation if block.form is None else template.forms[block.form]
+    for name, (u0, v0, u1, v1) in shape.cells.model_dump(exclude_none=True).items():
+        box = (block.x0 + u0 * block.s, block.y0 + v0 * block.s, block.x0 + u1 * block.s, block.y0 + v1 * block.s)
+        found.cells[name] = read_cell(gray, corner, box, settings, place, name)
     table = raster.find_table(gray, corner, forms, settings.ingest.regions)
     if table is not None:
         found.table = FoundTable(other_form=table.other_form)

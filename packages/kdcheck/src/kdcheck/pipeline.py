@@ -17,6 +17,7 @@ from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
+from typing import Literal
 
 from kdcheck.checks import rules
 from kdcheck.checks.completeness import check
@@ -24,6 +25,7 @@ from kdcheck.config import Settings, settings_sha256
 from kdcheck.extract import review, specification, tech_requirements, title_block
 from kdcheck.ingest.document import LoadedDocument, Page, load_document, page_raster
 from kdcheck.ingest.pdf import get_backend
+from kdcheck.ingest.text import Line
 from kdcheck.normalize.designations import Designations
 from kdcheck.ocr import tesseract
 from kdcheck.params import critical, parameters
@@ -41,6 +43,7 @@ from kdcheck.schemas import (
     TitleBlock,
     TreeNode,
 )
+from kdcheck.tree.documents import assemble
 from kdcheck.tree.product import DrawingRef, build_tree
 from kdcheck.vlm import title_block as vlm_title_block
 from kdcheck.vlm.client import VlmClient, VlmError, load_prompt
@@ -74,6 +77,7 @@ class BaselinePipeline:
         self.vlm = VlmClient(vlm, load_prompt(vlm.prompt)) if vlm.enabled else None
         self.vlm_problem: str | None = None  # why the model is not asked in this run
         self.vlm_used = False
+        self.later_sheets: set[str] = set()  # files whose form 2a says they are later sheets of a document
 
     # ------------------------------------------------------------------ run
     def run(self, input_dir: Path, *, kit_id: str, kit_name: str, progress: ProgressCallback = no_progress) -> Report:
@@ -81,6 +85,7 @@ class BaselinePipeline:
         report_log: list[LogEntry] = []
         self.vlm_problem = self.vlm.unavailable() if self.vlm is not None else None
         self.vlm_used = False
+        self.later_sheets = set()
         files = sorted(p for p in input_dir.rglob("*") if p.is_file())
         self.eskd = self.designations.for_kit([p.stem for p in files])
         report_log += self._designation_systems(files)
@@ -116,13 +121,20 @@ class BaselinePipeline:
             report_log.append(LogEntry(level="warning", message=message))
 
         progress("Проверка комплектности", 0.87, None)
+        assembly = assemble([d.info for d in docs], [(d.info, s) for d, s in specs], parts, self.later_sheets)
+        report_log += [LogEntry(level="warning", message=m) for m in assembly.log]
+        kept = {info.id for info, _ in assembly.specs}
+        specs, parts = [(d, s) for d, s in specs if d.id in kept], assembly.parts
         drawing_refs = [
             DrawingRef(doc=d.info, part=next((p for p in parts if p.document_id == d.id), None))
             for d in docs
-            if d.info.kind in ("part_drawing", "assembly_drawing", "drawing") and d.info.designation
+            if d.info.kind in ("part_drawing", "assembly_drawing", "drawing")
+            and d.info.designation
+            and d.info.sheet_of is None
         ]
-        tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd)
-        discrepancies = check(tree, self.eskd, self.rules, self.settings.checks.names)
+        tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd, assembly.documents)
+        checks = self.settings.checks
+        discrepancies = check(tree, self.eskd, self.rules, checks.names, checks.sheets)
         report_log += [LogEntry(level="warning", message=m) for m in tree.log]
 
         progress("Анализ требований", 0.93, None)
@@ -204,6 +216,12 @@ class BaselinePipeline:
             info.kind = "specification"
             info.designation = _str(spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
+            head = title_block.locate(text_pages[0], forms)
+            later = title_block.later_sheet(doc, text_pages[0], forms, self.eskd) if head is None else None
+            if later is not None:
+                self._set_sheet(doc, later.sheet, "later")
+            else:
+                self._set_sheet(doc, None, "first" if head is not None and head.form == 2 else None)
             if not spec.rows:
                 info.status, info.problem = "warning", "Спецификация распознана, но строки таблицы не найдены"
             specs.append((doc, spec))
@@ -214,9 +232,14 @@ class BaselinePipeline:
         if geom is not None and geom.form == 2:
             spec = specification.parse(doc, forms, self.eskd)
             info.kind = "specification"
-            info.designation = _str(spec.designation)
+            info.designation = _str(spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
+            self._set_sheet(doc, None, "first")
             specs.append((doc, spec))
+            return
+        if geom is None and (later := title_block.later_sheet(doc, page, forms, self.eskd)) is not None:
+            parts.append(self._parse_later_sheet(doc, page, later))
+            self._check_filename(doc)
             return
         if geom is None:
             fallback = title_block.default_geometry(page, forms)
@@ -243,19 +266,8 @@ class BaselinePipeline:
         tb = title_block.parse(doc, page, geom, forms, self.eskd)
         if self.vlm is not None and self.vlm_problem is None and page.method in self.settings.models.vlm.methods:
             self._read_cells(doc, page, geom, tb)
-        if tb.designation is None:
-            fname = self._filename_designation(info.file_name)
-            if fname:
-                confidence = self.settings.ingest.confidence.filename
-                tb.designation = Extracted(
-                    value=fname,
-                    raw=info.file_name,
-                    confidence=confidence,
-                    source=SourceRef(
-                        document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=confidence
-                    ),
-                )
-                info.notes.append("Обозначение в основной надписи не распознано — взято из имени файла")
+        self._designation_from_filename(doc, tb)
+        self._set_sheet(doc, tb.sheet, "first" if geom.anchored else None)
         designation = _str(tb.designation)
         name = _str(tb.name)
         info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(designation, name) else "part_drawing"
@@ -278,26 +290,92 @@ class BaselinePipeline:
         skip = {id(ln) for ln in tt_lines}
         edge = forms.title_block.edge_tolerance
         tb_x0, tb_y0 = geom.x0 - edge * geom.s, geom.y0 - edge * geom.s
-        sheet = forms.sheet
+
+        def aside(pg: Page, ln: Line) -> bool:  # technical requirements and the title block
+            return id(ln) in skip or (pg is page and ln.cx >= tb_x0 and ln.cy >= tb_y0)
+
+        part.parameters += self._annotations(doc, aside, next_id)
+        return part
+
+    def _parse_later_sheet(self, doc: LoadedDocument, page: Page, later: title_block.LaterSheet) -> PartRecord:
+        """A later sheet of a drawing kept in a file of its own (ADR-0017): the designation and the number of the sheet
+        of its form 2a, and the parameters drawn on its field. The document gets them at its first sheet."""
+        info, forms = doc.info, self.settings.forms
+        tb = TitleBlock(designation=later.designation, sheet=later.sheet)
+        self._designation_from_filename(doc, tb)
+        self._set_sheet(doc, tb.sheet, "later")
+        designation = _str(tb.designation)
+        info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(designation, None) else "part_drawing"
+        info.designation = designation
+        info.name = self._filename_name(info.file_name)
+        if designation is None:
+            info.status, info.problem = "warning", "Последующий лист чертежа: обозначение не прочитано"
+        if page.method == "ocr":
+            info.notes.append("Текст получен распознаванием скана (OCR) — значения требуют проверки")
+        part = PartRecord(document_id=doc.id, designation=designation, name=info.name, kind=info.kind, title_block=tb)
+        counter = itertools.count(1)
+
+        def next_id() -> str:
+            return f"{doc.id}-p{next(counter)}"
+
+        part.parameters += self._annotations(doc, lambda pg, ln: pg is page and later.holds(ln, forms), next_id)
+        return part
+
+    def _annotations(
+        self, doc: LoadedDocument, aside: Callable[[Page, Line], bool], next_id: Callable[[], str]
+    ) -> list[Parameter]:
+        """The parameters written on the field of each page, but for the lines ``aside`` keeps out."""
+        sheet = self.settings.forms.sheet
         top, right = sheet.general_roughness_zone
+        found: list[Parameter] = []
         for pg in doc.pages:
-            found: list[Parameter] = []
+            on_page: list[Parameter] = []
             try:
                 for ln in pg.lines:
-                    if ln.vertical or id(ln) in skip:
+                    if ln.vertical or aside(pg, ln):
                         continue
-                    if pg is page and ln.cx >= tb_x0 and ln.cy >= tb_y0:
-                        continue  # title block
                     if ln.bbox[0] < sheet.binding_margin * pg.mm:
                         continue  # binding margin
                     general_zone = ln.cy < top * pg.mm and ln.cx > pg.width - right * pg.mm
-                    found += self.parameters.annotation(doc, pg, ln, next_id, general_zone=general_zone)
+                    on_page += self.parameters.annotation(doc, pg, ln, next_id, general_zone=general_zone)
             except Exception as exc:  # a page that fails to parse never costs the parameters of the others
-                log.exception("Ошибка разбора страницы %s в %s", pg.number, info.path)
+                log.exception("Ошибка разбора страницы %s в %s", pg.number, doc.info.path)
                 doc.page_failed(pg, f"ошибка разбора параметров: {exc}")
                 continue
-            part.parameters += found
-        return part
+            found += on_page
+        return found
+
+    def _designation_from_filename(self, doc: LoadedDocument, tb: TitleBlock) -> None:
+        """The designation of the file name when the title block gave none."""
+        if tb.designation is not None:
+            return
+        info = doc.info
+        fname = self._filename_designation(info.file_name)
+        if not fname:
+            return
+        confidence = self.settings.ingest.confidence.filename
+        tb.designation = Extracted(
+            value=fname,
+            raw=info.file_name,
+            confidence=confidence,
+            source=SourceRef(document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=confidence),
+        )
+        info.notes.append("Обозначение в основной надписи не распознано — взято из имени файла")
+
+    def _set_sheet(self, doc: LoadedDocument, read: Extracted | None, form: Literal["first", "later"] | None) -> None:
+        """The number of the sheet the file starts with (ADR-0017): its «Лист» cell, else 1 under form 1 or 2 of a
+        first sheet, else the number its name gives. A number from the name alone makes the file a later sheet of a
+        document only when form 2a confirms it."""
+        info = doc.info
+        named = self.settings.ingest.file_names.sheet(Path(info.file_name).stem)
+        number = read.value if read is not None and isinstance(read.value, int) else None
+        if number is None and form == "first":
+            number = 1
+        if number is not None and named is not None and number != named:
+            info.notes.append(f"Номер листа в имени файла ({named}) не совпадает с основной надписью ({number})")
+        info.sheet = number if number is not None else named
+        if form == "later":
+            self.later_sheets.add(doc.id)
 
     def _read_cells(self, doc: LoadedDocument, page: Page, geom: title_block.Geometry, tb: TitleBlock) -> None:
         """The title block cells the rules left empty, read by the vision-language model (ADR-0014)."""
@@ -324,6 +402,7 @@ class BaselinePipeline:
             info.problem = "Скан без текстового слоя: распознавание (OCR) недоступно, обозначение не определено"
             return
         info.problem = "Скан без текстового слоя: распознавание (OCR) недоступно, обозначение взято из имени файла"
+        self._set_sheet(doc, None, None)
         info.designation = des
         info.name = self._filename_name(info.file_name)
         info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(des, None) else "part_drawing"

@@ -111,6 +111,10 @@ title_block:                     # GOST 2.104
       - [0, 10, 65, 10]
       - [175, 7, 185, 7]
     blank: [[135, 0, 135, 15]]   # forms 1 and 2 have a line there
+    cells:
+      designation: [65, 0, 175, 15]
+      sheet: [175, 7, 185, 15]   # under its label
+    sheet_label: лист            # the label of the sheet cell, lower case and letters only
   label_zone: [0.4, 0.5]         # labels lie right of this share of the width and below this share of the height
   label_row_tolerance: 2.5       # labels of one row differ in height by less than this
   scale_range: [0.6, 1.6]        # a scale measured between labels is used within this range of the nominal one
