@@ -345,11 +345,21 @@ def _title_block(
 
 
 def _title_block_2a(sh: Sheet, designation: str, sheet: int) -> None:
-    """Title block of the later sheets, form 2a (185×15): the designation and the number of the sheet."""
+    """Title block of the later sheets, form 2a (185×15): the change record table, the designation and the number of
+    the sheet."""
     X, Y = sh.w - 5 - 185, sh.h - 5 - 15
     sh.rect(X + 0, Y, X + 185, Y + 15, width=0.7)
+    cols = [0, 7, 17, 40, 55, 65]
+    for c in cols[1:-1]:
+        sh.line(X + c, Y, X + c, Y + 15)
+    sh.line(X + 65, Y, X + 65, Y + 15, width=0.7)
+    for r in (1, 2):
+        sh.line(X, Y + r * 5, X + 65, Y + r * 5)
+    for (c0, c1), label in zip(pairwise(cols), ["Изм.", "Лист", "№ докум.", "Подп.", "Дата"], strict=True):
+        sh.text_center(X + c0, X + c1, Y + 14, label, 2.5)
     sh.text_center(X + 65, X + 175, Y + 10, designation, 7)
-    sh.line(X + 175, Y, X + 175, Y + 15)
+    sh.line(X + 175, Y, X + 175, Y + 15, width=0.7)
+    sh.line(X + 175, Y + 7, X + 185, Y + 7)
     sh.text(X + 176, Y + 4, "Лист", 2.5)
     sh.text_center(X + 175, X + 185, Y + 12, str(sheet), 3.5)
 

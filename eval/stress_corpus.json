@@ -1,6 +1,6 @@
 {
   "generator": "synth.stress",
-  "built": "2026-10-28",
+  "built": "2026-11-04",
   "parameters": {
     "kits": 6,
     "seed": 3,
@@ -10,7 +10,7 @@
   },
   "environment": {
     "python": "3.11.15",
-    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "platform": "macOS-27.2-arm64-arm-64bit",
     "numba_threads": "1"
   },
   "versions": {
@@ -28,27 +28,27 @@
     "reportlab": "5.0.1",
     "pydantic": "2.14.1"
   },
-  "source": "12570f19d9d3d39943768226d65a1b60f937f798ab3332e345f259e6da6fb5f3",
+  "source": "9dadfe36fdd5ee8a3017443bdd312f52f7f960df82d8c7d59ace7b5f5c26f0bb",
   "files": {
     "corpus.json": "45f02b4927fd7ccdbd27fb8928b5c65aa4f331ad91824a7d85279a5f358b6ac7",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.301411.001 Вал ведущий в сборе/ПМЛС.301411.001 СБ_Вал_ведущий_в_сборе.png": "3193f71fd12f4550727f2407076ab7c1f8c8f6c5b87aa4c1a17138df024b3bf9",
-    "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.301411.001 Вал ведущий в сборе/ПМЛС.301411.001_Вал_ведущий_в_сборе.pdf": "353bcf051b0db9942782cc6a6bba38ff56b1ec66ba37c1b52a2bddea0df56343",
+    "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.301411.001 Вал ведущий в сборе/ПМЛС.301411.001_Вал_ведущий_в_сборе.pdf": "42dffbd079e464d936ea78353b26f8d87e72bcb400b11fe1681b3e3a51c56970",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.301411.001 Вал ведущий в сборе/ПМЛС.715211.001_Вал.pdf": "a87d0cf04ca3d0e11c31a6240fe0e5db1b2aa96f9b2ac5fd20fd334b7c5729c9",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.301411.001 Вал ведущий в сборе/ПМЛС.721321.001_Шестерня.tif": "1cb1992a02f0d04e1ebdebf5764b4a06f588f6f22b6f98f71339bea8fb863b97",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.301411.001 Вал ведущий в сборе/ПМЛС.741124.003_Пластина.tif": "120ec3d26da086f8fcf10a7de901eb759b4d2b73e5f41d5c52866ee11c875c50",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.301411.001 Вал ведущий в сборе/ПМЛС.741124.004_Упор.jpg": "b2fe38c13f9a058558005c21ef785fd892100268910bc7751081018f52b5d9eb",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.301411.001 Вал ведущий в сборе/ПМЛС.758411.001_Винт_специальный.pdf": "b5db2124c84e28907bc4ed6805bf6d68af5f6dfb7e23054907780ebf2f98c90e",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.303411.001 СБ_Ступица_в_сборе.tif": "fcd3e8b6b478333ea8f3c0f56c4080c11e745aa7d1ba01c4382444d0005f49c6",
-    "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.303411.001_Ступица_в_сборе.tif": "4a2b930b5b038764ee0bda415c647a2fced135ee60c2e3b940082fb8b4d1de48",
+    "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.303411.001_Ступица_в_сборе.tif": "b97bbf359f2cd60230011112c214c9770e0b259d0c42b9a8a5357fb3d2f2c7f9",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.303411.002 Муфта/ПМЛС.303411.002 СБ_Муфта.pdf": "4ceb8d96adf09561b0ddb4cd108861240e6548ae840519ea66dd7e63eba29ab7",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.303411.002 Муфта/ПМЛС.303411.002_Муфта.pdf": "86571ad54fae137c01d6f27e421410ccdfd7c3f62f41bfe731294ff9595af21a",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.303411.002 Муфта/ПМЛС.711321.001_Шайба_специальная.pdf": "393db7dc026b534a4876f447edf395867231802cbd76c9b810031d08d51480ab",
-    "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.303411.002 Муфта/ПМЛС.722155.001_Шестерня_ведущая.tif": "9617afc6079d832ca77533892b37856c2a5d4344054dd7aa067798dc1b6619cd",
+    "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.303411.002 Муфта/ПМЛС.722155.001_Шестерня_ведущая.tif": "188fb022e074f5c678c1cff14f94f6359ec5a81ceadc4b54c1cb555dc18fe1f0",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.304125.001 СБ_Тормоз.jpg": "063816dea365e28ea196fdf01e2b44de14a5a52965d855577893c0059d74e7c3",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.304125.001_Тормоз.pdf": "337fe08d1aad966557fa44b2d74c4a77dbcd3f641a1c08a26eb0a3a5bba371a0",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.304125.002 Кронштейн в сборе/ПМЛС.304125.002 СБ_Кронштейн_в_сборе.pdf": "1ee2e7e65fb7ed1af6433490c41f8f739564a73efb2885417c7d08749d358d74",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.304125.002 Кронштейн в сборе/ПМЛС.304125.002_Кронштейн_в_сборе.pdf": "57d48a3caac6ccb4b4bf75d755d405f30b963bf327dfdd240b5ad4d92ffe8fa1",
-    "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.304125.002 Кронштейн в сборе/ПМЛС.713111.001_Крышка.pdf": "ba4c44ae8e55062dc481bc04cbf24c96aedacc4fee4f471e3585764946ea40da",
+    "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.304125.002 Кронштейн в сборе/ПМЛС.713111.001_Крышка.pdf": "42ad8a25055c1fd19db3e19b09a79ad9cfcc7eb9bd7308705092d6d702e0b016",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.304125.002 Кронштейн в сборе/ПМЛС.715311.001_Вал_ведущий.pdf": "031488f8c6958aad0cec629375bf080c2745280df3bae1763e6fe02a3e1a8cb9",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.304125.002 Кронштейн в сборе/ПМЛС.715422.001_Вал_промежуточный.pdf": "aacc1bdf05b0673ea6f0129eb7e10c31181604199c1f3e52135a8681b87dae9f",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.304125.001 Тормоз/ПМЛС.304125.002 Кронштейн в сборе/ПМЛС.721411.001_Звёздочка.tif": "b784f9472a4833dfb301f498387ede3c50f635d78cb8482e550e6e29de2f4177",
@@ -60,8 +60,8 @@
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.715211.002_Вал_ведущий.tif": "06f0bae39922bcdae267ced952eb5d7f8f9229023153707a00389b2c90005949",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.745131.001_Упор.pdf": "f14f4e6dac155718dc184c54db1bdde1fa1254851bdc0ca4f92522d819ebb09f",
     "kit_001/ПМЛС.303411.001 Ступица в сборе/ПМЛС.745131.002_Планка.pdf": "7cc4060929fc5b2f39ed923e817762e04c42129daaf7cd62b5dd11b633c974ba",
-    "kit_001_truth.json": "835ae31c0a152af1aeb0694a884422ec6381cf9ddc7a839c3c718d6e87147989",
-    "kit_002/Спецификации/ТЕХМ.301411.001_Привод.pdf": "56de768f56eb18534fa8c1c0fbf4ce837a51219c99b453390baa60e1aa9dfe14",
+    "kit_001_truth.json": "cf94f912390316b38b126ddfd67092910486f05d37daef63c04b108757f7feeb",
+    "kit_002/Спецификации/ТЕХМ.301411.001_Привод.pdf": "5787154a9564b066c57855551a573f4b64db3d2f54bef7e030d4d11ec6b0bd8d",
     "kit_002/Спецификации/ТЕХМ.301411.002_Крышка_в_сборе.pdf": "652b8c610deae34c40e56c6197103b2359bb18794e84ea189fa064c35daae219",
     "kit_002/Чертежи/ТЕХМ.301411.001 СБ_Привод.pdf": "c7eed6e64cf4f7b1396a8d98832522d885f27463a010a99eae486c8507e41534",
     "kit_002/Чертежи/ТЕХМ.301411.002 СБ_Крышка_в_сборе.jpg": "2c2011321bd5210295fc1cf2588dbad3a749bb84db62dcc82f9d8ec565ee1860",
@@ -70,7 +70,7 @@
     "kit_002/Чертежи/ТЕХМ.713111.001_Втулка.pdf": "dc48e4053dcc69fb391ace4559bfa399414ea1975f92d87242c336aed048d11d",
     "kit_002/Чертежи/ТЕХМ.715211.001_Вал.tif": "4591a603e5c083ed6b3a3acf903e8f6c84e992b6e6823f1865c1f1409835ced5",
     "kit_002/Чертежи/ТЕХМ.715311.001_Палец.pdf": "3b4359fe7c61e4a487ef61dd1043be2018c6897f73f55dc857b57f5d0446c7d5",
-    "kit_002/Чертежи/ТЕХМ.731112.001_Корпус.pdf": "5842cf3ddb681385dcbf534277d56818e34ea14c3b1860fe21df42a05e63ab74",
+    "kit_002/Чертежи/ТЕХМ.731112.001_Корпус.pdf": "ca6617cb819d1cd06149256c81eccb55f8ccdd0866ab3565e750d26493b672ea",
     "kit_002/Чертежи/ТЕХМ.731112.002_Корпус.jpg": "f5fda35433a6190d7005d25d2eab390b6b7e96f02270af4600b5aa1d675c7401",
     "kit_002/Чертежи/ТЕХМ.731112.003_Корпус_подшипника.pdf": "2bb7fe74a2c7f1b4370a16c85aa6736a9d5b5537cd66955d2352aea29536b685",
     "kit_002/Чертежи/ТЕХМ.731112.004_Крышка_корпуса.pdf": "2ea8a631dbdfdf43527ed17119451eb2b783cf5fc71e950863b77b6dd19892bc",
@@ -81,10 +81,10 @@
     "kit_003/Спецификации/ЛМКР.302231.001.pdf": "0bf49ca903e4adf70e86b6f239be11283f0146bd6be744641ab711e82d6468fb",
     "kit_003/Спецификации/ЛМКР.302231.002.tif": "4a79e79819a16d5aa88f34ecf24128ec4b0ce6b11ab2d53f79cb9b5a1c96faef",
     "kit_003/Спецификации/ЛМКР.302231.003.tif": "05283d6f5dfdb5ff1157f4c95ea58f678d668ba4cd4c746aa82187d8277a2d34",
-    "kit_003/Спецификации/ЛМКР.305312.001.pdf": "5adadf1329f6fa975df2514997e61e1136f5015c016f8b30beb3504c683da2fa",
+    "kit_003/Спецификации/ЛМКР.305312.001.pdf": "5b0726d4a21ff9835b607fa66d216947022f512ab75eb0eaa693a00426b9cdf4",
     "kit_003/Спецификации/ЛМКР.305312.002.pdf": "907f500d8e25fe75b806bcd91cbe754898b70a49142f3ce0cdf6a8fc6ebaa5b9",
-    "kit_003/Спецификации/ЛМКР.305312.003.pdf": "c94535239e203c596033437bf1294d4ed243268545dd816cfa67d723ecf5275c",
-    "kit_003/Спецификации/ЛМКР.381146.001.tif": "f38efb68ab9d52dbb7223c2b9dd6c4a8da40262148a1c6b7dd1b4d3aff111062",
+    "kit_003/Спецификации/ЛМКР.305312.003.pdf": "e99a95a807d998bdda0d11ddab736a86da4e2bc5b95bd01cf280f7ac931c8475",
+    "kit_003/Спецификации/ЛМКР.381146.001.tif": "9f753d628b725e951fca290702975b79f4f261d1bdd0d35fc457d7529ee9f44d",
     "kit_003/Спецификации/ЛМКР.381146.002.pdf": "7dbac02b9d490dc21af1b5c2480b7e6d9da8d0e8deaf07f4c34f6daa52c2179e",
     "kit_003/Чертежи/ЛМКР.301411.001 СБ.png": "3957cf3a97c01d00f402396bea81171e76eb43ff1704e0ba2a5f6813f409b80a",
     "kit_003/Чертежи/ЛМКР.302231.001 СБ.pdf": "07532621e7162f37c0e6f41754843284c96be7acd4668e2f83c5f7d28e6e96ee",
@@ -105,7 +105,7 @@
     "kit_003/Чертежи/ЛМКР.715422.001.jpg": "1b98be9571381e7050fc4ee18d9efe4070107ca5592bf100eb8fc7b19fab2dc7",
     "kit_003/Чертежи/ЛМКР.715422.002.jpg": "cc6be2c34b74bc2ad7d178b058c045e6b04cf1d74b33078e898a288bdd51a244",
     "kit_003/Чертежи/ЛМКР.715422.003.pdf": "202d53862e571a50389b51511f763824bc6fc2663ee8961200ca9f2781b23246",
-    "kit_003/Чертежи/ЛМКР.721321.001.tif": "935cd6850d290feef25be040ec23e4e47d5771ddbce4df606fc08e34610b2dc7",
+    "kit_003/Чертежи/ЛМКР.721321.001.tif": "d2b8847ff538d6313bfc0871fcd3b293dde1f91bf6774d0fb7c592ceb554d503",
     "kit_003/Чертежи/ЛМКР.721411.001.tif": "7de6f2a2ea37eef4fb671979b8ce687d525400103b8b72ff9dd5628c3dac9c7d",
     "kit_003/Чертежи/ЛМКР.721411.002.pdf": "ca065a2d531c36dd2d72c443b0b8032af438e9ba7e388230a51a856074b5ae83",
     "kit_003/Чертежи/ЛМКР.722155.001.jpg": "96f09edb8eb6205216e39e313dc51d3ced01f131c1283ed6d88caf958fe89138",
@@ -119,7 +119,7 @@
     "kit_003/Чертежи/ЛМКР.741321.002.pdf": "c08669880842d43aa7df56aa35990cb5504ae94f62ad98ce41dd2f08caf4a8e0",
     "kit_003/Чертежи/ЛМКР.741321.003.tif": "ef31fcd32ad56688372f05cc3c3cd5dae4fe2e1373d9d8c4e45d8e78b7e60d3a",
     "kit_003/Чертежи/ЛМКР.758411.002.pdf": "baa22fae9489a12cc5dcb08d2cc2a40822235bfd5ebf9c61783c8adcd9ae6ba7",
-    "kit_003/Чертежи/ЛМКР.758411.004.pdf": "acfa7348184d6c1a494797e003474572afe419e1a5f090fb447e25bc646d31d9",
+    "kit_003/Чертежи/ЛМКР.758411.004.pdf": "a7531339443c64411860577b9da32fb26570aa8be97691d5c3ea25e9459b8e17",
     "kit_003/Чертежи/ЛМКР.758411.006.png": "509e9b4298d59b27bd58df0db8d80bcd219a0883970e4602a71b851a471c8408",
     "kit_003/Чертежи/ЛМКР.758411.007.pdf": "bc3e8ec676d49921fd0c77c08edea999424799b947a9cdf3c8ad3e36566aaf39",
     "kit_003/Чертежи/ЛМКР.758411.008.png": "df95533b241ac16a61e1dfc3fce57fcd46edab2935e969673d67aa64ef994f77",
@@ -127,8 +127,8 @@
     "kit_003/Чертежи/ЛМКР.758422.002.pdf": "4b24347ef48c18a47e7247571ccb81d7f5f2c15187c860292e51de061e25413f",
     "kit_003/Чертежи/ЛМКР.758422.003.tif": "a528afb58958460afd8a6610b843b5fad8686e6d9d7a7b96b32a8153f360c5f7",
     "kit_003/Чертежи/ЛМКР.758422.004.png": "6a274aa00b6d2061433b85651e82c76b645a22719f00d1b20a1224ae6fa5bbf1",
-    "kit_003_truth.json": "00f7a8946ffe09b4fdfb862a78578f41f1dd526f78a77ac607a8f1dca5074c09",
-    "kit_004/КТРМ.381146.000 Редуктор.pdf": "bcbc936090248e4bf8c70452eb654109b8c8407d4e8075c11400d35674cef745",
+    "kit_003_truth.json": "270793c66e66883a142afd082f5971d05df7d63e9cf01542c44c8cca2421b35e",
+    "kit_004/КТРМ.381146.000 Редуктор.pdf": "169f1eb5998804e34b5e2ffb6b1adfb46283bc17f80621303d80e8497fa60eed",
     "kit_004/КТРМ.381146.000 СБ Редуктор.tif": "f4dcf4127e899caabc552400b438faee62152940f40c34b30dde48c86d752aa1",
     "kit_004/КТРМ.381146.001 Кронштейн.tif": "4f6cc085d05af31709cabc0ec06b538c81a8acad7ccc36d85578db981eea8a1b",
     "kit_004/КТРМ.381146.002 Звёздочка.png": "048b0bddfb4668e16b2b955d394bf623c6d817a5fea4af5e228198111e42443d",
@@ -140,18 +140,18 @@
     "kit_004/КТРМ.381146.101 Основание.jpg": "080badbf7c80a9f68bc3782bcc92a09511672e25ba2ea19a6eebaf86d4e2d2a3",
     "kit_004/КТРМ.381146.102 Пластина.pdf": "64df5e7ab6a2ffa5fa3c11fa47a7a4c4343e132421f09683f5353e8ec5fa8fdd",
     "kit_004/КТРМ.381146.103 Корпус подшипника.pdf": "88873250bea91679cac3104f924fb952da0193ca3810fe929d8aef79633ee411",
-    "kit_004/КТРМ.381146.104 Стакан.pdf": "20f5d2c810f2722f46be44cb31a72f01757a49bc3b1b0689962a11accae786de",
-    "kit_004/КТРМ.381146.110 Привод.tif": "ef0acab919937b23fdf90d273192af6c8b709670176c548febac8e1fc71a8b3b",
+    "kit_004/КТРМ.381146.104 Стакан.pdf": "bc27389da59dbb597538b71940af7c77d649fb6234a49095679d6ce1f5bcf54d",
+    "kit_004/КТРМ.381146.110 Привод.tif": "e3101a3911e332e4a5e9ff4df448b106773b392a8c6fb29c782512dc7ea14fe9",
     "kit_004/КТРМ.381146.110 СБ Привод.pdf": "91f849dfb47cf02accf24be7a1c9e49f417753ed14385201b24e3a61ab4ad39b",
     "kit_004/КТРМ.381146.111 Крышка торцевая.jpg": "566a364c92d8426d1e3f35556cea5bdefc4b3d618f7b6a9012282558bb6bc522",
     "kit_004/КТРМ.381146.112 Ось.pdf": "15954f55e518bca53c0a1ccfd618226981ee53c35135f8542692790c247bfae4",
     "kit_004/КТРМ.381146.120 СБ Тормоз.jpg": "6a0696f9b9ade91ab60e813ec74c84c0ba7e448d14fecbc4b30bf773b939f5ae",
     "kit_004/КТРМ.381146.120 Тормоз.pdf": "154ff0d5f1d2ef96e1b48b93419d1dbd9c03de9c9153d58a738f42aa5c4d113d",
     "kit_004/КТРМ.381146.121 Стакан.pdf": "abc31455af2b9cc6e64837466b389752ec154e040c26344d10647150234a78a9",
-    "kit_004/КТРМ.381146.122 Гайка регулировочная.pdf": "100dd930ecfb08166bbfb2001340eb40ad148e97c1f6a4540719b787071f6ea8",
+    "kit_004/КТРМ.381146.122 Гайка регулировочная.pdf": "a5ec8a279c4c73e40778cb30c3b6bc97082bdacd1d9a62fe9c3215841a2ff718",
     "kit_004/КТРМ.381146.123 Основание.pdf": "84c6d615c310c77bd064de4519fbb5f4236a7a7ecadea232b3b066d2a773ad31",
     "kit_004_truth.json": "5fddb6c2590b740567a39a3022384e92d764733ab7946da8e400c48e9175c468",
-    "kit_005/Спецификации/АБВГ.302231.001 Вал ведомый в сборе.pdf": "5626e367c395b80a322f1951dcfb09a6e786ef40268f457e1d4673ce0d69dc9c",
+    "kit_005/Спецификации/АБВГ.302231.001 Вал ведомый в сборе.pdf": "5ba6eb3198efff4e77ea3165b1dc9764a2ca13b2aaabf469cc28f9dda77c8073",
     "kit_005/Спецификации/АБВГ.302231.002 Опора.pdf": "3ddceb5a4db4fc58a8e3021ca8baa7790569fe07ba95544b18736241e3fb113e",
     "kit_005/Спецификации/АБВГ.302231.003 Насос.pdf": "0cb2d93b4e79e1af2ea7b50e4e95b9449a7dba4bb649baebd7ae1b535b418189",
     "kit_005/Спецификации/АБВГ.303411.001 Привод.pdf": "3abcbbf19d33a5cd51e5592a3002c4839733f722f084975b7e6f45ebd7783cee",
@@ -184,13 +184,13 @@
     "kit_005/Чертежи/АБВГ.722155.001 Колесо червячное.png": "a3bc2c0f9ec54e00c5a8e14435608def57fc4d52d77142b7fafbe8b224ae4b38",
     "kit_005/Чертежи/АБВГ.731311.001 Крышка корпуса.pdf": "1eddd851ac1d3c964b62681d7683800ca565fcbc4f3f874cdf53f18bc93f8f64",
     "kit_005/Чертежи/АБВГ.732211.002 Основание.pdf": "e8d78f888cc64a93d00d8fb38eeb3a9ad0f5c2846914503afb58267f65ffa6e0",
-    "kit_005/Чертежи/АБВГ.732211.003 Крышка корпуса.pdf": "46cecfe7862ec1799ef8146ef0352504e040efa33a57bf75e499a7c8273016e5",
+    "kit_005/Чертежи/АБВГ.732211.003 Крышка корпуса.pdf": "f77a69937b2800225ba09f3a8b15ce44bbc2a42d7f83166bd231aef204e32548",
     "kit_005/Чертежи/АБВГ.732211.004 Основание.pdf": "d688df631a3a44e8985847a16daae42ac354ba7b6cf66146f4459e71e70abee2",
     "kit_005/Чертежи/АБВГ.741124.001 Кронштейн.pdf": "bbd7c17973df2273f463c81fc3c85f3eb6b8edd68d9e70f1d00756e440931d0c",
     "kit_005/Чертежи/АБВГ.741124.002 Пластина.tif": "0a152013b21d2ec727c2d8e8b1e8ce87f549f62577c17c8bd19cc9b29ac9e438",
     "kit_005/Чертежи/АБВГ.741124.003 Кронштейн.pdf": "d525b68e798b3af4ac32ba3685a1fd0730ea3fee0f9432fb8b1afbaa9122f32d",
     "kit_005/Чертежи/АБВГ.741321.001 Упор.pdf": "fa3082f2ebe198ef244d108dcb9735ce858181c7a5cbb3a9738694b28da7e150",
-    "kit_005/Чертежи/АБВГ.741321.002 Планка.pdf": "f0fdcb39a3e63dccc18104621339345e42d6b3419b945dc7f38142686abfc0b3",
+    "kit_005/Чертежи/АБВГ.741321.002 Планка.pdf": "01fc320ecffbf200c0e3a31241fc3d2977ba92b5e70847fa162f68650825c86a",
     "kit_005/Чертежи/АБВГ.745131.001 Упор.pdf": "68bcc5f952a5425505b65a1dda11a9f3a4c7639a909a0bbace388671aa9d3c3d",
     "kit_005/Чертежи/АБВГ.758411.001 Винт специальный.pdf": "ccc3005428f6067d94d92838627d637c645fa1f72b550eb5aa0eb35e4aa0ebec",
     "kit_005/Чертежи/АБВГ.758411.002 Гайка регулировочная.jpg": "1a1de953c2b11d69d9c7fcea6d87f66058177976b7fbd4ff20ee0fec92450747",
@@ -218,7 +218,7 @@
     "kit_006/Чертежи/СПРН.715211.001_Ось.pdf": "c82cd74ae27571befd4e3447202f796ace2ff011c8e0d254ac75056f52191ff1",
     "kit_006/Чертежи/СПРН.715422.001_Вал_ведущий.pdf": "6f9ddae2be9260f782bedf7edbc354e49dde5f7ffa4c6ca3c63fc3e2576c35d2",
     "kit_006/Чертежи/СПРН.721321.001_Звёздочка.tif": "4510a5cea38ef846da8698b56b31620c235bc04cf5ea25303612ae61f39f9c3e",
-    "kit_006/Чертежи/СПРН.721321.003_Шестерня.pdf": "e3055459698f5248d79cefe815287976b9363581ee354e36aad7dd49f636a5c8",
+    "kit_006/Чертежи/СПРН.721321.003_Шестерня.pdf": "0802f4eaf2c6eb8f73f19016541e8a90f267529996e4c73188a34b0792725ac7",
     "kit_006/Чертежи/СПРН.721321.005_Колесо_червячное.pdf": "ed43416d3c742c70db58bd2dd0eef10a35d5d12661996436e16cb8f16b9ae1e1",
     "kit_006/Чертежи/СПРН.721411.001_Колесо_зубчатое.jpg": "4484806333dbf833b982eb1f4456972713be345a058ddd5ef9e111fab477c2a5",
     "kit_006/Чертежи/СПРН.721411.002_Шестерня_ведущая.pdf": "bef0155602c5333a7950eb24f579963dd91f0fd768de96bacf8ef67b0bf314a9",
@@ -226,7 +226,7 @@
     "kit_006/Чертежи/СПРН.731311.001_Крышка_корпуса.jpg": "ac8c1ca5ce921fbbdb08f30828777a8e3b0f0224e9df1360be4ee1827d906bb4",
     "kit_006/Чертежи/СПРН.731311.003_Корпус_подшипника.jpg": "dc472b6cf54c8538ed63270a730f605e445b4c1b6ef4c90430ec7d10e6423a41",
     "kit_006/Чертежи/СПРН.732211.001_Корпус.pdf": "3b060872e633ad73849ecaa94b189526cda08cb728ee828c6cc68958be4f2539",
-    "kit_006/Чертежи/СПРН.732211.002_Корпус_подшипника.pdf": "9d24c1ec71e4954b00bc766fb2e86a88ba0ab0259a01709e1faa97557df05a70",
+    "kit_006/Чертежи/СПРН.732211.002_Корпус_подшипника.pdf": "f6fe45018bcf3f08d52e9e25d9649949d67d7b12d25fc4782e4b24e983992a89",
     "kit_006/Чертежи/СПРН.741124.001_Пластина.tif": "02acf8d9d84832855d28e685a699fa30a972ee4af54a1101e858a00603a480d5",
     "kit_006/Чертежи/СПРН.741321.001_Упор.pdf": "f3b378d6404fd4c58b30bcfa604d81763cb5537c68e79922d49ffed135dc9f23",
     "kit_006/Чертежи/СПРН.741321.002_Упор.pdf": "fc0f4bbbaeb0699b9969e536cccbacd99e9043486c30b88e3be051048229bd3b",
@@ -235,7 +235,7 @@
     "kit_006/Чертежи/СПРН.741321.005_Пластина.pdf": "b4aaacbccaefd78fe0eb00f4a5e08a35dd83db895b6196afeedc3ab60542b517",
     "kit_006/Чертежи/СПРН.745131.001_Кронштейн.pdf": "2a20cbcc284961cb49edc86313baadeb5f65d9a9284143af5200d6f432bd97d0",
     "kit_006/Чертежи/СПРН.745131.002_Рычаг.png": "8a022ca6b9f08e6fb96756ca6f887e3385314873288e32ecc22a5ab290c485ca",
-    "kit_006/Чертежи/СПРН.758411.001_Гайка_специальная.pdf": "186b36521fe3d4a858e564f756f424ee416f1d9a8dcbdf4558e2e57eb5a7d7ff",
+    "kit_006/Чертежи/СПРН.758411.001_Гайка_специальная.pdf": "3c1ed5c4807a354a0d5532e5e0739030034088950d04ab7a822e29881fce07b7",
     "kit_006/Чертежи/СПРН.758411.002_Винт_специальный.pdf": "20e2585a2615f161151e6372a65c87cf05f157c421455e488792289a9dce16db",
     "kit_006/Чертежи/СПРН.758411.003_Винт_специальный.jpg": "18ab7d4bdd5071084ddec3d8b2590a3071e2b580a96543e3917de08dbe2e3ee4",
     "kit_006/Чертежи/СПРН.758411.005_Гайка_специальная.pdf": "e356ec7470970b40c9a7b0b79ee50c0380928d87e27452365894c95cbf41ec86",
@@ -1701,54 +1701,50 @@
               }
             },
             {
-              "phase": "paper",
-              "name": "WaterMark",
+              "phase": "ink",
+              "name": "Letterpress",
               "settings": {
-                "p": 0.2,
-                "watermark_color": "random",
-                "watermark_font_size": [
-                  10,
-                  15
+                "blur": 1,
+                "n_clusters": [
+                  200,
+                  400
                 ],
-                "watermark_font_thickness": [
-                  20,
-                  25
+                "n_samples": [
+                  100,
+                  400
                 ],
-                "watermark_font_type": 0,
-                "watermark_location": "random",
-                "watermark_method": "darken",
-                "watermark_rotation": [
-                  0,
-                  360
+                "p": 1,
+                "std_range": [
+                  500,
+                  3000
                 ],
-                "watermark_word": "random"
+                "value_range": [
+                  150,
+                  224
+                ],
+                "value_threshold_range": [
+                  96,
+                  128
+                ]
               }
             },
             {
-              "phase": "post",
-              "name": "ColorShift",
+              "phase": "paper",
+              "name": "PatternGenerator",
               "settings": {
-                "color_shift_brightness_range": [
-                  0.9,
-                  1.1
+                "alpha_range": [
+                  0.25,
+                  0.5
                 ],
-                "color_shift_gaussian_kernel_range": [
-                  3,
-                  3
+                "color": "random",
+                "imgx": 319,
+                "imgy": 499,
+                "n_rotation": 14,
+                "n_rotation_range": [
+                  10,
+                  15
                 ],
-                "color_shift_iterations": [
-                  2,
-                  3
-                ],
-                "color_shift_offset_x_range": [
-                  3,
-                  5
-                ],
-                "color_shift_offset_y_range": [
-                  3,
-                  5
-                ],
-                "p": 1
+                "p": 1.0
               }
             },
             {
@@ -1776,13 +1772,46 @@
             },
             {
               "phase": "post",
-              "name": "Gamma",
+              "name": "Scribbles",
               "settings": {
-                "gamma_range": [
-                  0.9,
-                  1.1
+                "fonts_directory": "fonts/",
+                "p": 1,
+                "scribbles_brightness_change": [
+                  32,
+                  64,
+                  128
                 ],
-                "p": 1
+                "scribbles_color": "random",
+                "scribbles_count_range": [
+                  1,
+                  6
+                ],
+                "scribbles_ink": "random",
+                "scribbles_lines_stroke_count_range": [
+                  1,
+                  6
+                ],
+                "scribbles_location": "random",
+                "scribbles_size_range": [
+                  250,
+                  600
+                ],
+                "scribbles_skeletonize": 0,
+                "scribbles_skeletonize_iterations": [
+                  2,
+                  3
+                ],
+                "scribbles_text": "random",
+                "scribbles_text_font": "random",
+                "scribbles_text_rotate_range": [
+                  0,
+                  360
+                ],
+                "scribbles_thickness_range": [
+                  1,
+                  3
+                ],
+                "scribbles_type": "random"
               }
             },
             {
@@ -1809,8 +1838,8 @@
             }
           ],
           "pixels": [
-            2448,
-            3508
+            2445,
+            3477
           ],
           "threshold": null
         }
@@ -3195,55 +3224,52 @@
               }
             },
             {
-              "phase": "paper",
-              "name": "ColorPaper",
+              "phase": "ink",
+              "name": "InkShifter",
               "settings": {
-                "hue_range": [
-                  0,
-                  255
+                "blur_kernel_size": [
+                  5,
+                  5
                 ],
-                "p": 0.2,
-                "saturation_range": [
-                  10,
-                  40
+                "blur_sigma": 0,
+                "noise_type": "random",
+                "p": 1.0,
+                "text_fade_range": [
+                  0,
+                  2
+                ],
+                "text_shift_factor_range": [
+                  1,
+                  4
+                ],
+                "text_shift_scale_range": [
+                  18,
+                  27
                 ]
               }
             },
             {
-              "phase": "post",
-              "name": "ShadowCast",
+              "phase": "paper",
+              "name": "PaperFactory",
               "settings": {
-                "p": 1,
-                "shadow_blur_kernel_range": [
-                  101,
-                  301
-                ],
-                "shadow_color": [
-                  0,
-                  0,
-                  0
-                ],
-                "shadow_height_range": [
-                  0.3,
-                  0.8
-                ],
-                "shadow_iterations_range": [
-                  1,
-                  2
-                ],
-                "shadow_opacity_range": [
-                  0.2,
-                  0.9
-                ],
-                "shadow_side": "random",
-                "shadow_vertices_range": [
-                  1,
-                  20
-                ],
-                "shadow_width_range": [
-                  0.3,
-                  0.8
-                ]
+                "blend_generate_texture": 0,
+                "blend_method": "ink_to_paper",
+                "blend_paper_textures": [],
+                "blend_texture": "random",
+                "blend_texture_background_type": "random",
+                "blend_texture_edge_type": "random",
+                "blend_texture_file_names": [],
+                "blend_texture_path": "./paper_textures",
+                "generate_texture": 0,
+                "generate_texture_background_type": "random",
+                "generate_texture_edge_type": "random",
+                "p": 0.2,
+                "paper_textures": [],
+                "texture_color": "random",
+                "texture_color_blend_method": "overlay",
+                "texture_enable_color": "random",
+                "texture_file_names": [],
+                "texture_path": "./paper_textures"
               }
             },
             {
@@ -3274,13 +3300,100 @@
                 "use_figshare_library": 0,
                 "width_range": "random"
               }
+            },
+            {
+              "phase": "post",
+              "name": "Geometric",
+              "settings": {
+                "crop": [],
+                "fliplr": false,
+                "flipud": true,
+                "p": 0.2,
+                "padding": [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "padding_type": "fill",
+                "padding_value": [
+                  255,
+                  255,
+                  255
+                ],
+                "randomize": 0,
+                "rotate_range": [
+                  -5,
+                  5
+                ],
+                "scale": [
+                  0.75,
+                  1.25
+                ],
+                "translation": [
+                  -10,
+                  10
+                ]
+              }
+            },
+            {
+              "phase": "post",
+              "name": "DotMatrix",
+              "settings": {
+                "dot_matrix_dot_height_range": [
+                  3,
+                  3
+                ],
+                "dot_matrix_dot_width_range": [
+                  3,
+                  3
+                ],
+                "dot_matrix_gaussian_kernel_value_range": [
+                  1,
+                  3
+                ],
+                "dot_matrix_max_area_range": [
+                  2000,
+                  5000
+                ],
+                "dot_matrix_max_height_range": [
+                  150,
+                  200
+                ],
+                "dot_matrix_max_width_range": [
+                  150,
+                  200
+                ],
+                "dot_matrix_median_kernel_value_range": [
+                  128,
+                  255
+                ],
+                "dot_matrix_min_area_range": [
+                  10,
+                  20
+                ],
+                "dot_matrix_min_height_range": [
+                  1,
+                  2
+                ],
+                "dot_matrix_min_width_range": [
+                  1,
+                  2
+                ],
+                "dot_matrix_rotate_value_range": [
+                  0,
+                  360
+                ],
+                "dot_matrix_shape": "random",
+                "p": 1
+              }
             }
           ],
           "pixels": [
-            1654,
-            2339
+            1310,
+            1831
           ],
-          "threshold": 144
+          "threshold": 132
         }
       ]
     },
