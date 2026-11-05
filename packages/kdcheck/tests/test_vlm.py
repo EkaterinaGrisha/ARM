@@ -43,10 +43,17 @@ class StubServer:
         self.answers: dict[str, str] = {}
         self.requests: list[dict] = []
         self.in_reasoning = False
+        self.redirect: str | None = None
         stub = self
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
+                if stub.redirect:
+                    self.send_response(302)
+                    self.send_header("Location", stub.redirect)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
                 self._send({"object": "list", "data": [{"id": MODEL, "object": "model"}]})
 
             def do_POST(self) -> None:
@@ -124,6 +131,25 @@ def test_client_sends_the_cell_and_asks_for_json(settings, server):
     assert text["text"] == "Ячейка «Материал». Ответ — JSON {text}."  # {label} replaced, other braces kept
     assert base64.b64decode(image["image_url"]["url"].split(",", 1)[1]).startswith(b"\x89PNG")
     assert client.version.startswith("cell.v1 sha256:")
+
+
+def test_the_client_ignores_proxies_so_the_image_stays_on_this_machine(settings, server, monkeypatch):
+    for name in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
+        monkeypatch.setenv(name, _closed_port())
+    for name in ("NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(name, raising=False)
+    assert _client(settings, server.url).unavailable() is None
+
+
+def test_the_client_does_not_follow_a_redirect(settings, server):
+    target = StubServer()
+    try:
+        server.redirect = target.url + "/models"
+        reason = _client(settings, server.url).unavailable()
+        assert reason is not None and "302" in reason
+        assert not target.requests
+    finally:
+        target.httpd.shutdown()
 
 
 def test_a_reply_in_another_form_is_no_reading(settings, server):

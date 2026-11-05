@@ -25,7 +25,8 @@ def get_pipeline() -> Pipeline:
 
     # The job process inherits the environment, so ARM_OCR, ARM_PDF_BACKEND and ARM_MAX_PAGES apply to it as well.
     args = [sys.executable, "-m", "kdcheck", "run", "{input}", "-o", "{output}", "--config", str(config_dir())]
-    args += ["--kit-id", "{kit_id}", "--name", "{kit_name}", "--progress-file", "{output}/progress.json"]
+    # The name is typed by the user: as «--name=…» a name that starts with «-» stays a value, not an option.
+    args += ["--kit-id", "{kit_id}", "--name={kit_name}", "--progress-file", "{output}/progress.json"]
     return ProcessPipeline(
         BaselinePipeline.name, BaselinePipeline.version, args, timeout_sec=timeout, memory_mb=memory, poll_sec=poll
     )

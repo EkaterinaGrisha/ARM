@@ -46,10 +46,14 @@ cd backend && python -m arm_web serve
 Docker (образ включает Tesseract):
 
 ```bash
-docker build -t arm-kd . && docker run -p 8000:8000 -v arm-data:/data arm-kd
+docker build -t arm-kd . && docker run -p 127.0.0.1:8000:8000 -v arm-data:/data arm-kd
 # свои настройки: копия configs/ с правками поверх настроек образа
-docker run -p 8000:8000 -v arm-data:/data -v "$PWD/мои_настройки:/app/configs:ro" arm-kd
+docker run -p 127.0.0.1:8000:8000 -v arm-data:/data -v "$PWD/мои_настройки:/app/configs:ro" arm-kd
 ```
+
+В API нет входа по паролю: любой, кто достанет до порта, видит, скачивает и удаляет загруженные
+комплекты. Поэтому сервер и образ по умолчанию слушают только эту машину. Для доступа по сети
+нужен обратный прокси со входом и HTTPS; публиковать порт как `-p 8000:8000` нельзя.
 
 Режим разработки с горячей перезагрузкой: `python -m arm_web serve --reload` в
 `backend` и `npm run dev` во `frontend` (http://localhost:5173, запросы `/api`

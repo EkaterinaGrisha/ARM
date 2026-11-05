@@ -99,6 +99,19 @@ def test_upload_past_the_size_limit_is_rejected(client, monkeypatch):
     assert jobs_on_disk(client) == before
 
 
+def test_upload_without_a_declared_length_is_rejected_before_it_is_read(client):
+    before = jobs_on_disk(client)
+
+    def body():
+        yield b"--x\r\nContent-Disposition: form-data; name=files; filename=a.pdf\r\n\r\n%PDF\r\n--x--\r\n"
+
+    r = client.post("/api/jobs", content=body(), headers={"Content-Type": "multipart/form-data; boundary=x"})
+    assert r.request.headers.get("transfer-encoding") == "chunked" and "content-length" not in r.request.headers
+    assert r.status_code == 411
+    assert r.json()["detail"] == "Загрузка без заголовка Content-Length не принимается"
+    assert jobs_on_disk(client) == before
+
+
 def test_too_many_files_are_rejected_in_russian_past_the_old_1000_cap(client, monkeypatch):
     monkeypatch.setenv("ARM_MAX_FILES", "1000")
     files = [("files", (f"f{i}.txt", b"x")) for i in range(1001)]

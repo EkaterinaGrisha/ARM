@@ -63,12 +63,25 @@ def load_prompt(name: str, directory: Path | None = None) -> Prompt:
         raise ConfigError(f"Нет промпта {path}: проверьте vlm.prompt в models.yaml и ARM_PROMPTS_DIR ({exc})") from None
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect is an error: it could take the image to a host that ``allow_remote`` never let through."""
+
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+def _opener() -> urllib.request.OpenerDirector:
+    """Straight to the server: no proxy from ``HTTP_PROXY`` or the system settings, no redirect."""
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
+
+
 class VlmClient:
     def __init__(self, engine: VlmEngine, prompt: Prompt) -> None:
         self.engine = engine
         self.prompt = prompt
         self.url = engine.base_url.rstrip("/")
         self.calls = 0  # readings asked for, answered or not
+        self._opener = _opener()
 
     @property
     def version(self) -> str:
@@ -128,7 +141,7 @@ class VlmClient:
             self.url + path, data=data, headers={"Content-Type": "application/json"} if data else {}
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.engine.timeout_sec) as response:
+            with self._opener.open(request, timeout=self.engine.timeout_sec) as response:
                 return json.loads(response.read())
         except urllib.error.HTTPError as exc:  # the server answered: this request failed, the next may not
             raise VlmError(f"сервер {self.url} ответил ошибкой {exc.code}: {exc.reason}") from None

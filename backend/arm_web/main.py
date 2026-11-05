@@ -120,8 +120,12 @@ async def create_job(request: Request) -> Job:
     api = api_settings()
     max_mb, max_files = api.max_upload_mb, api.max_files
     too_large = f"Комплект больше {max_mb} МБ: разделите его или увеличьте max_upload_mb в configs/api.yaml"
+    # The parser spools the whole body to disk before the files are counted, so the body must declare its size:
+    # a chunked upload would otherwise fill the disk past the limit. Browsers send the length with a form.
     length = request.headers.get("content-length", "")
-    if length.isdigit() and int(length) > max_mb * 1024 * 1024:
+    if not length.isdigit():
+        raise HTTPException(411, "Загрузка без заголовка Content-Length не принимается")
+    if int(length) > max_mb * 1024 * 1024:
         raise HTTPException(413, too_large)
     # The size limit bounds the upload, so the parser may take any number of files; their count is checked below.
     async with request.form(max_files=math.inf, max_fields=math.inf) as form:

@@ -146,3 +146,14 @@ def test_report_kit_gets_the_job_identity(tmp_path):
     assert wait(store, job.id).status == "done"
     report = json.loads(store.report_path(job.id).read_text(encoding="utf-8"))
     assert report["kit"]["id"] == job.id and report["kit"]["name"] == "Имя комплекта"
+
+
+def test_a_kit_name_that_starts_with_a_dash_reaches_the_core(tmp_path, monkeypatch):
+    monkeypatch.delenv("ARM_PIPELINE_CMD", raising=False)
+    monkeypatch.delenv("ARM_INPROCESS", raising=False)
+    monkeypatch.setenv("ARM_OCR", "0")
+    store = JobStore(tmp_path, get_pipeline, workers=1)
+    job = upload(store, "-Комплект")
+    done = wait(store, job.id, timeout=60)
+    assert done.status == "done", done.error
+    assert store.load_report(job.id).kit.name == "-Комплект"

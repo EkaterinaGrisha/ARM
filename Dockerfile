@@ -1,6 +1,6 @@
 # Веб-интерфейс + API + базовый конвейер (с OCR) в одном образе.
 #   docker build -t arm-kd .
-#   docker run -p 8000:8000 -v arm-data:/data arm-kd
+#   docker run -p 127.0.0.1:8000:8000 -v arm-data:/data arm-kd   (the API has no login: keep the port local)
 FROM node:22-slim AS frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
