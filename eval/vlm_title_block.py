@@ -37,6 +37,7 @@ from kdcheck.config import Settings
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.run import load_settings, ocr_available
 from kdcheck.schemas import Report
+from scoring import norm
 from synth.truth import DrawingTruth, KitTruth
 
 from synth import kits
@@ -49,14 +50,6 @@ GOLD = ROOT / "eval" / "gold"
 OUT = Path(__file__).resolve().parent / "results"
 FIELDS = ("designation", "name", "material", "mass", "scale", "litera")
 CONFLICT = re.compile(r"«(?P<label>[^»]+)»: прочитано «(?P<ocr>[^»]*)», модель прочла «(?P<vlm>[^»]*)»")
-
-
-def norm(value: object) -> str:
-    """Values compare after case, «ё», decimal comma and spaces: the rules of samples/demo_kit_truth.json."""
-    if value is None:
-        return ""
-    text = str(value).lower().replace("ё", "е").replace(",", ".")
-    return re.sub(r"\s+", "", text)
 
 
 def settings_for(model: str | None, url: str, verify: bool) -> Settings:

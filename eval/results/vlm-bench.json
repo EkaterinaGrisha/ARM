@@ -1,6 +1,6 @@
 {
   "command": "uv run python eval/vlm_bench.py --score --model=qwen/qwen3.6-27b --model=google/gemma-4-e4b --model=qianfan-ocr --model=qwen3.8-27b-mlx --model=gemma-4-31b-it-mlx --text-model=paddleocr-vl-1.6=bench_ocr_paddle.v1 --text-model=qianfan-ocr=bench_ocr_markdown.v1",
-  "date": "2026-11-03",
+  "date": "2026-11-05",
   "machine": "Darwin arm64, Python 3.11.15",
   "tesseract": "tesseract 5.5.2",
   "items": {
