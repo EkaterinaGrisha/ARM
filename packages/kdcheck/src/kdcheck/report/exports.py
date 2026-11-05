@@ -60,6 +60,16 @@ def _sheet(
     return ws
 
 
+def _no_formulas(wb: Workbook) -> None:
+    """Keep every cell a value. openpyxl stores a string that starts with «=» as a formula, and file names, the kit
+    name and the text read from documents come from the uploaded files: a name like ``=HYPERLINK(…)`` must stay text."""
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for c in row:
+                if c.data_type == "f":
+                    c.data_type = "s"
+
+
 def _formats(doc: DocumentInfo) -> str | None:
     """Sheet formats of the pages, each once, in page order."""
     return ", ".join(dict.fromkeys(p.format for p in doc.pages if p.format)) or None
@@ -312,6 +322,7 @@ def to_xlsx(report: Report) -> bytes:
             [14, 50, 12, 12, 8, 12, 8],
         )
 
+    _no_formulas(wb)
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
