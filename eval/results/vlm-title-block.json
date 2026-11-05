@@ -1,6 +1,6 @@
 {
   "command": "--model google/gemma-4-e4b --model qwen/qwen3.6-27b --verify google/gemma-4-e4b --verify qianfan-ocr --verify qwen3.8-27b-mlx --verify gemma-4-31b-it-mlx",
-  "date": "2026-11-04",
+  "date": "2026-11-05",
   "url": "http://127.0.0.1:1234/v1",
   "real": false,
   "inputs": {},
@@ -79,7 +79,7 @@
       "model_values_right": 0,
       "model_calls": 0,
       "conflicts": {},
-      "seconds": 217.1,
+      "seconds": 263.2,
       "problems": [],
       "sheets": {
         "АБВГ.301411.001 СБ_Опора.pdf": {
@@ -615,10 +615,10 @@
         "designation": {
           "total": 130,
           "right": 112,
-          "wrong": 16,
-          "missing": 2,
+          "wrong": 15,
+          "missing": 3,
           "accuracy": 0.862,
-          "by_model": 28,
+          "by_model": 27,
           "by_model_right": 26
         },
         "name": {
@@ -667,11 +667,11 @@
           "by_model_right": 29
         }
       },
-      "model_values": 77,
+      "model_values": 76,
       "model_values_right": 75,
       "model_calls": 109,
       "conflicts": {},
-      "seconds": 415.3,
+      "seconds": 559.5,
       "problems": [],
       "sheets": {
         "АБВГ.301411.001 СБ_Опора.pdf": {
@@ -855,7 +855,7 @@
           "total": 5
         },
         "ЛМКР.302231.000 Рама/ЛМКР.302231.100 Блок шестерён/ЛМКР.302231.110 Опора/ЛМКР.302231.112 Вал промежуточный.pdf": {
-          "right": 3,
+          "right": 4,
           "total": 6
         },
         "МАШН.302231.001 СБ Блок шестерён.pdf": {
@@ -1119,7 +1119,7 @@
           "total": 6
         },
         "Чертежи/АБВГ.741124.004_Планка.pdf": {
-          "right": 5,
+          "right": 4,
           "total": 6
         },
         "Чертежи/АБВГ.741321.001_Пластина.pdf": {
@@ -1263,7 +1263,7 @@
       "model_values_right": 78,
       "model_calls": 109,
       "conflicts": {},
-      "seconds": 1015.4,
+      "seconds": 1092.8,
       "problems": [],
       "sheets": {
         "АБВГ.301411.001 СБ_Опора.pdf": {
@@ -1794,16 +1794,16 @@
       "prompt": "title_block_cell.v1 sha256:6052401c9576",
       "verify": true,
       "scans": 130,
-      "accuracy": 0.743,
+      "accuracy": 0.744,
       "fields": {
         "designation": {
           "total": 130,
-          "right": 112,
-          "wrong": 16,
+          "right": 113,
+          "wrong": 15,
           "missing": 2,
-          "accuracy": 0.862,
+          "accuracy": 0.869,
           "by_model": 28,
-          "by_model_right": 26
+          "by_model_right": 27
         },
         "name": {
           "total": 130,
@@ -1852,17 +1852,17 @@
         }
       },
       "model_values": 77,
-      "model_values_right": 75,
+      "model_values_right": 76,
       "model_calls": 858,
       "conflicts": {
-        "total": 231,
-        "model_right": 168,
-        "kept_right": 51,
-        "scored": 231,
-        "scored_model_right": 168,
-        "scored_kept_right": 51
+        "total": 234,
+        "model_right": 170,
+        "kept_right": 53,
+        "scored": 234,
+        "scored_model_right": 170,
+        "scored_kept_right": 53
       },
-      "seconds": 1611.7,
+      "seconds": 2524.0,
       "problems": [],
       "sheets": {
         "АБВГ.301411.001 СБ_Опора.pdf": {
@@ -2046,7 +2046,7 @@
           "total": 5
         },
         "ЛМКР.302231.000 Рама/ЛМКР.302231.100 Блок шестерён/ЛМКР.302231.110 Опора/ЛМКР.302231.112 Вал промежуточный.pdf": {
-          "right": 3,
+          "right": 4,
           "total": 6
         },
         "МАШН.302231.001 СБ Блок шестерён.pdf": {
@@ -2388,23 +2388,23 @@
       },
       "modes": {
         "fill_empty": {
-          "accuracy": 0.743,
-          "unflagged_wrong": 190,
+          "accuracy": 0.744,
+          "unflagged_wrong": 189,
           "flagged": 0
         },
         "model_wins": {
-          "accuracy": 0.897,
-          "unflagged_wrong": 73,
+          "accuracy": 0.898,
+          "unflagged_wrong": 72,
           "flagged": 0
         },
         "review": {
-          "accuracy": 0.743,
-          "unflagged_wrong": 10,
-          "flagged": 231
+          "accuracy": 0.744,
+          "unflagged_wrong": 8,
+          "flagged": 234
         },
         "agreement": {
-          "total": 445,
-          "right": 437
+          "total": 442,
+          "right": 435
         }
       }
     },
@@ -2414,7 +2414,7 @@
       "prompt": "title_block_cell.v1 sha256:6052401c9576",
       "verify": true,
       "scans": 130,
-      "accuracy": 0.706,
+      "accuracy": 0.704,
       "fields": {
         "designation": {
           "total": 130,
@@ -2463,26 +2463,26 @@
         },
         "litera": {
           "total": 130,
-          "right": 103,
-          "wrong": 22,
-          "missing": 5,
-          "accuracy": 0.792,
-          "by_model": 25,
-          "by_model_right": 12
+          "right": 102,
+          "wrong": 27,
+          "missing": 1,
+          "accuracy": 0.785,
+          "by_model": 29,
+          "by_model_right": 11
         }
       },
-      "model_values": 66,
-      "model_values_right": 46,
+      "model_values": 70,
+      "model_values_right": 45,
       "model_calls": 858,
       "conflicts": {
-        "total": 265,
+        "total": 279,
         "model_right": 153,
-        "kept_right": 89,
-        "scored": 265,
+        "kept_right": 103,
+        "scored": 279,
         "scored_model_right": 153,
-        "scored_kept_right": 89
+        "scored_kept_right": 103
       },
-      "seconds": 2439.7,
+      "seconds": 3166.6,
       "problems": [],
       "sheets": {
         "АБВГ.301411.001 СБ_Опора.pdf": {
@@ -2966,7 +2966,7 @@
           "total": 6
         },
         "Чертежи/КТРМ.721411.002.pdf": {
-          "right": 3,
+          "right": 2,
           "total": 6
         },
         "Чертежи/КТРМ.731112.001.pdf": {
@@ -3008,23 +3008,23 @@
       },
       "modes": {
         "fill_empty": {
-          "accuracy": 0.706,
-          "unflagged_wrong": 209,
+          "accuracy": 0.704,
+          "unflagged_wrong": 214,
           "flagged": 0
         },
         "model_wins": {
-          "accuracy": 0.79,
-          "unflagged_wrong": 145,
+          "accuracy": 0.77,
+          "unflagged_wrong": 164,
           "flagged": 0
         },
         "review": {
-          "accuracy": 0.706,
-          "unflagged_wrong": 33,
-          "flagged": 265
+          "accuracy": 0.704,
+          "unflagged_wrong": 38,
+          "flagged": 279
         },
         "agreement": {
-          "total": 413,
-          "right": 400
+          "total": 399,
+          "right": 386
         }
       }
     },
@@ -3096,13 +3096,13 @@
       "model_calls": 858,
       "conflicts": {
         "total": 223,
-        "model_right": 193,
+        "model_right": 196,
         "kept_right": 42,
         "scored": 223,
-        "scored_model_right": 193,
+        "scored_model_right": 196,
         "scored_kept_right": 42
       },
-      "seconds": 3044.8,
+      "seconds": 3414.2,
       "problems": [],
       "sheets": {
         "АБВГ.301411.001 СБ_Опора.pdf": {
@@ -3633,8 +3633,8 @@
           "flagged": 0
         },
         "model_wins": {
-          "accuracy": 0.941,
-          "unflagged_wrong": 39,
+          "accuracy": 0.945,
+          "unflagged_wrong": 36,
           "flagged": 0
         },
         "review": {
@@ -3716,13 +3716,13 @@
       "model_calls": 858,
       "conflicts": {
         "total": 218,
-        "model_right": 199,
+        "model_right": 201,
         "kept_right": 37,
         "scored": 218,
-        "scored_model_right": 199,
+        "scored_model_right": 201,
         "scored_kept_right": 37
       },
-      "seconds": 4709.9,
+      "seconds": 4986.5,
       "problems": [],
       "sheets": {
         "АБВГ.301411.001 СБ_Опора.pdf": {
@@ -4253,8 +4253,8 @@
           "flagged": 0
         },
         "model_wins": {
-          "accuracy": 0.962,
-          "unflagged_wrong": 26,
+          "accuracy": 0.964,
+          "unflagged_wrong": 24,
           "flagged": 0
         },
         "review": {
