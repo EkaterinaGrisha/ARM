@@ -278,6 +278,7 @@ class FileNames(Section):
 
 class Ingest(Section):
     max_pages_per_file: int = Field(ge=0)
+    page_timeout_sec: float = Field(ge=0)
     render_dpi: float
     min_image_dpi: float
     scan: ScanRules
