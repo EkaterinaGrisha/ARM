@@ -39,6 +39,11 @@ class PdfPage(Protocol):
 
     def has_images(self) -> bool: ...
 
+    def image_cover(self) -> float:
+        """The share of the page the images cover, summed: a page scanned in layers, as MRC compression keeps it,
+        counts each layer, so a scan covers 1 or more and a vector drawing with a logo next to nothing."""
+        ...
+
     def scan(self, rules: ScanRules) -> tuple[Image.Image, BBox] | None:
         """The page's scan at its own pixels, grayscale, and its box on the displayed page.
 

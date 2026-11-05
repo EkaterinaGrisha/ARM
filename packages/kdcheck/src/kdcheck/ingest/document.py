@@ -230,6 +230,7 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
         raise ValueError("в документе нет страниц")
     count = _pages_to_read(doc, pdf.page_count, ingest.max_pages_per_file)
     version = backend.versions()[backend.name]
+    layered: list[int] = []
     for index in range(count):
         page = Page(number=index + 1, width=0.0, height=0.0, unit="pt")
         doc.pages.append(page)
@@ -239,6 +240,12 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
                 page.width, page.height = pg.width, pg.height
                 page.format = sheet_format(pg.width / MM_PT, pg.height / MM_PT, settings.forms.sheet)
                 page.lines = pg.lines(ingest.text)
+                if page.lines and pg.image_cover() >= ingest.scan.min_coverage:
+                    # Text over images that cover the page is a recognition layer over a scan: someone's OCR, garbled
+                    # as a rule, so the page is read as a scan (plan item 4.1). On the real sheets with such a layer it
+                    # holds 2 of their 23 values.
+                    page.lines = []
+                    layered.append(page.number)
                 if page.lines:
                     page.read_by("text_layer", backend.name, version, ingest.confidence.text_layer)
                     continue
@@ -253,6 +260,10 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
             _timed_out(page, ingest.page_timeout_sec)
         except Exception as exc:  # one bad page never costs the others
             _read_failed(page, exc)
+    if layered:
+        pages = ", ".join(map(str, layered))
+        note = f"Скан со слоем распознавания, страницы {pages}: слой не используется, листы читаются как скан"
+        doc.info.notes.append(note)
     read = _pages_read(doc)
     text_pages = sum(1 for p in read if p.method == "text_layer")
     doc.info.origin = "vector" if text_pages == len(read) else "scan" if text_pages == 0 else "mixed"

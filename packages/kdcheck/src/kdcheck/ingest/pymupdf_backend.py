@@ -65,6 +65,11 @@ class PyMuPdfPage:
     def has_images(self) -> bool:
         return bool(self._page.get_images())
 
+    def image_cover(self) -> float:
+        area = self._page.rect.width * self._page.rect.height
+        covered = sum(pymupdf.Rect(info["bbox"]).get_area() for info in self._page.get_image_info())
+        return covered / area if area else 0.0
+
     def scan(self, rules: ScanRules) -> tuple[Image.Image, BBox] | None:
         return None  # kept for rollback: scans are rendered, as before the switch to PDFium
 
