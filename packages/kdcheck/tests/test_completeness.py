@@ -19,6 +19,7 @@ from kdcheck.schemas import (
     DiscrepancyType,
     DocumentInfo,
     Extracted,
+    Parameter,
     PartRecord,
     SourceRef,
     Specification,
@@ -26,6 +27,7 @@ from kdcheck.schemas import (
     TitleBlock,
     TreeNode,
 )
+from kdcheck.tree.documents import assemble
 from kdcheck.tree.product import DrawingRef, build_tree
 
 SETTINGS = load_settings()
@@ -38,9 +40,18 @@ class Result(NamedTuple):
     log: list[str]
 
 
-def check(specs, drawings, checks: Checks = SETTINGS.checks) -> Result:
-    tree = build_tree(specs, drawings, ESKD)
-    return Result(tree.roots, run_check(tree, ESKD, configured(checks), checks.names), tree.log)
+def check(specs, drawings, checks: Checks = SETTINGS.checks, later: set[str] | None = None) -> Result:
+    """The tree and the discrepancies as the pipeline gets them: files assembled into documents first. ``later`` are
+    the files with form 2a of a later sheet; by default every file past sheet 1."""
+    parts = [d.part for d in drawings if d.part is not None]
+    infos = [info for info, _ in specs] + [d.doc for d in drawings]
+    if later is None:
+        later = {info.id for info in infos if (info.sheet or 0) > 1}
+    assembly = assemble(infos, specs, parts, later)
+    refs = [d for d in drawings if d.doc.sheet_of is None]
+    tree = build_tree(assembly.specs, refs, ESKD, assembly.documents)
+    found = run_check(tree, ESKD, configured(checks), checks.names, checks.sheets)
+    return Result(tree.roots, found, assembly.log + tree.log)
 
 
 def row(i: int, section: str, des: str = "", name: str = "", qty: float | None = 1, note: str = "") -> SpecRow:
@@ -68,10 +79,23 @@ def spec(doc_id: str, des: str, name: str, rows: list[SpecRow], litera: str = "�
 
 
 def drawing(
-    doc_id: str, des: str, name: str, litera: str = "О1", revision: int | None = None, sheet: int | None = None
+    doc_id: str,
+    des: str,
+    name: str,
+    litera: str = "О1",
+    revision: int | None = None,
+    sheet: int | None = None,
+    sheets: int | None = None,
 ):
+    """A drawing of one file; ``sheet`` is the sheet the file starts with, as the pipeline sets it."""
     info = DocumentInfo(
-        id=doc_id, file_name=f"{doc_id}.pdf", path=f"{doc_id}.pdf", kind="part_drawing", designation=des, name=name
+        id=doc_id,
+        file_name=f"{doc_id}.pdf",
+        path=f"{doc_id}.pdf",
+        kind="part_drawing",
+        designation=des,
+        name=name,
+        sheet=sheet,
     )
     tb = TitleBlock(
         designation=Extracted(value=des),
@@ -79,6 +103,7 @@ def drawing(
         litera=Extracted(value=litera),
         revision=Extracted(value=revision) if revision else None,
         sheet=Extracted(value=sheet) if sheet else None,
+        sheets=Extracted(value=sheets, source=SourceRef(document_id=doc_id, method="text_layer")) if sheets else None,
     )
     return DrawingRef(doc=info, part=PartRecord(document_id=doc_id, designation=des, name=name, title_block=tb))
 
@@ -276,6 +301,16 @@ CASES: dict[str, tuple[Callable[[], Kit], Callable[[], Kit]]] = {
         lambda: ([product(part_row())], [drawing("d1", PART, "Вал", litera="О")]),
         lambda: ([product(part_row())], [drawing("d1", PART, "Вал", litera="О2")]),  # a later stage is fine
     ),
+    "B1.SHEETS.001": (  # the title block counts three sheets, two are in the kit
+        lambda: (
+            [product(part_row())],
+            [drawing("d1", PART, "Вал", sheet=1, sheets=3), drawing("d2", PART, "Вал", sheet=2)],
+        ),
+        lambda: (
+            [product(part_row())],
+            [drawing("d1", PART, "Вал", sheet=1, sheets=2), drawing("d2", PART, "Вал", sheet=2)],
+        ),
+    ),
 }
 
 
@@ -365,3 +400,93 @@ def test_report_format_lists_every_rule_with_its_type_and_default_severity():
     for rule in RULES:
         severity = SEVERITY[SETTINGS.checks.rules[rule.id].severity].lower()
         assert f"| `{rule.id}` | `{rule.type}` | {severity} |" in doc, rule.id
+
+
+# ---------------------------------------------------------------- documents of several files (ADR-0017)
+
+
+def _sheet_of(spec_pair: tuple[DocumentInfo, Specification], sheet: int) -> tuple[DocumentInfo, Specification]:
+    spec_pair[0].sheet = sheet
+    return spec_pair
+
+
+def test_a_specification_over_two_files_lists_the_rows_of_both():
+    first = _sheet_of(spec("s0", TOP, "Изделие", [part_row()]), 1)
+    second = _sheet_of(spec("s0b", TOP, "Изделие", [unit_row()]), 2)
+    result = check([first, second, spec("s1", UNIT, "Узел", [])], [drawing("d1", PART, "Вал")])
+    assert {n.designation for n in result.tree[0].children} == {PART, UNIT}
+    assert second[0].sheet_of == "s0" and first[0].sheet_of is None
+    assert "B1.DUP.003" not in {d.rule_id for d in result.discrepancies}
+
+
+def test_a_later_sheet_gives_its_parameters_to_the_first():
+    one, two = drawing("d1", PART, "Вал", sheet=1, sheets=2), drawing("d2", PART, "Вал", sheet=2)
+    assert one.part is not None and two.part is not None
+    two.part.parameters = [Parameter(id="p1", category="roughness", name="Ra", text="Ra 3,2")]
+    parts = [one.part, two.part]
+    assembly = assemble([one.doc, two.doc], [], parts, {"d2"})
+    assert [p.document_id for p in assembly.parts] == ["d1"]
+    assert [p.id for p in assembly.parts[0].parameters] == ["p1"]
+    assert [d.found for d in assembly.documents] == [[1, 2]]
+
+
+def test_files_of_one_sheet_number_stay_apart_as_duplicates():
+    kit = [product(part_row())], [drawing("d1", PART, "Вал", sheet=1), drawing("d2", PART, "Вал", sheet=1)]
+    result = check(*kit)
+    assert "B1.DUP.001" in {d.rule_id for d in result.discrepancies}
+    assert "B1.SHEETS.001" not in {d.rule_id for d in result.discrepancies}
+    assert any("не собраны в документ" in m for m in result.log)
+
+
+def test_a_file_without_a_number_is_the_first_sheet_unless_another_is():
+    kit = [product(part_row())], [drawing("d1", PART, "Вал", sheets=2), drawing("d2", PART, "Вал", sheet=2)]
+    assert fired(kit) == set()
+    kit = [product(part_row())], [drawing("d0", PART, "Вал"), drawing("d1", PART, "Вал", sheet=1)]
+    assert "B1.DUP.001" in fired(kit)
+
+
+def test_a_gap_in_the_numbers_is_a_missing_sheet_even_without_the_count():
+    kit = [product(part_row())], [drawing("d1", PART, "Вал", sheet=1), drawing("d3", PART, "Вал", sheet=3)]
+    [gone] = [d for d in check(*kit).discrepancies if d.rule_id == "B1.SHEETS.001"]
+    assert gone.actual == "1, 3" and "нет листов 2" in gone.message
+
+
+def test_later_sheets_under_a_specification_designation_are_its_sheets():
+    """Form 2a without a table the core reads, under the designation of a specification: its later sheets."""
+    head = _sheet_of(spec("s1", UNIT, "Узел", [part_row()]), 1)
+    head[1].sheets = Extracted(value=3)
+    later = [drawing("d2", UNIT, "Узел", sheet=2), drawing("d3", UNIT, "Узел", sheet=3)]
+    result = check([product(unit_row()), head], [drawing("d1", PART, "Вал"), *later])
+    assert [ref.doc.kind for ref in later] == ["specification", "specification"]
+    assert [ref.doc.sheet_of for ref in later] == ["s1", "s1"]
+    assert {d.rule_id for d in result.discrepancies} == set()
+
+
+def test_a_copy_named_as_a_second_sheet_without_form_2a_is_a_duplicate():
+    """A system names a copy of a file «… (2)»: the name alone does not make it a later sheet."""
+    kit = [product(part_row())], [drawing("d1", PART, "Вал"), drawing("d2", PART, "Вал", sheet=2)]
+    assert "B1.DUP.001" in fired_with(kit, later=set())
+    assert "B1.DUP.001" not in fired_with(kit, later={"d2"})
+
+
+def test_a_sheet_count_read_by_ocr_is_not_trusted():
+    one, two = drawing("d1", PART, "Вал", sheet=1, sheets=7), drawing("d2", PART, "Вал", sheet=2)
+    assert one.part is not None and one.part.title_block.sheets is not None
+    assert "B1.SHEETS.001" in fired(([product(part_row())], [one, two]))
+    one.doc.sheet_of = two.doc.sheet_of = None
+    assert one.part.title_block.sheets.source is not None
+    one.part.title_block.sheets.source.method = "ocr"  # the 1 of the GOST lettering read as 7
+    assert "B1.SHEETS.001" not in fired(([product(part_row())], [one, two]))
+
+
+def fired_with(kit: Kit, later: set[str]) -> set[str | None]:
+    return {d.rule_id for d in check(*kit, later=later).discrepancies}
+
+
+def test_every_document_of_several_files_is_assembled():
+    other = "АБВГ.100000.002"
+    files = [drawing("d1", PART, "Вал", sheet=1), drawing("d2", PART, "Вал", sheet=2)]
+    files += [drawing("d3", other, "Ось", sheet=1), drawing("d4", other, "Ось", sheet=2)]
+    result = check([product(part_row(), row(2, "Детали", other, "Ось"))], files)
+    assert [f.doc.sheet_of for f in files] == [None, "d1", None, "d3"]
+    assert result.discrepancies == []

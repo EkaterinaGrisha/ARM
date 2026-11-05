@@ -21,13 +21,11 @@
         "scan": 53
       },
       "status": {
-        "ok": 51,
-        "warning": 2
+        "ok": 53
       },
       "kinds": {
         "СП": {
-          "specification": 13,
-          "unknown": 2,
+          "specification": 15,
           "part_drawing": 1
         },
         "СБ": {
@@ -37,8 +35,8 @@
           "part_drawing": 26
         }
       },
-      "documents_with_designation": 50,
-      "specifications": 13,
+      "documents_with_designation": 53,
+      "specifications": 10,
       "specifications_with_designation": 0,
       "spec_rows": 82,
       "rows_with_designation": 64,
@@ -54,19 +52,18 @@
         "revision": 31,
         "sheets": 37
       },
-      "tree_items": 74,
+      "tree_items": 93,
       "root": false,
       "discrepancies": {
-        "B1.ORPHAN.001": 29,
-        "B1.DUP.003": 3,
-        "B1.NAME.001": 8
+        "B1.ORPHAN.001": 28,
+        "B1.NAME.001": 9
       },
       "log": {
         "info": 1,
         "warning": 1
       },
-      "seconds": 96.5,
-      "seconds_per_page": 1.82,
+      "seconds": 95.7,
+      "seconds_per_page": 1.81,
       "images": {
         "count": 53,
         "dpi": {

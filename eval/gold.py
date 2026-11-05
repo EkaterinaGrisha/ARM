@@ -56,7 +56,6 @@ OUT = EVAL / "results" / "gold-agreement.md"
 TYPES = (
     *get_args(DiscrepancyType),
     "format_mismatch",
-    "sheets_missing",
     "section_mismatch",
     "first_use_mismatch",
     "position_anomaly",

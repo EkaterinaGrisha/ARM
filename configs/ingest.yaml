@@ -63,5 +63,5 @@ review:                          # values the report marks for a check against t
   min_confidence: 0.6            # and any value with a lower confidence
 
 file_names:                      # what a file name tells besides the designation (ADR-0016)
-  sheet_suffix: '\s*\(\d+\)$'    # «Рама в сборе(2)»: a sheet of a document kept one sheet per file; not part of the name
+  sheet_suffix: '\s*\((\d+)\)$'  # «Рама в сборе(2)»: sheet 2 of a document kept one sheet per file; not part of the name
   unknown_shape_share: 0.5       # more than this share of names starting with a designation no grammar knows → a warning

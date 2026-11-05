@@ -99,7 +99,7 @@ def test_a_dropped_sheet_is_missing_from_the_file_but_counted_in_the_title_block
     truth = kit.truth()
     [expected] = truth.discrepancies
     path, doc = next((p, d) for p, d in truth.documents.items() if d.designation == expected.designation)
-    assert expected.type == "sheets_missing" and expected.rule_id is None
+    assert (expected.type, expected.rule_id) == ("sheets_missing", "B1.SHEETS.001")
     assert len(pdfium.PdfDocument(kit.files[path])) == doc.sheets - 1
     assert all(p.box is None or p.box.page < doc.sheets for p in doc.parameters)
 

@@ -7,6 +7,7 @@ DISCREPANCY_TYPES = {
     "duplicate_designation": "Дублирование обозначения",
     "revision_mismatch": "Расхождение литеры / изменения",
     "missing_specification": "Нет спецификации сборочной единицы",
+    "sheets_missing": "Не хватает листов документа",
 }
 SEVERITY = {"high": "Высокая", "medium": "Средняя", "low": "Низкая"}
 DOCUMENT_STATUS = {
