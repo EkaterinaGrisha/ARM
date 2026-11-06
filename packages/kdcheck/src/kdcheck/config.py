@@ -213,6 +213,18 @@ class ScanQuality(Section):
     min_sharpness: float
 
 
+class BlankSheet(Section):
+    scale: float = Field(gt=0)  # px per mm of the copy measured
+    margin: float = Field(ge=0)  # mm left out at each edge
+    min_paper: float  # grey level: a darker sheet is no blank paper but a dark scan
+    detail: int = Field(ge=3)  # px of that copy: dark detail narrower than this against the paper around it is a mark
+    min_darkness: float  # grey levels below that paper for a pixel to be a mark
+    cell: float = Field(gt=0)  # mm: the side of a cell of the sheet
+    cell_marks: Share  # share of a cell in marks for the cell to hold marks
+    max_cells: int = Field(ge=0)  # cells with marks a blank sheet may have
+    min_cells: int = Field(ge=1)  # cells of a sheet at the least; a smaller page is measured whole
+
+
 class RegionRules(Section):
     corner: Point  # mm: the bottom right corner of a page image where the title block is looked for
     max_skew: float  # degrees
@@ -284,6 +296,7 @@ class Ingest(Section):
     min_image_dpi: float
     scan: ScanRules
     quality: ScanQuality
+    blank: BlankSheet
     regions: RegionRules
     page_scale: PageScale
     text: TextLayout

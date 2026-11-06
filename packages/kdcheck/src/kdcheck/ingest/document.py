@@ -3,7 +3,8 @@
 Each file becomes a :class:`LoadedDocument` with pages and text lines with coordinates. A read error never stops
 the run: the file gets the ``damaged``, ``encrypted``, ``unsupported`` or ``unreadable`` status and its own report
 category. A byte copy of a file read before gets ``duplicate_file`` and is not read again. A page that fails to
-read keeps its problem and the other pages of the file are read; a file with no page read is ``damaged``.
+read keeps its problem and the other pages of the file are read; a file with no page read is ``damaged``. A blank
+page, nothing but paper, is not recognized and keeps that as its problem; a file of blank pages only is ``blank``.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import io
 import logging
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,7 +21,7 @@ from typing import Literal
 from PIL import Image, ImageChops, ImageFilter, ImageStat
 
 from kdcheck import limits
-from kdcheck.config import ScanQuality, Settings, Sheet
+from kdcheck.config import BlankSheet, ScanQuality, Settings, Sheet
 from kdcheck.ingest.pdf import EncryptedPdfError, PdfBackend, PdfPage, get_backend
 from kdcheck.ingest.text import BBox, Line
 from kdcheck.layout import raster
@@ -34,6 +36,7 @@ MM_PT = PT_PER_INCH / MM_PER_INCH
 PX_PER_MPX = 1_000_000
 
 TextMethod = Literal["text_layer", "ocr"]
+BLANK = "пустой лист: ни текста, ни линий, только бумага"
 
 # Pillow refuses an image over 179 Mpx as if the file were broken, and A1 and A0 sheets scanned at 600 dpi are larger.
 # The core checks the size of each image of a raster file against ``ingest.max_image_pixels`` instead, from its header,
@@ -71,6 +74,7 @@ class Page:
     confidence: float | None = None  # of values read by ``method`` when the lines give none
     format: str | None = None  # GOST 2.301 sheet format by the size of the page
     problem: str | None = None  # why the page was not read or parsed; the other pages were
+    blank: bool = False  # nothing but paper on it; ``problem`` says so
     regions: cells.Regions | None = None  # of a page image read by OCR: found by their ruled lines
 
     @property
@@ -275,7 +279,10 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
                     continue
                 page.image_only = pg.has_images()
                 image, origin, scale = _page_image(pg, settings)
-                if index == 0:
+                if is_blank(image, MM_PT / scale, ingest.blank):
+                    page.blank, page.problem = True, BLANK
+                    continue
+                if not doc.quality:  # the first page with something on it tells the scan quality of the file
                     doc.quality = image_quality(image, ingest.quality)
                     doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
                 if use_ocr and not doc.unreadable:
@@ -290,7 +297,10 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
         doc.info.notes.append(note)
     read = _pages_read(doc)
     text_pages = sum(1 for p in read if p.method == "text_layer")
-    doc.info.origin = "vector" if text_pages == len(read) else "scan" if text_pages == 0 else "mixed"
+    if not read:  # blank pages only: a scan when they are images
+        doc.info.origin = "scan" if any(p.image_only for p in doc.pages) else "vector"
+    else:
+        doc.info.origin = "vector" if text_pages == len(read) else "scan" if text_pages == 0 else "mixed"
     _fill_page_info(doc)
 
 
@@ -353,7 +363,10 @@ def _load_image(doc: LoadedDocument, data: bytes, settings: Settings) -> None:
                 if dpi:  # an estimated resolution assumes a format, so only a known one tells it
                     size = (frame.width / dpi * MM_PER_INCH, frame.height / dpi * MM_PER_INCH)
                     page.format = sheet_format(*size, settings.forms.sheet)
-                if index == 0:
+                if is_blank(frame, page.mm, ingest.blank):
+                    page.blank, page.problem = True, BLANK
+                    continue
+                if not doc.quality:  # the first page with something on it tells the scan quality of the file
                     doc.quality = image_quality(frame, ingest.quality)
                     doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
                 if use_ocr and not doc.unreadable:
@@ -382,10 +395,19 @@ def _timed_out(page: Page, limit: float) -> None:
 
 
 def _pages_read(doc: LoadedDocument) -> list[Page]:
-    """The pages read without a problem; with none of them the file is damaged."""
+    """The pages read without a problem. A file of blank pages only is blank; with no page read otherwise, damaged."""
     read = [p for p in doc.pages if p.problem is None]
-    if not read:
-        raise ValueError(f"не прочитана ни одна страница, первая — {doc.pages[0].problem}")
+    if not read and all(p.blank for p in doc.pages):
+        count = len(doc.pages)
+        doc.info.status = "blank"
+        doc.info.problem = (
+            "Пустой лист: на нём нет ни текста, ни линий"
+            if count == 1
+            else (f"Пустые листы: ни на одном из {count} нет ни текста, ни линий")
+        )
+    elif not read:
+        first = next(p for p in doc.pages if not p.blank)
+        raise ValueError(f"не прочитана ни одна страница, первая — {first.problem}")
     return read
 
 
@@ -468,6 +490,46 @@ def _median(hist: list[int], low: int, high: int) -> float:
         if seen >= half:
             return float(low + i)
     return float(high)
+
+
+def is_blank(image: Image.Image, px_per_mm: float, rules: BlankSheet) -> bool:
+    """Whether a page image holds nothing but paper: marks in no more than ``rules.max_cells`` cells of the sheet, a
+    page number or a speck of dirt (plan item 4.1, eval/blank_sheets.py).
+
+    The image is measured at ``rules.scale`` pixels per millimetre, whatever its own resolution and format, without the
+    edges where the lid of a scanner, binding holes and the edge of a neighbouring sheet lie. A mark is dark detail
+    narrower than ``rules.detail`` pixels of that copy against the paper around it, the image closed by a square of
+    that size (a black top-hat): stains, the shadow of a fold, holes and an uneven scan are wider than any line, so
+    they count as paper, while lines, letters and faint pencil stay marks. A drawing spreads its marks over the sheet:
+    the frame, the title block, the views; dirt keeps to a few places. A dark image is no blank: its paper is not paper,
+    and the quality of the scan decides.
+    """
+    factor = rules.scale / px_per_mm
+    size = (max(1, round(image.width * factor)), max(1, round(image.height * factor)))
+    gray = image.convert("L").resize(size, Image.Resampling.BOX)
+    cut = round(rules.margin * rules.scale)
+    if gray.width > 2 * cut and gray.height > 2 * cut:  # a page smaller than the margins is measured whole
+        gray = gray.crop((cut, cut, gray.width - cut, gray.height - cut))
+    if ImageStat.Stat(gray).median[0] < rules.min_paper:
+        return False
+    paper = gray
+    for _ in range(rules.detail // 2):  # a closing by 3×3 steps: a k×k rank filter costs k² a pixel, a 3×3 one 9
+        paper = paper.filter(ImageFilter.MaxFilter(3))
+    for _ in range(rules.detail // 2):
+        paper = paper.filter(ImageFilter.MinFilter(3))
+    level = math.ceil(rules.min_darkness)
+    marks = ImageChops.subtract(paper, gray).point(lambda v: raster.WHITE if v >= level else 0)
+    side = round(rules.cell * rules.scale)
+    cells = [
+        marks.crop((x, y, min(marks.width, x + side), min(marks.height, y + side)))
+        for x in range(0, marks.width, side)
+        for y in range(0, marks.height, side)
+    ]
+    cells = [c for c in cells if c.width * c.height * 4 >= side * side]  # a sliver at the far edge is too small to tell
+    if len(cells) < rules.min_cells:  # no sheet, a placeholder page or a small picture: it is measured whole
+        return marks.histogram()[raster.WHITE] < rules.cell_marks * marks.width * marks.height
+    marked = sum(c.histogram()[raster.WHITE] >= rules.cell_marks * c.width * c.height for c in cells)
+    return marked <= rules.max_cells
 
 
 def unreadable_reason(quality: dict[str, float], rules: ScanQuality) -> str | None:

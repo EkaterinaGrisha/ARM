@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-31",
+  "date": "2026-11-05",
   "machine": "Darwin arm64, Python 3.11.15",
   "versions": {
     "pypdfium2": "5.14.0",
@@ -10,19 +10,19 @@
   "kit": "samples/demo_kit",
   "page_times": {
     "pdfium": {
-      "text_ms": 1.6,
-      "render_ms": 1.6
+      "text_ms": 1.7,
+      "render_ms": 1.7
     },
     "pymupdf": {
-      "text_ms": 1.4,
-      "render_ms": 22.0
+      "text_ms": 1.5,
+      "render_ms": 26.0
     }
   },
   "runs": [
     {
       "backend": "pdfium",
       "ocr": false,
-      "kit_seconds": 0.15,
+      "kit_seconds": 0.37,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -68,7 +68,7 @@
         },
         "Классификация проблемных файлов": {
           "accuracy": 1.0,
-          "support": 4
+          "support": 5
         },
         "Основная надпись: Обозначение": {
           "accuracy": 1.0,
@@ -129,7 +129,7 @@
     {
       "backend": "pdfium",
       "ocr": true,
-      "kit_seconds": 1.25,
+      "kit_seconds": 1.97,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -175,7 +175,7 @@
         },
         "Классификация проблемных файлов": {
           "accuracy": 1.0,
-          "support": 4
+          "support": 5
         },
         "Основная надпись: Обозначение": {
           "accuracy": 1.0,
@@ -236,7 +236,7 @@
     {
       "backend": "pymupdf",
       "ocr": false,
-      "kit_seconds": 0.2,
+      "kit_seconds": 0.44,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -282,7 +282,7 @@
         },
         "Классификация проблемных файлов": {
           "accuracy": 1.0,
-          "support": 4
+          "support": 5
         },
         "Основная надпись: Обозначение": {
           "accuracy": 1.0,
@@ -343,7 +343,7 @@
     {
       "backend": "pymupdf",
       "ocr": true,
-      "kit_seconds": 1.37,
+      "kit_seconds": 1.99,
       "metrics": {
         "Расхождения — всего": {
           "precision": 1.0,
@@ -389,7 +389,7 @@
         },
         "Классификация проблемных файлов": {
           "accuracy": 1.0,
-          "support": 4
+          "support": 5
         },
         "Основная надпись: Обозначение": {
           "accuracy": 1.0,

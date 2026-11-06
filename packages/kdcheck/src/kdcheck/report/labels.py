@@ -15,6 +15,7 @@ DOCUMENT_STATUS = {
     "warning": "С замечаниями",
     "damaged": "Повреждён",
     "unreadable": "Нечитаемый скан",
+    "blank": "Пустой лист",
     "foreign": "Посторонний документ",
     "unsupported": "Не поддерживается",  # the format, or an image larger than max_image_pixels
     "encrypted": "Защищён паролем",
