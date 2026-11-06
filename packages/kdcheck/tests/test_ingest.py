@@ -1,12 +1,21 @@
 import io
 import os
+import struct
 import subprocess
 import sys
+import zlib
 from pathlib import Path
 
 import pytest
-from kdcheck.config import load_settings
-from kdcheck.ingest.document import image_quality, load_document, sheet_format, sniff_media_type, unreadable_reason
+from kdcheck.config import Settings, load_settings
+from kdcheck.ingest.document import (
+    image_quality,
+    load_document,
+    sheet_format,
+    sniff_media_type,
+    too_large,
+    unreadable_reason,
+)
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 from kdcheck.render import RenderError, render_page
 from PIL import Image, ImageDraw, ImageFilter, ImageStat
@@ -166,12 +175,85 @@ def test_wide_gap_splits_line_into_cells():
     assert [ln.text for ln in split_wide_lines([far], gap=6)] == ["a b"]
 
 
-def test_render_page_limits_size_and_checks_page_number(tmp_path):
+def test_render_page_limits_size_and_checks_page_number(tmp_path, settings):
     path = _pdf(tmp_path / "a.pdf")
-    image = Image.open(io.BytesIO(render_page(path, 1, max_px=500, pdf_backend="pdfium")))
+    limit = settings.ingest.max_image_pixels
+    image = Image.open(io.BytesIO(render_page(path, 1, max_px=500, pdf_backend="pdfium", max_pixels=limit)))
     assert max(image.size) == 500
     with pytest.raises(RenderError):
-        render_page(path, 2, max_px=500, pdf_backend="pdfium")
+        render_page(path, 2, max_px=500, pdf_backend="pdfium", max_pixels=limit)
+
+
+def _limited(settings: Settings, pixels: int) -> Settings:
+    return settings.model_copy(update={"ingest": settings.ingest.model_copy(update={"max_image_pixels": pixels})})
+
+
+def _sheet(size: tuple[int, int]) -> Image.Image:
+    """A grey page with a frame and a line of text: something to read, not paper only. Both lie inside the margins
+    a blank sheet is measured without (``blank.margin`` in configs/ingest.yaml), 100 px being 17 mm at 150 dpi."""
+    image = Image.new("L", size, 255)
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((100, 100, size[0] - 100, size[1] - 100), outline=0, width=3)
+    draw.text((120, 120), "ARM.303411.001", fill=0)
+    return image
+
+
+@pytest.mark.parametrize(("width", "status"), [(1000, "ok"), (1001, "unsupported")])
+def test_an_image_over_the_pixel_limit_is_not_decoded(tmp_path, settings, width, status):
+    _sheet((width, 1000)).save(tmp_path / "scan.png", dpi=(150, 150))
+    doc = load_document(tmp_path / "scan.png", tmp_path, _limited(settings, 1_000_000))
+    assert doc.info.status == status
+    if status == "ok":
+        assert doc.info.problem is None and doc.info.pages[0].problem is None
+        assert (doc.info.pages[0].width, doc.info.pages[0].height) == (1000, 1000)
+    else:  # the file is whole: not «повреждён», and the problem says what to change
+        assert doc.info.problem == (
+            "Изображение 1001×1000 пикс. (1.001 Мп) больше 1 Мп и не читается: "
+            "лимит max_image_pixels в configs/ingest.yaml"
+        )
+        assert doc.pages == [] and doc.info.pages == []
+
+
+def test_a_frame_over_the_pixel_limit_costs_only_its_page(tmp_path, settings):
+    frames = [_sheet((1000, 1000)), _sheet((1100, 1000)), _sheet((800, 1000))]
+    frames[0].save(tmp_path / "scan.tif", save_all=True, append_images=frames[1:], dpi=(150, 150))
+    doc = load_document(tmp_path / "scan.tif", tmp_path, _limited(settings, 1_000_000))
+    assert doc.info.status == "ok"
+    first, large, third = doc.info.pages
+    assert (first.problem, third.problem) == (None, None) and (third.width, third.height) == (800, 1000)
+    assert large.problem == (
+        "изображение 1100×1000 пикс. (1.1 Мп) больше 1 Мп и не читается: лимит max_image_pixels в configs/ingest.yaml"
+    )
+    assert (large.width, large.height) == (1100, 1000)  # from the header: the frame is not decoded
+
+
+def _png_header(path: Path, width: int, height: int) -> Path:
+    """A PNG that declares ``width`` × ``height`` grey pixels and holds next to none: a header without the image."""
+
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0)  # 8-bit grey, no interlace
+    signature = b"\x89PNG\r\n\x1a\n"
+    path.write_bytes(signature + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(b"\0")) + chunk(b"IEND", b""))
+    return path
+
+
+def test_the_committed_limit_takes_an_a0_sheet_at_600_dpi(tmp_path, settings):
+    a0 = (round(841 / 25.4 * 600), round(1189 / 25.4 * 600))  # 19866 × 28087 px, 558 Mpx; Pillow refuses 179 Mpx
+    assert too_large(a0, settings.ingest.max_image_pixels) is None
+    doc = load_document(_png_header(tmp_path / "huge.png", 30000, 30000), tmp_path, settings)
+    assert doc.info.status == "unsupported"  # by its header, before a pixel is decoded
+    assert doc.info.problem.startswith("Изображение 30000×30000 пикс. (900 Мп) больше 600 Мп и не читается")
+
+
+def test_render_page_reads_an_image_within_the_pixel_limit(tmp_path):
+    _sheet((1000, 1000)).save(tmp_path / "scan.jpg")
+    png = render_page(tmp_path / "scan.jpg", 1, max_px=100, pdf_backend="pdfium", max_pixels=1_000_000)
+    assert max(Image.open(io.BytesIO(png)).size) == 100  # the JPEG decoded at 1/8, then reduced
+    _sheet((1001, 1000)).save(tmp_path / "scan.jpg")
+    with pytest.raises(RenderError, match=r"^Изображение 1001×1000 пикс\. \(1\.001 Мп\) больше 1 Мп и не читается"):
+        render_page(tmp_path / "scan.jpg", 1, max_px=100, pdf_backend="pdfium", max_pixels=1_000_000)
 
 
 def test_core_imports_pdf_library_only_through_the_adapter():

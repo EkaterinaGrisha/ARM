@@ -21,6 +21,7 @@ KEPT: dict[str, dict[float, str]] = {
         25.4: "millimetres per inch",
         4: "digits of a bbox share; length of the TIFF signature",
         10: "length of a document id",
+        1_000_000: "pixels per megapixel",
         1024: "where a PDF signature may start",
         2048: "bytes read to detect the format",
         157: "length of a shortened problem text",

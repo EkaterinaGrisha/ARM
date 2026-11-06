@@ -58,7 +58,13 @@ def build(samples: Path, public_demo: Path) -> None:
         for page in doc.pages:
             try:
                 (pages_dir / f"{doc.id}-{page.number}.png").write_bytes(
-                    render_page(kit / doc.path, page.number, max_px=1600, pdf_backend=settings.models.pdf.backend)
+                    render_page(
+                        kit / doc.path,
+                        page.number,
+                        max_px=1600,
+                        pdf_backend=settings.models.pdf.backend,
+                        max_pixels=settings.ingest.max_image_pixels,
+                    )
                 )
             except RenderError as exc:
                 print(f"  страница не отрисована: {doc.path} — {exc}")
