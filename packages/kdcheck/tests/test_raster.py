@@ -115,6 +115,23 @@ def test_specification_table_by_its_column_lines(settings):
     assert other is not None and other.other_form  # form 5 of GOST 2.113: its rows are not read as form 1
 
 
+def test_a_name_across_the_blank_place_of_form_2_keeps_the_specification(settings):
+    """A large name in the name cell lays ink along the blank place of form 2, so form 2 scores no better than form 1
+    laid at the same top with its bottom past the edge of the sheet, which loses only lines beyond the image. Of the
+    two the block that has all its lines on the image wins, and the table above it is found."""
+    spec = settings.forms.specification
+    edges = sorted({edge for pair in spec.columns.model_dump().values() for edge in pair} - {0.0, 185.0})
+    image = _sheet(settings, 2, (210, 297), columns=edges)
+    draw = ImageDraw.Draw(image)
+    x, y = 210 - 5 - 185, 297 - 5 - 40
+    for left in range(66, 133, 4):  # letters 3 mm wide and 3 mm high, their bottom 1 mm under the blank place
+        draw.rectangle([((x + left) * PX, (y + 23) * PX), ((x + left + 3) * PX, (y + 26) * PX)], fill=0)
+    found = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
+    assert found is not None and found.block.form == 2
+    assert _corner(found) == pytest.approx((x, y), abs=0.5)
+    assert raster.find_table(image, found, settings.forms, settings.ingest.regions) is not None
+
+
 def test_a_later_sheet_of_a_specification_places_form_2a_at_the_frame(settings):
     """Rows of the table above form 2a are rectangles of its size, and the change record table has a column line
     7 mm in: the block still sits in the corner of the frame at the resolution of the image, and the table is found."""

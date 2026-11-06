@@ -242,8 +242,11 @@ def find_corner(gray: Image.Image, ppmm: float, forms: Forms, rules: RegionRules
     """The title block of forms 1, 2 or 2a of GOST 2.104 in the bottom right corner of a page image; None without one.
 
     Lines beyond the image do not count, so a sheet shifted off the glass still places its block; of the hypotheses
-    the best fitting one wins, and of two that fit as well the one with more lines on the image. Each step of the
-    search tries ``max_placements`` of them at most: hatching gives lines without end, and a page must not cost minutes.
+    the best fitting one wins, of two that fit as well the one with more lines on the image, and then the one that
+    leaves fewer of its lines beyond the image: form 1 laid over form 2 with its bottom past the edge of the sheet
+    finds the lines of form 2 and loses only lines it cannot be checked on.
+    Each step of the search tries ``max_placements`` of them at most: hatching gives lines without end, and a page must
+    not cost minutes.
     """
     template = forms.title_block
     width, height = rules.corner
@@ -320,7 +323,7 @@ def find_corner(gray: Image.Image, ppmm: float, forms: Forms, rules: RegionRules
                                 tried.add(key)
                                 yield number, form, x0, y0, s
 
-    best: tuple[float, int, Block] | None = None
+    best: tuple[tuple[float, int, float], Block] | None = None
     for low, high in (near_nominal, (lowest, highest)):
         for candidates in (first, later):
             for number, form, x0, y0, s in itertools.islice(placements(candidates, low, high), rules.max_placements):
@@ -328,7 +331,7 @@ def find_corner(gray: Image.Image, ppmm: float, forms: Forms, rules: RegionRules
                 scored = _form_score(mask, form, x0, y0, s, rules, visible)
                 if scored is None or scored[0] < rules.min_form_lines:
                     continue
-                if (best is None or scored > best[:2]) and in_corner(x0, y0, s, form.height):
+                if (best is None or scored > best[0]) and in_corner(x0, y0, s, form.height):
                     found = Block(
                         number,
                         window[0] + x0 / k,
@@ -338,10 +341,10 @@ def find_corner(gray: Image.Image, ppmm: float, forms: Forms, rules: RegionRules
                         template.width,
                         form.height,
                     )
-                    best = (*scored, found)
+                    best = (scored, found)
         if best is not None:
             break
-    return Corner(turn, level, best[2]) if best is not None else None
+    return Corner(turn, level, best[1]) if best is not None else None
 
 
 def _clip(a: Point, b: Point, size: tuple[int, int]) -> tuple[float, float]:
@@ -369,10 +372,10 @@ def _form_score(
     s: float,
     rules: RegionRules,
     visible: Callable[[Box], Box | None],
-) -> tuple[float, int] | None:
-    """Share of the lines of ``form`` placed at (x0, y0) found, and of its blank places without one, and how many
-    lines were on the image. Only the part of a line on the image counts, and a line mostly beyond it does not; with
-    too few lines left there is no score."""
+) -> tuple[float, int, float] | None:
+    """How a placement of ``form`` at (x0, y0) fits, higher first: the share of its lines found and of its blank places
+    without one; how many lines were on the image; and what share of the lines of the form that is. Only the part of a
+    line on the image counts, and a line mostly beyond it does not; with too few lines left there is no score."""
 
     def placed(lines: tuple[Box, ...]) -> list[Box]:
         found = (visible((x0 + u0 * s, y0 + v0 * s, x0 + u1 * s, y0 + v1 * s)) for u0, v0, u1, v1 in lines)
@@ -383,7 +386,7 @@ def _form_score(
         return None
     hits = sum(_ruled(mask, line, s, rules) for line in lines)
     clear = sum(coverage(mask, line, rules.line_band * s) < rules.line_ink for line in blanks)
-    return (hits + clear) / (len(lines) + len(blanks)), len(lines)
+    return (hits + clear) / (len(lines) + len(blanks)), len(lines), len(lines) / len(form.lines)
 
 
 def _ruled(mask: Image.Image, line: Box, s: float, rules: RegionRules) -> bool:

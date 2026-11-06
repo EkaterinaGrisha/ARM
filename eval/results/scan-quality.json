@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-04",
+  "date": "2026-11-06",
   "kits": 6,
   "seed": 3,
   "environment": {
@@ -941,7 +941,7 @@
     }
   },
   "reading": {
-    "seconds": 220.4,
+    "seconds": 222.3,
     "by_class": {
       "raster:good": {
         "unreadable": 0,
@@ -5085,11 +5085,11 @@
         "phase": "paper",
         "sheets": 18
       },
-      "NoiseTexturize": {
+      "BrightnessTexturize": {
         "phase": "paper",
         "sheets": 16
       },
-      "BrightnessTexturize": {
+      "NoiseTexturize": {
         "phase": "paper",
         "sheets": 16
       },
@@ -5113,11 +5113,11 @@
         "phase": "ink",
         "sheets": 13
       },
-      "NoisyLines": {
+      "Jpeg": {
         "phase": "post",
         "sheets": 12
       },
-      "Jpeg": {
+      "NoisyLines": {
         "phase": "post",
         "sheets": 12
       },
@@ -5177,11 +5177,11 @@
         "phase": "post",
         "sheets": 8
       },
-      "LowInkRandomLines": {
+      "BleedThrough": {
         "phase": "ink",
         "sheets": 8
       },
-      "BleedThrough": {
+      "LowInkRandomLines": {
         "phase": "ink",
         "sheets": 8
       },
@@ -5209,11 +5209,11 @@
         "phase": "paper",
         "sheets": 6
       },
-      "ShadowCast": {
+      "PageBorder": {
         "phase": "post",
         "sheets": 5
       },
-      "PageBorder": {
+      "ShadowCast": {
         "phase": "post",
         "sheets": 5
       },
@@ -5344,7 +5344,7 @@
     ],
     "resized": 30,
     "reading": {
-      "seconds": 434.2,
+      "seconds": 444.4,
       "by_class": {
         "augraphy:poor": {
           "unreadable": 0,
