@@ -25,7 +25,7 @@ def test_run_writes_three_report_forms(tmp_path, capsys):
     report = Report.model_validate(json.loads((tmp_path / "report.json").read_text(encoding="utf-8")))
     assert report.kit.name == "Демо"
     assert report.kit.root_designation == "АРМ.303411.000"
-    assert report.summary.documents_total == 22
+    assert report.summary.documents_total == 23
     assert report.discrepancies and all(d.rule_id for d in report.discrepancies)
     assert (tmp_path / "report.xlsx").stat().st_size > 0
     html = (tmp_path / "report.html").read_text(encoding="utf-8")

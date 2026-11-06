@@ -311,6 +311,7 @@
             "warning",
             "damaged",
             "unreadable",
+            "blank",
             "foreign",
             "unsupported",
             "encrypted",
@@ -1840,7 +1841,7 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "default": "1.4",
+      "default": "1.5",
       "title": "Schema Version",
       "type": "string"
     },

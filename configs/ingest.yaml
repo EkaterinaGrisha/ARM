@@ -22,6 +22,20 @@ quality:                         # a scan below any of the thresholds is unreada
   min_brightness: 60             # mean grey level
   min_sharpness: 4               # mean difference between neighbouring pixels on the ink and next to it
 
+blank:                           # a page without text that holds nothing but paper is a blank sheet and is not recognized
+  scale: 3                       # px per mm of the copy measured, whatever the resolution and format of the image
+  margin: 12                     # mm left out at each edge: the lid of a scanner, binding holes, the edge of the next sheet
+  min_paper: 60                  # grey level: a darker image is a dark scan, not blank paper
+  detail: 5                      # px of that copy: dark detail narrower than this is a mark; stains, the shadow of a fold
+                                 # and holes are wider and count as paper
+  min_darkness: 10               # grey levels below the paper around it for a pixel to be a mark
+  cell: 20                       # mm: the side of a cell of the sheet
+  cell_marks: 0.01               # share of a cell in marks for the cell to hold marks
+  max_cells: 2                   # cells with marks a blank sheet may have: a page number, a speck of dirt. The nearest page
+                                 # with something on it has 4, a synthetic unreadable drawing 66 (eval/results/blank-sheets.md)
+  min_cells: 9                   # cells of a sheet at the least, A5 has 54: a smaller page, a placeholder or a small picture,
+                                 # is measured whole and is blank when less than cell_marks of it is marks
+
 regions:                         # the frame, the title block and the specification table by their ruled lines on a page image
   corner: [215, 85]              # mm: the bottom right corner of the image where the title block is looked for
   max_skew: 3                    # degrees: the largest turn of a sheet on the scanner looked for

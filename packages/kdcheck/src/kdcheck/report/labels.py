@@ -15,6 +15,7 @@ DOCUMENT_STATUS = {
     "warning": "С замечаниями",
     "damaged": "Повреждён",
     "unreadable": "Нечитаемый скан",
+    "blank": "Пустой лист",
     "foreign": "Посторонний документ",
     "unsupported": "Неподдерживаемый формат",
     "encrypted": "Защищён паролем",
