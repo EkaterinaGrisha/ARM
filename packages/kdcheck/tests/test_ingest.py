@@ -189,11 +189,12 @@ def _limited(settings: Settings, pixels: int) -> Settings:
 
 
 def _sheet(size: tuple[int, int]) -> Image.Image:
-    """A grey page with a frame and a line of text: something to read, not paper only."""
+    """A grey page with a frame and a line of text: something to read, not paper only. Both lie inside the margins
+    a blank sheet is measured without (``blank.margin`` in configs/ingest.yaml), 100 px being 17 mm at 150 dpi."""
     image = Image.new("L", size, 255)
     draw = ImageDraw.Draw(image)
-    draw.rectangle((20, 20, size[0] - 20, size[1] - 20), outline=0, width=3)
-    draw.text((40, 40), "ARM.303411.001", fill=0)
+    draw.rectangle((100, 100, size[0] - 100, size[1] - 100), outline=0, width=3)
+    draw.text((120, 120), "ARM.303411.001", fill=0)
     return image
 
 
