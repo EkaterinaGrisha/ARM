@@ -12,11 +12,16 @@ on each kit with OCR and without, and compares the report with the truth of the 
   found parameter; of those found, whether the numbers and the unit the truth gives are right; the parameters of
   technical requirements a vector drawing loses, by the wording of their item;
 - the regions of the values against the boxes of the truth, the traceability of the case: title block fields, the
-  designation and name of specification rows matched by designation, and the found parameters.
+  designation and name of specification rows matched by designation, and the found parameters; a value of a document
+  kept one sheet per file is right in the file of its sheet only;
+- documents kept one sheet per file, as ARM keeps rasters (ADR-0017): the files of later sheets the core joins to the
+  first sheet of their document, with the right number of the sheet, and those it leaves apart or joins wrongly.
 
 Writes eval/results/synth-kits.json and eval/results/synth-kits.md.
 
-    uv run python eval/synth_kits.py [--kits 20] [--seed 1]
+    uv run python eval/synth_kits.py [--kits 20] [--seed 1] [--sheet-files 0.5]
+
+``--sheet-files`` is the share of kits that keep their rasters and scans one sheet per file.
 """
 
 from __future__ import annotations
@@ -197,6 +202,7 @@ def regions(report: Report, truth: KitTruth, tally: dict[str, Counter[str]], wro
     are not, as «what: why». A value the core did not give is not counted, its reading is measured elsewhere; nor is one
     taken from the file name, which has no region on the sheet."""
     ids = {d.path: d.id for d in report.documents}
+    paths = {d.id: d.path for d in report.documents}
     parts = {p.document_id: p for p in report.parts}
     specs = {sp.document_id: sp for sp in report.specifications}
     for path, doc in truth.documents.items():
@@ -204,6 +210,7 @@ def regions(report: Report, truth: KitTruth, tally: dict[str, Counter[str]], wro
             continue
         source = "vector" if doc.origin == "vector" else "captured"
         others = _boxes(doc)
+        files = {n: p for p, n in doc.sheet_files.items()}  # the box of page N lies on page 1 of the file of sheet N
         pairs: list[tuple[str, Box, Extracted | Parameter]] = []
         if isinstance(doc, DrawingTruth):
             part = parts.get(ids.get(path, ""))
@@ -249,11 +256,48 @@ def regions(report: Report, truth: KitTruth, tally: dict[str, Counter[str]], wro
             region = _region(value)
             counts = tally[f"{source}:{what}"]
             counts["values"] += 1
-            problem = scoring.region_problem((box.page, box.bbox), region, others)
+            if files:
+                given = paths.get(value.source.document_id) if value.source is not None else None
+                if region is not None and given != files.get(box.page):
+                    wrong[f"{what}, растры и сканы: не тот файл листа"] += 1
+                    continue
+                local = [(1, bbox) for page, bbox in others if page == box.page]
+                problem = scoring.region_problem((1, box.bbox), region, local)
+            else:
+                problem = scoring.region_problem((box.page, box.bbox), region, others)
             if problem is None:
                 counts["right"] += 1
             else:
                 wrong[f"{what}, {'вектор' if source == 'vector' else 'растры и сканы'}: {problem}"] += 1
+
+
+def sheet_files(report: Report, truth: KitTruth, tally: Counter[str], wrong: list[dict[str, str]], kit: str) -> None:
+    """The files of the later sheets of each document kept one sheet per file: joined to the file of its first sheet
+    with the right number of the sheet, joined with another number, joined to another file, or left apart, and why."""
+    docs = {d.path: d for d in report.documents}
+    for first, doc in truth.documents.items():
+        if len(doc.sheet_files) < 2:  # one sheet left of a document whose other file the mutation took
+            continue
+        tally["documents"] += 1
+        head = docs.get(first)
+        whole = True
+        for path, number in sorted(doc.sheet_files.items(), key=lambda item: item[1]):
+            if number == 1:
+                continue
+            tally["files"] += 1
+            info = docs.get(path)
+            if head is not None and info is not None and info.sheet_of == head.id:
+                outcome = "right" if info.sheet == number else "wrong_number"
+            elif info is not None and info.sheet_of:
+                outcome = "wrong_first"
+            else:
+                outcome = "apart"
+            tally[outcome] += 1
+            if outcome != "right":
+                whole = False
+                why = "файла нет в отчёте" if info is None else (info.problem or f"{info.kind}, {info.status}")
+                wrong.append({"kit": kit, "file": path, "outcome": outcome, "why": why})
+        tally["documents_whole"] += whole
 
 
 def _values(p: scoring.Wanted) -> str:
@@ -279,10 +323,13 @@ def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
     wrong: Counter[str] = Counter()
     places: dict[str, Counter[str]] = defaultdict(Counter)
     misplaced: Counter[str] = Counter()
+    sheets: Counter[str] = Counter()
+    sheets_wrong: list[dict[str, str]] = []
     for name, truth in truths.items():
         report = pipeline.run(CORPUS / name, kit_id=name, kit_name=name)
         parameters(report, truth, tally, lost, wrong)
         regions(report, truth, places, misplaced)
+        sheet_files(report, truth, sheets, sheets_wrong, name)
         result = compare(report, truth)
         for part in ("expected", "found", "missed", "extra"):
             for (rule, _), count in result[part].items():
@@ -354,6 +401,8 @@ def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
             for key, counts in sorted(places.items())
         },
         "wrong_regions": dict(misplaced.most_common()),
+        "sheet_files": {**dict(sheets), "share": _ratio(sheets["right"], sheets["files"])},
+        "sheet_files_wrong": sheets_wrong,
     }
 
 
@@ -374,12 +423,15 @@ def markdown(result: dict[str, Any]) -> str:
     lines = [
         "# Блоки 1 и 2 на синтетических комплектах",
         "",
-        f"Получено `uv run python eval/synth_kits.py --kits {corpus['kits']} --seed {corpus['seed']}` "
+        f"Получено `uv run python eval/synth_kits.py --kits {corpus['kits']} --seed {corpus['seed']} "
+        f"--sheet-files {corpus['sheet_files']:g}` "
         f"{result['date']}; {result['machine']}; Tesseract {result['tesseract'] or 'нет'}. "
         f"Корпус: {corpus['kits']} комплектов из `synth.kits`, из них {corpus['clean']} без ошибок; заложено "
         f"{corpus['planted']} расхождений и {corpus['problem_files']} проблемных файлов. Из {corpus['documents']} "
         f"документов сканов {corpus['captured'].get('scan', 0)}, растров без сканирования "
         f"{corpus['captured'].get('raster', 0)}; их классы качества — в [scan-quality.md](scan-quality.md). "
+        f"По листу в файле, с «(N)» в имени, лежат {corpus['sheet_documents']} документов в "
+        f"{corpus['sheet_file_count']} файлах. "
         "Полностью — в [synth-kits.json](synth-kits.json), там же каждая ошибка с комплектом и обозначением.",
         "",
         "Расхождение найдено, если в отчёте есть то же правило (для типов без правила — тот же тип) с тем же "
@@ -415,7 +467,32 @@ def markdown(result: dict[str, Any]) -> str:
             lines += ["", f"Прочие непустые статусы документов, не заложенные как проблемные файлы: {other}."]
         lines += _parameters_section(run_)
         lines += _regions_section(run_)
+        lines += _sheets_section(run_)
     return "\n".join(lines) + "\n"
+
+
+def _sheets_section(run_: dict[str, Any]) -> list[str]:
+    s = run_["sheet_files"]
+    if not s.get("files"):
+        return []
+    lines = [
+        "",
+        "### Документы по листу в файле",
+        "",
+        "Файл последующего листа сведён верно, если ядро связало его с файлом первого листа того же документа и дало "
+        "верный номер листа (`DocumentInfo.sheet_of`, `sheet`, ADR-0017).",
+        "",
+        "| Документов | Файлов последующих листов | Сведены верно | Другой номер листа | К другому документу "
+        "| Не сведены | Документов собрано целиком |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+        f"| {s.get('documents', 0)} | {s['files']} | {s.get('right', 0)} | {s.get('wrong_number', 0)} | "
+        f"{s.get('wrong_first', 0)} | {s.get('apart', 0)} | {s.get('documents_whole', 0)} |",
+    ]
+    why = Counter(item["why"] for item in run_["sheet_files_wrong"])
+    if why:
+        lines += ["", "| Почему файл не сведён | Число |", "| --- | --- |"]
+        lines += [f"| {reason} | {count} |" for reason, count in why.most_common()]
+    return lines
 
 
 def _regions_section(run_: dict[str, Any]) -> list[str]:
@@ -491,10 +568,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--kits", type=int, default=20)
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--sheet-files", type=float, default=0.5, help="доля комплектов с растрами по листу в файле")
     args = parser.parse_args(argv)
     shutil.rmtree(CORPUS, ignore_errors=True)
     CORPUS.mkdir(parents=True)
-    truths = {f"kit_{i:03d}": t for i, t in enumerate(kits.corpus(CORPUS, args.kits, args.seed), start=1)}
+    built = kits.corpus(CORPUS, args.kits, args.seed, sheet_files_share=args.sheet_files)
+    truths = {f"kit_{i:03d}": t for i, t in enumerate(built, start=1)}
+    split = [d for t in truths.values() for d in t.documents.values() if len(d.sheet_files) > 1]
     result = {
         "date": datetime.now(UTC).date().isoformat(),
         "machine": f"{platform.system()} {platform.machine()}, Python {platform.python_version()}",
@@ -502,6 +582,9 @@ def main(argv: list[str] | None = None) -> int:
         "corpus": {
             "kits": args.kits,
             "seed": args.seed,
+            "sheet_files": args.sheet_files,
+            "sheet_documents": len(split),
+            "sheet_file_count": sum(len(d.sheet_files) for d in split),
             "clean": sum(1 for t in truths.values() if not t.mutations),
             "planted": sum(len(t.discrepancies) for t in truths.values()),
             "problem_files": sum(len(t.problem_files) for t in truths.values()),

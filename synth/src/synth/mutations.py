@@ -253,13 +253,18 @@ def format_in_spec(kit: Kit) -> bool:
 
 @_mutation("documents", "Удалить последний лист многолистового чертежа")
 def drop_sheet(kit: Kit) -> bool:
-    """The title block still counts the sheet, and the parameters drawn on it are gone with it."""
-    free = [(part, drawing) for _, part, drawing in kit.free_parts(vector=True) if drawing.more_sheets]
+    """The title block still counts the sheet, and the parameters drawn on it are gone with it. Of a drawing kept one
+    sheet per file the file of sheet 2 goes, as a sheet of ARM gets lost: with three sheets or more the numbering of
+    the rest has a gap."""
+    free = [(part, d) for _, part, d in kit.free_parts(vector=True, sheet_files=True) if d.more_sheets]
     if not free:
         return False
     part, drawing = kit.rng.choice(free)
-    drawing.missing_sheets = 1
-    gone = f"sheet{drawing.sheets}:"
+    if drawing.output.sheet_files:
+        drawing.dropped_sheet = 2
+    else:
+        drawing.missing_sheets = 1
+    gone = f"sheet{drawing.dropped_sheet or drawing.sheets}:"
     kept = [(p, k) for p, k in zip(drawing.expected_params, drawing.param_keys, strict=True) if not k.startswith(gone)]
     drawing.expected_params, drawing.param_keys = [p for p, _ in kept], [k for _, k in kept]
     kit.touched.add(part.designation)

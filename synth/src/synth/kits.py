@@ -8,8 +8,10 @@ templates (:mod:`synth.requirements`). A share of the kits is drawn in the lette
 Mutations (:mod:`synth.mutations`) then change the documents or their files, and each writes into the truth the
 discrepancies and problem files it plants; they leave group documents alone. The files are drawn by
 :mod:`synth.render`; a share of the documents come out as rasters or scans of one of three classes of quality
-(:mod:`synth.degrade`), each with a seed of its own in the truth. The stress corpus scans the same kits through
-Augraphy instead (:mod:`synth.stress`).
+(:mod:`synth.degrade`), each with a seed of its own in the truth. With ``--sheet-files`` a share of the kits keeps its
+rasters and scans of several sheets one sheet per file, «(N)» at the end of the name, as the kits of ARM do; the truth
+knows such a document by the file of its first sheet and lists the file of each sheet (ADR-0017). The stress corpus
+scans the same kits through Augraphy instead (:mod:`synth.stress`).
 
     uv run python -m synth.kits data/synth/kits --kits 20 --seed 1
 
@@ -75,6 +77,10 @@ class Kit:
     scan_rng: random.Random = field(default_factory=random.Random)  # the seed of each raster and scan
     capture: degrade.Capturer = degrade.capture  # what makes the rasters and scans
     font_type: FontType = "A"  # the lettering of GOST 2.304 all documents of the kit are drawn in
+    sheet_files: bool = False  # rasters and scans of several sheets kept one sheet per file, as ARM keeps them
+    capture_sheets: degrade.SheetCapturer = degrade.capture_sheets  # what makes them
+    # the files of each document kept one sheet per file, by the path of the document: file → its sheet
+    sheet_paths: dict[str, dict[str, int]] = field(default_factory=dict)
 
     # ------------------------------------------------------------------ what mutations look up and record
 
@@ -94,16 +100,19 @@ class Kit:
         """Assemblies whose specification is in the kit, single ones that no mutation has used."""
         return [u for u in self.units() if u.designation not in self.touched and not u.variants]
 
-    def free_parts(self, *, vector: bool = False) -> list[tuple[Unit, Part, Drawing]]:
+    def free_parts(self, *, vector: bool = False, sheet_files: bool = False) -> list[tuple[Unit, Part, Drawing]]:
         """Parts with a drawing of their own that no mutation has used, in assemblies whose specification is in the
-        kit: a group drawing covers several designations, and the mutations plant errors in one."""
+        kit: a group drawing covers several designations, and the mutations plant errors in one. A drawing kept one
+        sheet per file is left to the mutations that ask for it with ``sheet_files``, and passes ``vector`` then."""
         found = []
         for unit in self.units():
             for part in unit.parts:
                 drawing = self.drawing(part.designation)
                 if drawing is None or part.group or part.designation in self.touched:
                     continue
-                if vector and drawing.output.kind != "vector":
+                if drawing.output.sheet_files and not sheet_files:
+                    continue
+                if vector and drawing.output.kind != "vector" and not drawing.output.sheet_files:
                     continue
                 found.append((unit, part, drawing))
         return found
@@ -350,7 +359,10 @@ class Kit:
         containers = SCAN_CONTAINERS if kind == "scan" else RASTER_CONTAINERS
         if pages != 1:
             containers = tuple(c for c in containers if c in ("pdf", "tiff"))
-        return Output(kind, self.rng.choice(containers), self.rng.choice(QUALITIES))
+        container, quality = self.rng.choice(containers), self.rng.choice(QUALITIES)
+        if self.sheet_files and pages != 1:  # the same draws, so the rest of the kit stays as it is
+            return Output(kind, "jpg", quality, sheet_files=True)
+        return Output(kind, container, quality)
 
     # ------------------------------------------------------------------ files and truth
 
@@ -358,11 +370,26 @@ class Kit:
         """Draw every document into ``files``; rasters and scans take their seeds from a stream of their own."""
         for spec in self.specs.values():
             boxes = self.drawn.setdefault(spec.file, {})
-            self.files[spec.file] = self.pixels(spec.file, draw_spec(spec, boxes=boxes), spec.output, boxes)
+            self.put(spec.file, draw_spec(spec, boxes=boxes), spec.output, boxes)
         for drawing in self.drawings:
             boxes = self.drawn.setdefault(drawing.file, {})
-            pdf = draw_drawing(drawing, boxes=boxes)
-            self.files[drawing.file] = self.pixels(drawing.file, pdf, drawing.output, boxes)
+            self.put(drawing.file, draw_drawing(drawing, boxes=boxes), drawing.output, boxes, drawing.dropped_sheet)
+
+    def put(self, path: str, pdf: bytes, output: Output, boxes: dict[str, Box], dropped: int = 0) -> None:
+        """The file of a document, or with ``output.sheet_files`` a file per sheet: «(N)» after the name, as ARM names
+        them, and one sheet keeps the name as it is; the file of sheet ``dropped`` is left out."""
+        if not output.sheet_files:
+            self.files[path] = self.pixels(path, pdf, output, boxes)
+            return
+        sheets, self.captures[path] = self.capture_sheets(pdf, output, self.scan_rng.getrandbits(32), boxes)
+        if len(sheets) == 1:
+            self.files[path] = sheets[0]
+            return
+        stem = PurePosixPath(path)
+        named = {stem.with_name(f"{stem.stem}({n}){stem.suffix}").as_posix(): n for n in range(1, len(sheets) + 1)}
+        self.sheet_paths[path] = {name: n for name, n in named.items() if n != dropped}
+        for name, n in self.sheet_paths[path].items():
+            self.files[name] = sheets[n - 1]
 
     def pixels(self, path: str, pdf: bytes, output: Output, boxes: dict[str, Box]) -> bytes:
         """``pdf`` as ``output`` asks: as is, or captured by the degrader of the kit, boxes moved with the sheets."""
@@ -372,16 +399,17 @@ class Kit:
         return data
 
     def truth(self) -> KitTruth:
-        documents: dict[str, SpecTruth | DrawingTruth] = {
-            s.file: SpecTruth.of(s, self.drawn.get(s.file), self.captures.get(s.file))
-            for s in self.specs.values()
-            if s.file not in self.unread
-        }
-        documents |= {
-            d.file: DrawingTruth.of(d, self.drawn.get(d.file), self.captures.get(d.file))
-            for d in self.drawings
-            if d.file not in self.unread
-        }
+        documents: dict[str, SpecTruth | DrawingTruth] = {}
+        docs: list[Spec | Drawing] = [*self.specs.values(), *self.drawings]
+        for doc in docs:
+            if (path := doc.file) in self.unread:
+                continue
+            drawn, capture = self.drawn.get(path), self.captures.get(path)
+            made = SpecTruth.of(doc, drawn, capture) if isinstance(doc, Spec) else DrawingTruth.of(doc, drawn, capture)
+            if sheets := self.sheet_paths.get(path):  # a document kept one sheet per file is known by its first
+                made = made.model_copy(update={"sheet_files": sheets})
+                path = min(sheets, key=sheets.__getitem__)
+            documents[path] = made
         return KitTruth(
             root=self.root.designation,
             documents=dict(sorted(documents.items())),
@@ -464,11 +492,14 @@ def build(
     raster_share: float = 0.05,
     capture: degrade.Capturer = degrade.capture,
     type_b_share: float = TYPE_B_SHARE,
+    sheet_files_share: float = 0.0,
 ) -> Kit:
     """A kit from ``seed`` with the mutations ``mutation_ids`` planted, those that find a target in it.
 
     ``scan_share`` and ``raster_share`` of the documents come out as scans and as rasters, made by ``capture``; a kit
     is drawn in the lettering of type B with the chance ``type_b_share``, which leaves the rest of the kit as it is.
+    With the chance ``sheet_files_share`` the kit keeps its rasters and scans of several sheets one sheet per file, as
+    the kits of ARM do; the chance is drawn apart from the kit, so the kit is the same either way but for those files.
     """
     rng = random.Random(seed)
     depth = rng.randint(2, 4)
@@ -494,6 +525,7 @@ def build(
         scan_rng=random.Random(seed + 1),
         capture=capture,
         font_type=font_type,
+        sheet_files=random.Random(f"sheet files {seed}").random() < sheet_files_share,
     )
     kit.make_documents()
     planned = [mutations.CATALOG[m] for m in mutation_ids]
@@ -517,11 +549,13 @@ def corpus(
     scan_share: float = 0.1,
     raster_share: float = 0.05,
     capture: degrade.Capturer = degrade.capture,
+    sheet_files_share: float = 0.0,
 ) -> list[KitTruth]:
     """``kits`` kits from ``seed``: every ``clean_every``-th one clean, the others with mutations in turn.
 
     The mutations come from the catalog shuffled and taken in turn, so each one is planted about as often. The
-    rasters and scans are made by ``capture``; the kits and the seeds of their documents do not depend on it.
+    rasters and scans are made by ``capture``; the kits and the seeds of their documents do not depend on it. A share
+    ``sheet_files_share`` of the kits keeps rasters and scans of several sheets one sheet per file (:func:`build`).
     """
     rng = random.Random(seed)
     queue: list[str] = []
@@ -543,6 +577,7 @@ def corpus(
             scan_share=scan_share,
             raster_share=raster_share,
             capture=capture,
+            sheet_files_share=sheet_files_share,
         )
         truths.append(kit.write(out))
         summary.append(
@@ -554,6 +589,7 @@ def corpus(
                 "documents": len(truths[-1].documents),
                 "discrepancies": len(kit.expected),
                 "problem_files": len(kit.problem_files),
+                "sheet_files": sum(len(files) for files in kit.sheet_paths.values()),
                 "captures": dict(sorted(Counter(c.group for c in kit.captures.values()).items())),
             }
         )
@@ -570,6 +606,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--clean-every", type=int, default=5, help="каждый n-й комплект — без ошибок")
     parser.add_argument("--scan-share", type=float, default=0.1, help="доля документов-сканов")
     parser.add_argument("--raster-share", type=float, default=0.05, help="доля растровых документов без сканирования")
+    parser.add_argument(
+        "--sheet-files", type=float, default=0.0, help="доля комплектов, где растры лежат по листу в файле с «(N)»"
+    )
     args = parser.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -580,6 +619,7 @@ def main(argv: list[str] | None = None) -> int:
         clean_every=args.clean_every,
         scan_share=args.scan_share,
         raster_share=args.raster_share,
+        sheet_files_share=args.sheet_files,
     )
     planted = sum(len(t.discrepancies) for t in truths)
     print(f"Комплектов: {len(truths)}, заложено расхождений: {planted}. Корпус: {out}", file=sys.stdout)

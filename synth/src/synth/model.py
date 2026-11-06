@@ -26,11 +26,13 @@ class Output:
     """How a document goes into the kit: a vector PDF, or pixels rasterized from the file or scanned from paper.
 
     ``quality`` is the class of :mod:`synth.degrade` the pixels come from; empty for the light scans of the demo kit.
+    ``sheet_files`` keeps the pixels one sheet per file, «(N)» at the end of the name, as the kits of ARM keep rasters.
     """
 
     kind: Kind = "vector"
     container: Container = "pdf"
     quality: Quality = ""
+    sheet_files: bool = False
 
 
 @dataclass
@@ -70,6 +72,7 @@ class Drawing:
     param_keys: list[str] = field(default_factory=list)
     more_sheets: list[list[str]] = field(default_factory=list)  # annotations of the sheets after the first
     missing_sheets: int = 0  # last sheets left out of the file, though the title block counts them
+    dropped_sheet: int = 0  # a sheet whose file is left out of the kit, for a document kept one sheet per file
     font_type: FontType = "A"
     variants: list[Variant] = field(default_factory=list)  # the table of variants of a group drawing
 
