@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from kdcheck.ingest.document import sniff_media_type
+from kdcheck.ingest.document import sniff_media_type, too_large
 from kdcheck.ingest.pdf import get_backend
 
 
@@ -15,8 +15,9 @@ class RenderError(Exception):
     pass
 
 
-def render_page(path: Path, page: int, *, max_px: int, pdf_backend: str) -> bytes:
-    """PNG of page ``page`` (from 1) with the long side at most ``max_px``; ``pdf_backend`` as in ``models.yaml``."""
+def render_page(path: Path, page: int, *, max_px: int, pdf_backend: str, max_pixels: int) -> bytes:
+    """PNG of page ``page`` (from 1) with the long side at most ``max_px``; ``pdf_backend`` as in ``models.yaml``,
+    ``max_pixels`` as ``max_image_pixels`` in ``ingest.yaml``: a larger image is not decoded."""
     data = path.read_bytes()
     media = sniff_media_type(data[:2048])
     backend = get_backend(pdf_backend) if media == "application/pdf" else None
@@ -32,7 +33,12 @@ def render_page(path: Path, page: int, *, max_px: int, pdf_backend: str) -> byte
             if page > getattr(img, "n_frames", 1):
                 raise RenderError(f"В документе нет страницы {page}")
             img.seek(page - 1)
-            img = img.convert("L")
+            if problem := too_large(img.size, max_pixels):
+                raise RenderError(problem[:1].upper() + problem[1:])
+            # This is the API process: a JPEG is decoded at a reduced scale, a grey image is reduced without a copy.
+            img.draft(None, (max_px, max_px))
+            if img.mode != "L":
+                img = img.convert("L")
             if max(img.size) > max_px:
                 img.thumbnail((max_px, max_px), Image.Resampling.LANCZOS)
         else:

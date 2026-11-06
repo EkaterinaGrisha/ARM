@@ -39,7 +39,7 @@ export const DOCUMENT_STATUS: Record<DocumentStatus, { label: string; hint: stri
   damaged: { label: "Повреждён", hint: "Файл не открывается" },
   unreadable: { label: "Нечитаемый скан", hint: "Качество изображения не позволяет распознать текст" },
   foreign: { label: "Посторонний", hint: "Не является чертежом или спецификацией" },
-  unsupported: { label: "Неподдерживаемый формат", hint: "Ожидаются PDF или изображения" },
+  unsupported: { label: "Не поддерживается", hint: "Формат файла не поддерживается или изображение больше лимита" },
   encrypted: { label: "Защищён паролем", hint: "PDF открывается только с паролем" },
   duplicate_file: { label: "Копия файла", hint: "Побайтовая копия другого файла комплекта, повторно не разбирается" },
 };

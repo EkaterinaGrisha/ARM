@@ -31,8 +31,29 @@ log = logging.getLogger(__name__)
 PT_PER_INCH = 72
 MM_PER_INCH = 25.4
 MM_PT = PT_PER_INCH / MM_PER_INCH
+PX_PER_MPX = 1_000_000
 
 TextMethod = Literal["text_layer", "ocr"]
+
+# Pillow refuses an image over 179 Mpx as if the file were broken, and A1 and A0 sheets scanned at 600 dpi are larger.
+# The core checks the size of each image of a raster file against ``ingest.max_image_pixels`` instead, from its header,
+# before decoding it: :func:`too_large`.
+Image.MAX_IMAGE_PIXELS = None
+
+
+class ImageTooLarge(Exception):
+    """No image of a raster file is within ``ingest.max_image_pixels``: none is decoded, so memory is not run out."""
+
+
+def too_large(size: tuple[int, int], max_pixels: int) -> str | None:
+    """Why an image of ``size`` is not decoded, or None: it has more than ``max_pixels`` pixels, 0 — no limit."""
+    width, height = size
+    if not max_pixels or width * height <= max_pixels:
+        return None
+    return (
+        f"изображение {width}×{height} пикс. ({width * height / PX_PER_MPX:.4g} Мп) больше "
+        f"{max_pixels / PX_PER_MPX:.4g} Мп и не читается: лимит max_image_pixels в configs/ingest.yaml"
+    )
 
 
 @dataclass
@@ -174,6 +195,9 @@ def load_document(
     except Exception as exc:  # a damaged file must not stop the doc set
         if isinstance(exc, EncryptedPdfError):
             info.status, info.problem = "encrypted", "PDF защищён паролем: без пароля содержимое не прочитать"
+        elif isinstance(exc, ImageTooLarge):  # the file is whole: it is larger than the service reads
+            text = str(exc)
+            info.status, info.problem = "unsupported", text[:1].upper() + text[1:]
         else:
             log.info("Не удалось прочитать %s: %s", rel, exc)
             info.status = "damaged"
@@ -305,18 +329,24 @@ def _load_image(doc: LoadedDocument, data: bytes, settings: Settings) -> None:
     use_ocr = _use_ocr(settings)
     with Image.open(io.BytesIO(data)) as probe:
         probe.verify()
-    image = Image.open(io.BytesIO(data))
-    image.load()
+    image = Image.open(io.BytesIO(data))  # the header only: the pixels are decoded on load
+    if too_large(image.size, ingest.max_image_pixels) is None:
+        image.load()  # a broken first image makes the file damaged
     frames = _pages_to_read(doc, getattr(image, "n_frames", 1), ingest.max_pages_per_file)
     raw_dpi = image.info.get("dpi")
     dpi = float(raw_dpi[0]) if raw_dpi and raw_dpi[0] and float(raw_dpi[0]) > ingest.min_image_dpi else None
     doc.info.origin = "scan"
+    oversized = 0
     for index in range(frames):
         page = Page(number=index + 1, width=0.0, height=0.0, unit="px", image_only=True)
         doc.pages.append(page)
         try:
             with limits.sheet_limit(ingest.page_timeout_sec):
                 image.seek(index)
+                if problem := too_large(image.size, ingest.max_image_pixels):  # one large frame costs only its page
+                    page.width, page.height, page.problem = image.width, image.height, problem
+                    oversized += 1
+                    continue
                 frame = image.convert("L")
                 page.width, page.height = frame.width, frame.height
                 page.dpi = dpi or estimated_dpi(frame.width, frame.height, settings)
@@ -332,6 +362,8 @@ def _load_image(doc: LoadedDocument, data: bytes, settings: Settings) -> None:
             _timed_out(page, ingest.page_timeout_sec)
         except Exception as exc:  # one bad frame never costs the others
             _read_failed(page, exc)
+    if oversized and oversized == len(doc.pages):  # the file is whole, only larger than the limit
+        raise ImageTooLarge(doc.pages[0].problem)
     _pages_read(doc)
     _fill_page_info(doc)
 

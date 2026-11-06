@@ -226,7 +226,14 @@ def document_page(job_id: str, doc_id: str, page: int) -> Response:
     cached = store.cache_dir(job_id) / f"{doc_id}-{page}.png"
     if not cached.exists():
         try:
-            image = render_page(path, page, max_px=api_settings().page_image_px, pdf_backend=_core().models.pdf.backend)
+            core = _core()
+            image = render_page(
+                path,
+                page,
+                max_px=api_settings().page_image_px,
+                pdf_backend=core.models.pdf.backend,
+                max_pixels=core.ingest.max_image_pixels,
+            )
             cached.write_bytes(image)
         except RenderError as exc:
             raise HTTPException(422, str(exc)) from None

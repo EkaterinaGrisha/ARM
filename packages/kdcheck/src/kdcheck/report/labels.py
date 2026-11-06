@@ -16,7 +16,7 @@ DOCUMENT_STATUS = {
     "damaged": "Повреждён",
     "unreadable": "Нечитаемый скан",
     "foreign": "Посторонний документ",
-    "unsupported": "Неподдерживаемый формат",
+    "unsupported": "Не поддерживается",  # the format, or an image larger than max_image_pixels
     "encrypted": "Защищён паролем",
     "duplicate_file": "Копия файла",
 }
