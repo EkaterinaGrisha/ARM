@@ -1,6 +1,6 @@
 # Локальные мультимодальные модели на одних задачах
 
-Получено `uv run python eval/vlm_bench.py --score --model=qwen/qwen3.6-27b --model=google/gemma-4-e4b --model=qianfan-ocr --model=qwen3.8-27b-mlx --model=gemma-4-31b-it-mlx --text-model=paddleocr-vl-1.6=bench_ocr_paddle.v1 --text-model=qianfan-ocr=bench_ocr_markdown.v1` 2026-11-05; Darwin arm64, Python 3.11.15; tesseract 5.5.2.
+Получено `uv run python eval/vlm_bench.py --score --model=qwen/qwen3.6-27b --model=google/gemma-4-e4b --model=qianfan-ocr --model=qwen3.8-27b-mlx --model=gemma-4-31b-it-mlx --model=glm-4.6v-flash-mlx --model=qwen3.6-35b-a3b-mlx --model=minicpm-v-4.7-35b-a3b --text-model=paddleocr-vl-1.6=bench_ocr_paddle.v1 --text-model=qianfan-ocr=bench_ocr_markdown.v1 --text-model=unlimited-ocr=bench_ocr_unlimited.v1 --text-model=dots.mocr=bench_ocr_dots.v1 --text-model=lightonocr-3-1b-mlx=bench_ocr_lighton.v1` 2026-11-06; Darwin arm64, Python 3.11.15; tesseract 5.5.2.
 Модели загружались по одной на локальном сервере, полностью — [vlm-bench.json](vlm-bench.json).
 
 Листы — 17 реальных сканов эталона, чаще всего не по ГОСТ 2.104: модель с JSON-схемой заполняет поля, OCR-модель выдаёт текст листа. ТТ и ячейки — синтетические растры и сканы, вырезанные по рамке разметки, поэтому поиск области не измерен и это верхняя граница. Значения сравниваются по правилу `eval/scoring.py`. «В ответе» — значение целиком есть в тексте ответа, «выдумано» — непустое значение там, где на листе поля нет. Параметры ТТ — категории, которые пишутся только в блоке; часть их формулировок ядро не знает (пробелы этапа 5), поэтому 100 % здесь недостижимы ни для кого. Это сравнение моделей, а не итоговая метрика.
@@ -13,13 +13,22 @@
 | qianfan-ocr | 5 из 50 | 6 из 50 | 2 из 52 | 15.8 | 43 из 61 | 28 из 30 | 7.1 | 90 из 112 | 0.094 | 2.2 | 0 |
 | qwen3.8-27b-mlx | 28 из 50 | 34 из 50 | 2 из 52 | 35.0 | 52 из 61 | 28 из 30 | 11.5 | 100 из 112 | 0.053 | 3.4 | 0 |
 | gemma-4-31b-it-mlx | 19 из 50 | 19 из 50 | 3 из 52 | 10.8 | 51 из 61 | 28 из 30 | 12.2 | 103 из 112 | 0.049 | 4.9 | 0 |
+| glm-4.6v-flash-mlx | 14 из 50 | 15 из 50 | 9 из 52 | 14.2 | 26 из 61 | 22 из 30 | 4.4 | 72 из 112 | 0.087 | 1.0 | 0 |
+| qwen3.6-35b-a3b-mlx | 36 из 50 | 37 из 50 | 3 из 52 | 10.7 | 52 из 61 | 28 из 30 | 2.4 | 99 из 112 | 0.054 | 0.8 | 0 |
+| minicpm-v-4.7-35b-a3b | 20 из 50 | 21 из 50 | 5 из 52 | 3.3 | 49 из 61 | 28 из 30 | 2.3 | 95 из 112 | 0.045 | 0.9 | 0 |
 | paddleocr-vl-1.6=bench_ocr_paddle.v1 | — | 0 из 9 | — | 16.0 | 39 из 61 | 12 из 30 | 1.6 | 83 из 112 | 0.086 | 0.4 | 14 |
 | qianfan-ocr=bench_ocr_markdown.v1 | — | 16 из 50 | — | 38.9 | 45 из 61 | 28 из 30 | 6.6 | 71 из 112 | 0.077 | 2.0 | 0 |
+| unlimited-ocr=bench_ocr_unlimited.v1 | — | 18 из 50 | — | 6.4 | 24 из 61 | 9 из 30 | 4.6 | 25 из 112 | 0.454 | 1.2 | 0 |
+| dots.mocr=bench_ocr_dots.v1 | — | 35 из 50 | — | 25.1 | 51 из 61 | 28 из 30 | 2.2 | 83 из 112 | 0.085 | 0.3 | 0 |
+| lightonocr-3-1b-mlx=bench_ocr_lighton.v1 | — | 24 из 50 | — | 8.1 | 51 из 61 | 28 из 30 | 0.9 | 58 из 112 | 0.206 | 0.2 | 0 |
 
 Промпты:
 
+- `bench_ocr_dots.v1` sha256:bce3609e7710
+- `bench_ocr_lighton.v1` sha256:e3b0c44298fc
 - `bench_ocr_markdown.v1` sha256:39b6bdf0ef99
 - `bench_ocr_paddle.v1` sha256:4c235da2da13
+- `bench_ocr_unlimited.v1` sha256:cab3c3284626
 - `bench_requirements.v1` sha256:95a734131986
 - `bench_sheet_fields.v1` sha256:604d543ae465
 - `title_block_cell.v1` sha256:6052401c9576

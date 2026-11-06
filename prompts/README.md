@@ -10,5 +10,8 @@
 | `bench_ocr_plain.v1.txt` | Весь текст изображения для OCR-модели, которая принимает инструкцию | `eval/vlm_bench.py` |
 | `bench_ocr_paddle.v1.txt` | Команда распознавания PaddleOCR-VL | `eval/vlm_bench.py` |
 | `bench_ocr_markdown.v1.txt` | Распознавание в Markdown — промпт из карточки Qianfan-OCR | `eval/vlm_bench.py` |
+| `bench_ocr_lighton.v1.txt` | Пустой: LightOnOCR-3 без инструкции переписывает страницу, модель получает только изображение | `eval/vlm_bench.py` |
+| `bench_ocr_dots.v1.txt` | Текст изображения — промпт `prompt_ocr` из репозитория dots.mocr | `eval/vlm_bench.py` |
+| `bench_ocr_unlimited.v1.txt` | Разбор документа — промпт из карточки Unlimited-OCR; токен `<image>` в тексте, потому что шаблон чата модели его не ставит | `eval/vlm_bench.py` |
 
 Каталог задаёт `ARM_PROMPTS_DIR`, по умолчанию — `prompts/` рабочей копии.

@@ -14,6 +14,9 @@ data/vlm_bench, outside git: a run continues where it stopped, and ``--score`` r
 eval/results/vlm-bench.json and eval/results/vlm-bench.md.
 
     uv run python eval/vlm_bench.py --model qwen/qwen3.6-27b --text-model paddleocr-vl=bench_ocr_paddle.v1
+
+``--loaded`` is for a model another server already serves at ``--url`` (llama-server for a model LM Studio cannot
+load): the run does not load or unload models in LM Studio.
 """
 
 from __future__ import annotations
@@ -205,17 +208,14 @@ def ask(url: str, model: str, prompt: str, image: Image.Image, answer: dict[str,
     png = io.BytesIO()
     image.save(png, "PNG")
     picture = "data:image/png;base64," + base64.b64encode(png.getvalue()).decode("ascii")
+    # An empty prompt sends the image alone: LightOnOCR transcribes a page when given no instruction.
+    text = [{"type": "text", "text": prompt}] if prompt else []
     body: dict[str, Any] = {
         "model": model,
         "temperature": 0,
         "seed": 7,
         "max_tokens": MAX_TOKENS,
-        "messages": [
-            {
-                "role": "user",
-                "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": picture}}],
-            }
-        ],
+        "messages": [{"role": "user", "content": [*text, {"type": "image_url", "image_url": {"url": picture}}]}],
     }
     if answer is not None:
         body["response_format"] = answer
@@ -258,13 +258,15 @@ def load(profile: Profile) -> str | None:
     return None if run.returncode == 0 else (run.stderr or run.stdout)[-300:]
 
 
-def run_model(profile: Profile, items: list[Item], url: str, labels: dict[str, str], budget: float) -> None:
+def run_model(
+    profile: Profile, items: list[Item], url: str, labels: dict[str, str], budget: float, loaded: bool = False
+) -> None:
     done = replies(profile)
     todo = [item for item in items if (item.task, item.key) not in done or "error" in done[item.task, item.key]]
     if not todo:
         return
     RAW.mkdir(parents=True, exist_ok=True)
-    if profile.name != BASELINE and (failure := load(profile)):
+    if profile.name != BASELINE and not loaded and (failure := load(profile)):
         print(f"{profile.name}: не загрузилась: {failure}", flush=True)
         return
     start = time.monotonic()
@@ -297,8 +299,11 @@ def run_model(profile: Profile, items: list[Item], url: str, labels: dict[str, s
 
 
 def plain(reply: str) -> str:
-    """The text of a reply, without the location tokens PaddleOCR-VL puts after each line of a page."""
-    return re.sub(r"<\|LOC_\d+\|>", " ", reply)
+    """The text of a reply, without markup: the location tokens PaddleOCR-VL puts after each line of a page, the
+    layout spans ``<|det|>text [x0, y0, x1, y1]<|/det|>`` of Unlimited-OCR, the block marks
+    ``![text](x0,y0,x1,y1)`` of LightOnOCR and the HTML tags of tables."""
+    reply = re.sub(r"<\|LOC_\d+\|>|<\|det\|>.*?<\|/det\|>|!\[\w+\]\(\d+,\d+,\d+,\d+\)", " ", reply, flags=re.DOTALL)
+    return re.sub(r"</?(?:table|thead|tbody|tr|td|th)\b[^>]*>", " ", reply)
 
 
 def answer_of(reply: str) -> dict[str, Any]:
@@ -442,6 +447,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cell-docs", type=int, default=20, help="документов для ячеек основной надписи")
     parser.add_argument("--budget", type=float, default=180, help="минут на модель")
     parser.add_argument("--score", action="store_true", help="только пересчитать сохранённые ответы")
+    parser.add_argument(
+        "--loaded", action="store_true", help="модель уже загружена на сервере --url, LM Studio не трогать"
+    )
     args = parser.parse_args(argv)
     settings = load_settings(use_ocr=True)
     labels = dict(settings.models.vlm.fields)
@@ -449,7 +457,7 @@ def main(argv: list[str] | None = None) -> int:
     profiles = profiles_of(args)
     if not args.score:
         for profile in profiles:
-            run_model(profile, items, args.url, labels, args.budget)
+            run_model(profile, items, args.url, labels, args.budget, args.loaded)
     words = Parser(settings.dictionaries)
     prompts = {"title_block_cell.v1", "bench_sheet_fields.v1", "bench_requirements.v1"}
     prompts |= {p.prompt for p in profiles if p.prompt}
