@@ -1,6 +1,7 @@
 """Both PdfBackend implementations keep one contract: text, size and render share the displayed page (ADR-0007)."""
 
 import sys
+import zlib
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -56,6 +57,11 @@ def _font_pdf(path: Path, codes: str, font: list[bytes]) -> Path:
         _stream(b"BT /F1 12 Tf 72 700 Td <%s> Tj ET" % codes.encode()),
         *font,
     ]
+    return _write_pdf(path, objects)
+
+
+def _write_pdf(path: Path, objects: list[bytes]) -> Path:
+    """A PDF of ``objects``, numbered from 1: the catalog first."""
     out = bytearray(b"%PDF-1.4\n")
     offsets = []
     for number, body in enumerate(objects, start=1):
@@ -67,6 +73,36 @@ def _font_pdf(path: Path, codes: str, font: list[bytes]) -> Path:
     out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)
     path.write_bytes(out)
     return path
+
+
+def _image_pdf(path: Path, depth: int, *, stamp: bool = False, size: tuple[int, int] = (300, 200)) -> Path:
+    """A page drawing one grey image through ``depth`` forms nested one in another; with ``stamp``, the appearance of
+    a stamp annotation draws them instead of the page's content."""
+    width, height = size
+    image = _stream(
+        zlib.compress(b"\xff" * (width * height)),
+        b"/Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceGray /BitsPerComponent 8"
+        b" /Filter /FlateDecode" % size,
+    )
+    form = b"/Type /XObject /Subtype /Form /BBox [0 0 595 842] /Resources << /XObject << /X %d 0 R >> >>"
+    forms = [_stream(b"/X Do", form % (7 + level)) for level in range(depth - 1)]
+    forms.append(_stream(b"q 595 0 0 842 0 0 cm /X Do Q", form % 5))
+    page = b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R"
+    if stamp:
+        page += b" /Annots [%d 0 R] >>" % (6 + depth)
+    else:
+        page += b" /Resources << /XObject << /X 6 0 R >> >> >>"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        page,
+        _stream(b"" if stamp else b"/X Do"),
+        image,
+        *forms,
+    ]
+    if stamp:
+        objects.append(b"<< /Type /Annot /Subtype /Stamp /Rect [0 0 595 842] /AP << /N 6 0 R >> >>")
+    return _write_pdf(path, objects)
 
 
 # The UTF-8 CMap of the Haru library cut to ASCII, Cyrillic and «№»; its CIDs are the code points.
@@ -245,3 +281,17 @@ def test_a_scan_kept_in_layers_is_rendered_whole(tmp_path, settings):
     canvas.save()
     page = get_backend("pdfium").open((tmp_path / "mrc.pdf").read_bytes()).page(0)
     assert page.image_cover() == pytest.approx(2) and page.scan(settings.ingest.scan) is None
+
+
+@pytest.mark.parametrize("name", BACKENDS)
+def test_both_backends_give_the_size_of_each_image_the_page_draws(tmp_path, name):
+    """From the PDF's own dictionary, in forms deeper than has_images looks and in the appearance of an annotation,
+    which renders with the page: the loader and the viewer check them against max_image_pixels before PDFium decodes
+    anything."""
+    backend = get_backend(name)
+    assert backend.open(_scan_pdf(tmp_path / "scan.pdf").read_bytes()).page(0).image_sizes() == [(1240, 1754)]
+    assert backend.open(_text_pdf(tmp_path / "text.pdf").read_bytes()).page(0).image_sizes() == []
+    nested = backend.open(_image_pdf(tmp_path / "forms.pdf", depth=40).read_bytes()).page(0)
+    assert nested.image_sizes() == [(300, 200)]
+    stamp = backend.open(_image_pdf(tmp_path / "stamp.pdf", depth=3, stamp=True).read_bytes()).page(0)
+    assert stamp.image_sizes() == [(300, 200)]

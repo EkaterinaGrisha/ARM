@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import math
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import pypdfium2 as pdfium
@@ -98,6 +99,28 @@ class PdfiumPage:
 
     def has_images(self) -> bool:
         return any(True for _ in self._page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_IMAGE], max_depth=2))
+
+    def image_sizes(self) -> list[tuple[int, int]]:
+        sizes = [obj.get_px_size() for obj in self._images()]
+        # The page renders with its annotations, and a stamp may draw an image too. An annotation's objects live as
+        # long as its handle, so their sizes are read before it is closed.
+        for index in range(pdfium_c.FPDFPage_GetAnnotCount(self._page)):
+            annot = pdfium_c.FPDFPage_GetAnnot(self._page, index)
+            try:
+                for k in range(pdfium_c.FPDFAnnot_GetObjectCount(annot)):
+                    obj = pdfium.PdfObject(pdfium_c.FPDFAnnot_GetObject(annot, k), page=self._page, pdf=self._page.pdf)
+                    if obj.type == pdfium_c.FPDF_PAGEOBJ_IMAGE:
+                        sizes.append(obj.get_px_size())
+                    elif obj.type == pdfium_c.FPDF_PAGEOBJ_FORM:
+                        sizes += [image.get_px_size() for image in self._images(form=obj)]
+            finally:
+                pdfium_c.FPDFPage_CloseAnnot(annot)
+        return sizes
+
+    def _images(self, form: pdfium.PdfObject | None = None) -> Iterator[pdfium.PdfImage]:
+        """Image objects of the page, or of ``form``, in forms at every level: PDFium parses forms 40 deep and
+        neither parses nor draws a deeper one."""
+        yield from self._page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_IMAGE], max_depth=sys.maxsize, form=form)
 
     def image_cover(self) -> float:
         covered = 0.0

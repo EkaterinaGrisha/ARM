@@ -40,12 +40,14 @@ BLANK = "пустой лист: ни текста, ни линий, только
 
 # Pillow refuses an image over 179 Mpx as if the file were broken, and A1 and A0 sheets scanned at 600 dpi are larger.
 # The core checks the size of each image of a raster file against ``ingest.max_image_pixels`` instead, from its header,
-# before decoding it: :func:`too_large`.
+# before decoding it: :func:`too_large`. PDFium has no such guard, so the images of a PDF page are checked by the sizes
+# the PDF declares before the page is scanned or rendered: :func:`page_too_large`.
 Image.MAX_IMAGE_PIXELS = None
 
 
 class ImageTooLarge(Exception):
-    """No image of a raster file is within ``ingest.max_image_pixels``: none is decoded, so memory is not run out."""
+    """No frame of a raster file, or page of a PDF, has its images within ``ingest.max_image_pixels``: none is
+    decoded, so memory is not run out."""
 
 
 def too_large(size: tuple[int, int], max_pixels: int) -> str | None:
@@ -57,6 +59,15 @@ def too_large(size: tuple[int, int], max_pixels: int) -> str | None:
         f"изображение {width}×{height} пикс. ({width * height / PX_PER_MPX:.4g} Мп) больше "
         f"{max_pixels / PX_PER_MPX:.4g} Мп и не читается: лимит max_image_pixels в configs/ingest.yaml"
     )
+
+
+def page_too_large(pg: PdfPage, max_pixels: int) -> str | None:
+    """Why a PDF page is neither scanned nor rendered, or None: its largest image, by the sizes the PDF declares, has
+    more than ``max_pixels`` pixels."""
+    if not max_pixels:
+        return None
+    largest = max(pg.image_sizes(), key=lambda size: size[0] * size[1], default=None)
+    return too_large(largest, max_pixels) if largest else None
 
 
 @dataclass
@@ -259,6 +270,7 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
     count = _pages_to_read(doc, pdf.page_count, ingest.max_pages_per_file)
     version = backend.versions()[backend.name]
     layered: list[int] = []
+    oversized = 0
     for index in range(count):
         page = Page(number=index + 1, width=0.0, height=0.0, unit="pt")
         doc.pages.append(page)
@@ -267,6 +279,11 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
                 pg = pdf.page(index)
                 page.width, page.height = pg.width, pg.height
                 page.format = sheet_format(pg.width / MM_PT, pg.height / MM_PT, settings.forms.sheet)
+                # One large image costs only its page, text layer or not: the viewer could not show the page either.
+                if problem := page_too_large(pg, ingest.max_image_pixels):
+                    page.problem = problem
+                    oversized += 1
+                    continue
                 page.lines = pg.lines(ingest.text)
                 if page.lines and pg.image_cover() >= ingest.scan.min_coverage:
                     # Text over images that cover the page is a recognition layer over a scan: someone's OCR, garbled
@@ -291,6 +308,8 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
             _timed_out(page, ingest.page_timeout_sec)
         except Exception as exc:  # one bad page never costs the others
             _read_failed(page, exc)
+    if oversized and oversized == len(doc.pages):  # the file is whole, only its images are larger than the limit
+        raise ImageTooLarge(doc.pages[0].problem)
     if layered:
         pages = ", ".join(map(str, layered))
         note = f"Скан со слоем распознавания, страницы {pages}: слой не используется, листы читаются как скан"

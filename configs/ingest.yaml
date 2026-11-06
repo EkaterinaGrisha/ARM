@@ -2,9 +2,10 @@
 
 max_pages_per_file: 500          # pages read per file, 0 — all; bounds the time one huge file takes. ARM_MAX_PAGES overrides
 page_timeout_sec: 300            # time to read one sheet, 0 — no limit: a slower sheet gets a problem, the others are read
-max_image_pixels: 600_000_000    # pixels of one image of a raster file, 0 — no limit: a larger one is not decoded and gets
-                                 # a problem. A0 at 600 dpi is 558 Mpx: read in 12 s, it takes 1.7 GB of the job process,
-                                 # 3.3 GB in colour, and 2.8 GB of Tesseract, under job_memory_mb in configs/api.yaml
+max_image_pixels: 600_000_000    # pixels of one image of a raster file or a PDF page, 0 — no limit: a larger one is not
+                                 # decoded, and its frame or page gets a problem. A0 at 600 dpi is 558 Mpx: read in 12 s,
+                                 # it takes 1.7 GB of the job process, 3.3 GB in colour, and 2.8 GB of Tesseract, under
+                                 # job_memory_mb in configs/api.yaml
 render_dpi: 200                  # a page without text that is not one scan is rendered at this resolution for OCR
 min_image_dpi: 50                # image resolution metadata below this is ignored
 

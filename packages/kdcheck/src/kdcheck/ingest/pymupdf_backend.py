@@ -65,6 +65,9 @@ class PyMuPdfPage:
     def has_images(self) -> bool:
         return bool(self._page.get_images())
 
+    def image_sizes(self) -> list[tuple[int, int]]:
+        return [(int(info["width"]), int(info["height"])) for info in self._page.get_image_info()]
+
     def image_cover(self) -> float:
         area = self._page.rect.width * self._page.rect.height
         covered = sum(pymupdf.Rect(info["bbox"]).get_area() for info in self._page.get_image_info())

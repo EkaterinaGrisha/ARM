@@ -39,6 +39,15 @@ class PdfPage(Protocol):
 
     def has_images(self) -> bool: ...
 
+    def image_sizes(self) -> list[tuple[int, int]]:
+        """Width and height in pixels of each image the page draws, nested forms included, from the image's own
+        dictionary: none is decoded.
+
+        PDFium decodes every image of the page at its full size to scan or render it, at any scale, so the loader and
+        the viewer check these sizes against ``ingest.max_image_pixels`` first.
+        """
+        ...
+
     def image_cover(self) -> float:
         """The share of the page the images cover, summed: a page scanned in layers, as MRC compression keeps it,
         counts each layer, so a scan covers 1 or more and a vector drawing with a logo next to nothing."""
