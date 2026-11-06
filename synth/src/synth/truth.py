@@ -230,10 +230,16 @@ class RowTruth(Truth):
         )
 
 
+SHEET_FILES = (
+    "A document kept one sheet per file: path of each file → its sheet, the first sheet being the path the document is"
+    " known by; the box of page N lies on the one page of the file of sheet N. Empty for a document in one file"
+)
+
+
 class SpecTruth(Truth):
     """A specification; a group one of GOST 2.113 names its variant of layout in ``group`` and its variants."""
 
-    _sparse: ClassVar[tuple[str, ...]] = ("font_type", "group", "variants")
+    _sparse: ClassVar[tuple[str, ...]] = ("font_type", "group", "variants", "sheet_files")
 
     kind: Literal["specification"] = "specification"
     designation: str
@@ -252,6 +258,7 @@ class SpecTruth(Truth):
     font_type: Literal["A", "B"] = Field("A", description="The lettering of GOST 2.304 the document is drawn in")
     group: Literal["A", "B"] | None = Field(None, description="Variant A or B of GOST 2.113; none for a single one")
     variants: list[str] = Field([], description="The variants a group specification covers, the base one first")
+    sheet_files: dict[str, int] = Field({}, description=SHEET_FILES)
 
     @classmethod
     def of(
@@ -336,7 +343,7 @@ class DrawingTruth(Truth):
     mass that changes from one variant to another.
     """
 
-    _sparse: ClassVar[tuple[str, ...]] = ("font_type", "variants")
+    _sparse: ClassVar[tuple[str, ...]] = ("font_type", "variants", "sheet_files")
 
     kind: Literal["assembly_drawing", "part_drawing"]
     origin: Literal["vector", "raster", "scan"]
@@ -357,6 +364,7 @@ class DrawingTruth(Truth):
     capture: CaptureRecord | None = None
     font_type: Literal["A", "B"] = Field("A", description="The lettering of GOST 2.304 the document is drawn in")
     variants: list[VariantTruth] = Field([], description="The table of variants of a group drawing")
+    sheet_files: dict[str, int] = Field({}, description=SHEET_FILES)
 
     @classmethod
     def of(

@@ -262,3 +262,53 @@ def test_the_degrader_changes_the_captured_files_only():
     }
     assert seeds == [c.seed for c in plain.captures.values()]
     assert plain.truth().documents.keys() == other.truth().documents.keys()
+
+
+def _sheet_kit(ids: list[str]) -> tuple[Kit, Kit]:
+    """The first seed whose kit keeps a document of several sheets one sheet per file, with the same kit in one file
+    per document: the chance of the layout is drawn apart from the kit."""
+    for seed in range(1, 60):
+        split = kits.build(seed, ids, scan_share=0.5, raster_share=0.3, sheet_files_share=1)
+        if any(len(files) > 1 for files in split.sheet_paths.values()) and set(ids) <= set(split.mutations):
+            return split, kits.build(seed, ids, scan_share=0.5, raster_share=0.3)
+    raise AssertionError("no seed keeps a document one sheet per file")
+
+
+def test_a_kit_may_keep_its_rasters_one_sheet_per_file_as_arm_does():
+    """«(N)» after the name, a JPEG a sheet; the truth knows the document by the file of its first sheet and lists
+    the file of each sheet; the rest of the kit is the same as in one file per document, byte for byte."""
+    split, whole = _sheet_kit([])
+    assert split.sheet_files and not whole.sheet_files
+    truth = split.truth()
+    for path, files in split.sheet_paths.items():
+        stem = PurePosixPath(path)
+        assert files == {
+            stem.with_name(f"{stem.stem}({n}){stem.suffix}").as_posix(): n for n in range(1, len(files) + 1)
+        }
+        assert all(split.files[f].startswith(b"\xff\xd8") for f in files)  # JPEG
+        first = next(f for f, n in files.items() if n == 1)
+        assert truth.documents[first].sheet_files == files and truth.documents[first].sheets == len(files)
+        assert path not in split.files  # the path of the document names no file
+    apart = set().union(*split.sheet_paths.values()) | set(split.sheet_paths)
+    assert {p: f for p, f in split.files.items() if p not in apart and p not in split.captures} == {
+        p: f for p, f in whole.files.items() if p not in apart and p not in whole.captures
+    }
+    assert [d.designation for d in truth.documents.values()] == [
+        d.designation for d in whole.truth().documents.values()
+    ]
+    assert (
+        "sheet_files"
+        not in json.loads(whole.truth().model_dump_json())["documents"][next(iter(whole.truth().documents))]
+    )
+
+
+def test_drop_sheet_leaves_out_the_file_of_sheet_2_of_a_document_kept_one_sheet_per_file():
+    split, _ = _sheet_kit(["drop_sheet"])
+    drawing = next(d for d in split.drawings if d.dropped_sheet)
+    assert drawing.output.sheet_files and drawing.dropped_sheet == 2 and drawing.missing_sheets == 0
+    files = split.sheet_paths[drawing.file]
+    assert sorted(files.values()) == [n for n in range(1, drawing.sheets + 1) if n != 2]
+    assert all(not k.startswith("sheet2:") for k in drawing.param_keys)
+    assert [(d.type, d.rule_id) for d in split.expected if d.designation == drawing.designation] == [
+        ("sheets_missing", "B1.SHEETS.001")
+    ]

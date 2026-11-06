@@ -39,6 +39,8 @@ Rect = tuple[float, float, float, float]
 # The entry of a degrader, as :func:`capture` takes it: the file of a document, the output it goes to, the seed of the
 # document and the boxes of its truth, which move with their sheets. :mod:`synth.augraphy_scans` takes it as well.
 Capturer = Callable[[bytes, Output, int, dict[str, Box] | None], tuple[bytes, CaptureRecord]]
+# The same for a document kept one sheet per file (``Output.sheet_files``): a file for each sheet, in their order.
+SheetCapturer = Callable[[bytes, Output, int, dict[str, Box] | None], tuple[list[bytes], CaptureRecord]]
 
 STAMP_FONT = Path(__file__).parent / "fonts" / "DejaVuSans.ttf"
 STAMP_INKS = ((95, 60, 160), (40, 70, 170))  # violet and blue
@@ -165,10 +167,24 @@ RASTER_MODES = ("bilevel", "grey")  # a raster from CAD: black and white, as arc
 
 def capture(pdf: bytes, output: Output, seed: int, boxes: dict[str, Box] | None = None) -> tuple[bytes, Capture]:
     """The file of a document captured as ``output`` asks, and how it was made; ``boxes`` move with their sheets."""
+    if output.container in ("jpg", "png") and (pages := len(pdfium.PdfDocument(pdf))) > 1:
+        raise ValueError(f"{output.container} holds one page, the document has {pages}")
+    images, record = _captured(pdf, output, seed, boxes)
+    return encode(images, record), record
+
+
+def capture_sheets(
+    pdf: bytes, output: Output, seed: int, boxes: dict[str, Box] | None = None
+) -> tuple[list[bytes], Capture]:
+    """A document kept one sheet per file: the file of each sheet, captured as :func:`capture` captures a document
+    with the same seed, and how they were made; the box of sheet N lies on the one page of file N."""
+    images, record = _captured(pdf, output, seed, boxes)
+    return [encode([image], record) for image in images], record
+
+
+def _captured(pdf: bytes, output: Output, seed: int, boxes: dict[str, Box] | None) -> tuple[list[Image.Image], Capture]:
     document = pdfium.PdfDocument(pdf)
     sizes = [_mm(page.get_size()) for page in document]
-    if output.container in ("jpg", "png") and len(sizes) > 1:
-        raise ValueError(f"{output.container} holds one page, the document has {len(sizes)}")
     rng = random.Random(seed)
     record = plan(output, sizes, seed, rng)
     sheets: list[SheetCapture | None] = list(record.sheets) or [None] * len(sizes)
@@ -176,7 +192,7 @@ def capture(pdf: bytes, output: Output, seed: int, boxes: dict[str, Box] | None 
     if boxes is not None:
         for key, (page, box) in boxes.items():
             boxes[key] = (page, move(box, sheets[page - 1], sizes[page - 1]))
-    return encode(images, record), record
+    return images, record
 
 
 def plan(output: Output, sizes: list[tuple[float, float]], seed: int, rng: random.Random) -> Capture:
