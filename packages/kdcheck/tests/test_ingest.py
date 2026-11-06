@@ -16,9 +16,11 @@ from kdcheck.ingest.document import (
     too_large,
     unreadable_reason,
 )
+from kdcheck.ingest.pdfium_backend import PdfiumPage
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 from kdcheck.render import RenderError, render_page
 from PIL import Image, ImageDraw, ImageFilter, ImageStat
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen.canvas import Canvas
 
 
@@ -250,6 +252,78 @@ def test_render_page_reads_an_image_within_the_pixel_limit(tmp_path):
     _sheet((1001, 1000)).save(tmp_path / "scan.jpg")
     with pytest.raises(RenderError, match=r"^Изображение 1001×1000 пикс\. \(1\.001 Мп\) больше 1 Мп и не читается"):
         render_page(tmp_path / "scan.jpg", 1, max_px=100, pdf_backend="pdfium", max_pixels=1_000_000)
+
+
+def _pdf_pages(path: Path, pages: list[tuple[int, int] | None]) -> Path:
+    """A page per entry: a text page for None, else a scan of that size covering the page. A larger scan lies on a
+    landscape page, so a spy can tell it from the others by its size."""
+    canvas = Canvas(str(path))
+    for size in pages:
+        if size is None:
+            canvas.setPageSize((595, 842))
+            canvas.drawString(72, 770, "ARM.303411.001")
+        else:
+            page = (842, 595) if size[0] > 1000 else (595, 842)
+            canvas.setPageSize(page)
+            canvas.drawImage(ImageReader(_sheet(size)), 0, 0, *page)
+        canvas.showPage()
+    canvas.save()
+    return path
+
+
+def _decoded(monkeypatch: pytest.MonkeyPatch) -> list[tuple[int, int]]:
+    """The pages PDFium scans or renders from now on, by their size in points."""
+    pages: list[tuple[int, int]] = []
+
+    def spy(method):
+        def wrapper(self, *args):
+            pages.append((round(self.width), round(self.height)))
+            return method(self, *args)
+
+        return wrapper
+
+    for name in ("scan", "render"):
+        monkeypatch.setattr(PdfiumPage, name, spy(getattr(PdfiumPage, name)))
+    return pages
+
+
+def test_a_pdf_page_with_an_image_over_the_pixel_limit_costs_only_its_page(tmp_path, settings, monkeypatch):
+    path = _pdf_pages(tmp_path / "kit.pdf", [None, (1100, 1000), (1000, 1000)])
+    decoded = _decoded(monkeypatch)
+    doc = load_document(path, tmp_path, _limited(settings, 1_000_000))
+    assert doc.info.status == "ok" and doc.info.problem is None
+    text, large, scan = doc.info.pages
+    assert text.has_text and (text.problem, scan.problem) == (None, None)
+    assert large.problem == (
+        "изображение 1100×1000 пикс. (1.1 Мп) больше 1 Мп и не читается: лимит max_image_pixels в configs/ingest.yaml"
+    )
+    assert (large.width, large.height) == (842, 595) and doc.pages[1].lines == []
+    # The viewer shows the page as unavailable with the same text, and PDFium never decodes its image.
+    with pytest.raises(RenderError, match=r"^Изображение 1100×1000 пикс\. \(1\.1 Мп\) больше 1 Мп и не читается"):
+        render_page(path, 2, max_px=500, pdf_backend="pdfium", max_pixels=1_000_000)
+    png = render_page(path, 3, max_px=500, pdf_backend="pdfium", max_pixels=1_000_000)
+    assert max(Image.open(io.BytesIO(png)).size) == 500
+    assert decoded and set(decoded) == {(595, 842)}
+
+
+@pytest.mark.parametrize(("width", "status"), [(1000, "ok"), (1001, "unsupported")])
+def test_a_pdf_whose_only_page_holds_an_image_over_the_pixel_limit_is_unsupported(tmp_path, settings, width, status):
+    """The page has a text layer, and the picture covers a corner only: the page is still not read, as the viewer
+    could not show it, and the file is whole, so not «повреждён»."""
+    canvas = Canvas(str(tmp_path / "a.pdf"), pagesize=(595, 842))
+    canvas.drawString(72, 770, "ARM.303411.001")
+    canvas.drawImage(ImageReader(_sheet((width, 1000))), 400, 20, 150, 150)
+    canvas.save()
+    doc = load_document(tmp_path / "a.pdf", tmp_path, _limited(settings, 1_000_000))
+    assert doc.info.status == status
+    if status == "ok":
+        assert doc.info.origin == "vector" and [ln.text for ln in doc.pages[0].lines] == ["ARM.303411.001"]
+    else:
+        assert doc.info.problem == (
+            "Изображение 1001×1000 пикс. (1.001 Мп) больше 1 Мп и не читается: "
+            "лимит max_image_pixels в configs/ingest.yaml"
+        )
+        assert doc.pages == [] and doc.info.pages == []
 
 
 def test_core_imports_pdf_library_only_through_the_adapter():

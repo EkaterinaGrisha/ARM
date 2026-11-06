@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from kdcheck.ingest.document import sniff_media_type, too_large
+from kdcheck.ingest.document import page_too_large, sniff_media_type, too_large
 from kdcheck.ingest.pdf import get_backend
 
 
@@ -17,7 +17,8 @@ class RenderError(Exception):
 
 def render_page(path: Path, page: int, *, max_px: int, pdf_backend: str, max_pixels: int) -> bytes:
     """PNG of page ``page`` (from 1) with the long side at most ``max_px``; ``pdf_backend`` as in ``models.yaml``,
-    ``max_pixels`` as ``max_image_pixels`` in ``ingest.yaml``: a larger image is not decoded."""
+    ``max_pixels`` as ``max_image_pixels`` in ``ingest.yaml``: a larger image, or a PDF page holding one, is not
+    decoded, as the loader leaves it unread."""
     data = path.read_bytes()
     media = sniff_media_type(data[:2048])
     backend = get_backend(pdf_backend) if media == "application/pdf" else None
@@ -27,6 +28,9 @@ def render_page(path: Path, page: int, *, max_px: int, pdf_backend: str, max_pix
             if not 1 <= page <= doc.page_count:
                 raise RenderError(f"В документе нет страницы {page}")
             pg = doc.page(page - 1)
+            # This is the API process, and PDFium decodes each image of the page at its full size at any scale.
+            if problem := page_too_large(pg, max_pixels):
+                raise _too_large(problem)
             img = pg.render(max_px / max(pg.width, pg.height))
         elif media and media.startswith("image/"):
             img = Image.open(io.BytesIO(data))
@@ -34,7 +38,7 @@ def render_page(path: Path, page: int, *, max_px: int, pdf_backend: str, max_pix
                 raise RenderError(f"В документе нет страницы {page}")
             img.seek(page - 1)
             if problem := too_large(img.size, max_pixels):
-                raise RenderError(problem[:1].upper() + problem[1:])
+                raise _too_large(problem)
             # This is the API process: a JPEG is decoded at a reduced scale, a grey image is reduced without a copy.
             img.draft(None, (max_px, max_px))
             if img.mode != "L":
@@ -51,3 +55,8 @@ def render_page(path: Path, page: int, *, max_px: int, pdf_backend: str, max_pix
     # Drawings are nearly monochrome: 16 gray levels shrink the file a lot and stay readable.
     img.convert("L").quantize(colors=16).save(out, "PNG", optimize=True)
     return out.getvalue()
+
+
+def _too_large(problem: str) -> RenderError:
+    """The page problem the loader gives, as a sentence: the viewer shows the page as unavailable."""
+    return RenderError(problem[:1].upper() + problem[1:])
