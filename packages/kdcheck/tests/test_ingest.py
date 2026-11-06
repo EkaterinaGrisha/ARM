@@ -89,7 +89,10 @@ def test_file_without_read_access_is_damaged(tmp_path, settings):
 def _tiff_with_a_broken_frame(path: Path) -> Path:
     frames = [Image.new("L", (400, 300), 255) for _ in range(3)]
     for i, frame in enumerate(frames):
-        ImageDraw.Draw(frame).text((20, 20), f"page {i + 1}", fill=0)
+        draw = ImageDraw.Draw(frame)
+        draw.text((20, 20), f"page {i + 1}", fill=0)
+        for y in range(40, 300, 30):  # lines, so that the page is no blank sheet
+            draw.line((0, y, 400, y), fill=0, width=2)
     buf = io.BytesIO()
     frames[0].save(buf, "TIFF", save_all=True, append_images=frames[1:], compression="tiff_lzw", dpi=(150, 150))
     data = bytearray(buf.getvalue())
@@ -188,11 +191,12 @@ def _limited(settings: Settings, pixels: int) -> Settings:
 
 
 def _sheet(size: tuple[int, int]) -> Image.Image:
-    """A grey page with a frame and a line of text: something to read, not paper only."""
+    """A grey page with a frame and a line of text: something to read, not paper only. Both lie inside the margins
+    a blank sheet is measured without (``blank.margin`` in configs/ingest.yaml), 100 px being 17 mm at 150 dpi."""
     image = Image.new("L", size, 255)
     draw = ImageDraw.Draw(image)
-    draw.rectangle((20, 20, size[0] - 20, size[1] - 20), outline=0, width=3)
-    draw.text((40, 40), "ARM.303411.001", fill=0)
+    draw.rectangle((100, 100, size[0] - 100, size[1] - 100), outline=0, width=3)
+    draw.text((120, 120), "ARM.303411.001", fill=0)
     return image
 
 

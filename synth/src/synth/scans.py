@@ -34,6 +34,15 @@ def scan(pdf: bytes, *, rng: random.Random, noise: random.Random, unreadable: bo
     return img.point(lambda v: min(255, int(v * (0.92 if unreadable else 1.0) + (6 if not unreadable else 0))))
 
 
+def blank_pdf() -> bytes:
+    """An A4 page with nothing on it."""
+    doc = pdfium.PdfDocument.new()
+    doc.new_page(210 * MM, 297 * MM)
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
 def scan_pdf(jpeg: bytes, fmt: str) -> bytes:
     """A page that holds only the scan, as a scanner writes it; the JPEG is embedded as is."""
     c = new_canvas()

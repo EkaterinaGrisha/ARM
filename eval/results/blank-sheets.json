@@ -1,0 +1,206 @@
+{
+  "date": "2026-11-05",
+  "pages": 40,
+  "arm_roles": [
+    "dev",
+    "test"
+  ],
+  "environment": {
+    "machine": "Darwin arm64",
+    "python": "3.11.15"
+  },
+  "rules": {
+    "scale": 3.0,
+    "margin": 12.0,
+    "min_paper": 60.0,
+    "detail": 5,
+    "min_darkness": 10.0,
+    "cell": 20.0,
+    "cell_marks": 0.01,
+    "max_cells": 2,
+    "min_cells": 9
+  },
+  "synthetic_blanks": {
+    "augraphy": true,
+    "by_class": {
+      "raster good": {
+        "total": 12,
+        "blank": 12
+      },
+      "scan good": {
+        "total": 12,
+        "blank": 12
+      },
+      "scan fair": {
+        "total": 12,
+        "blank": 6
+      },
+      "scan poor": {
+        "total": 12,
+        "blank": 2
+      },
+      "scan unreadable": {
+        "total": 12,
+        "blank": 0
+      },
+      "Augraphy good": {
+        "total": 12,
+        "blank": 2
+      },
+      "Augraphy fair": {
+        "total": 12,
+        "blank": 1
+      },
+      "Augraphy poor": {
+        "total": 12,
+        "blank": 2
+      }
+    }
+  },
+  "corpora": {
+    "Синтетика: сканы и растры": {
+      "files": 210,
+      "pages": 232,
+      "without_text": 172,
+      "blank_pages": 0,
+      "blank_files": 0
+    },
+    "Синтетика: Augraphy": {
+      "files": 204,
+      "pages": 226,
+      "without_text": 166,
+      "blank_pages": 0,
+      "blank_files": 0
+    },
+    "Эталон: сканы": {
+      "files": 22,
+      "pages": 22,
+      "without_text": 17,
+      "blank_pages": 0,
+      "blank_files": 0
+    },
+    "Открытый корпус": {
+      "files": 82,
+      "pages": 1730,
+      "without_text": 1412,
+      "blank_pages": 23,
+      "blank_files": 0
+    },
+    "АРМ arm-1 (dev)": {
+      "files": 53,
+      "pages": 53,
+      "without_text": 53,
+      "blank_pages": 0,
+      "blank_files": 0
+    },
+    "АРМ arm-2 (test)": {
+      "files": 332,
+      "pages": 332,
+      "without_text": 332,
+      "blank_pages": 0,
+      "blank_files": 0
+    },
+    "АРМ arm-3 (test)": {
+      "files": 119,
+      "pages": 129,
+      "without_text": 0,
+      "blank_pages": 0,
+      "blank_files": 0
+    }
+  },
+  "open_blank": [
+    {
+      "file": "archive_org/1974_20251107_202511/ботвинник справочник черчение 1974.pdf",
+      "page": 2
+    },
+    {
+      "file": "archive_org/60-1963/vl60_1963.pdf",
+      "page": 4
+    },
+    {
+      "file": "archive_org/B-001-038-988-ALL/B-001-038-988-03.pdf",
+      "page": 2
+    },
+    {
+      "file": "archive_org/gshp219am1982/gshp219am1982_text.pdf",
+      "page": 2
+    },
+    {
+      "file": "archive_org/gshp219am1982/gshp219am1982_text.pdf",
+      "page": 4
+    },
+    {
+      "file": "archive_org/gshp219am1982/gshp219am1982_text.pdf",
+      "page": 7
+    },
+    {
+      "file": "archive_org/gshp219am1982/gshp219am1982_text.pdf",
+      "page": 30
+    },
+    {
+      "file": "archive_org/mupddmrzicp1983/mupddmrzicp1983_text.pdf",
+      "page": 21
+    },
+    {
+      "file": "archive_org/piidfr1984/piidfr1984_text.pdf",
+      "page": 2
+    },
+    {
+      "file": "archive_org/priborIP/priborIP_text.pdf",
+      "page": 6
+    },
+    {
+      "file": "archive_org/priborIP/priborIP_text.pdf",
+      "page": 24
+    },
+    {
+      "file": "archive_org/priborIP/priborIP_text.pdf",
+      "page": 30
+    },
+    {
+      "file": "archive_org/priborIP/priborIP_text.pdf",
+      "page": 31
+    },
+    {
+      "file": "archive_org/priborIP/priborIP_text.pdf",
+      "page": 36
+    },
+    {
+      "file": "archive_org/priborIP/priborIP_text.pdf",
+      "page": 40
+    },
+    {
+      "file": "archive_org/uep60_10/uep60_10_text.pdf",
+      "page": 16
+    },
+    {
+      "file": "archive_org/uep60_10/uep60_10_text.pdf",
+      "page": 30
+    },
+    {
+      "file": "archive_org/vchpeskd1975/vchpeskd1975_text.pdf",
+      "page": 3
+    },
+    {
+      "file": "archive_org/vchpeskd1975/vchpeskd1975_text.pdf",
+      "page": 4
+    },
+    {
+      "file": "standards/ГОСТ_Р_2.104-2023/ГОСТ_Р_2.104-2023.pdf",
+      "page": 4
+    },
+    {
+      "file": "standards/ГОСТ_Р_2.106-2019/ГОСТ_Р_2.106-2019.pdf",
+      "page": 4
+    },
+    {
+      "file": "standards/ГОСТ_Р_2.109-2023/ГОСТ_Р_2.109-2023.pdf",
+      "page": 4
+    },
+    {
+      "file": "standards/ГОСТ_Р_2.308-2023/ГОСТ_Р_2.308-2023.pdf",
+      "page": 4
+    }
+  ],
+  "seconds": 517.3
+}

@@ -145,7 +145,7 @@ class BaselinePipeline:
             review.mark(model, self.settings.ingest.review)
         infos = [d.info for d in docs]
         for d in infos:
-            if d.status in ("damaged", "encrypted", "unsupported", "unreadable", "foreign", "duplicate_file"):
+            if d.status in ("damaged", "encrypted", "unsupported", "unreadable", "blank", "foreign", "duplicate_file"):
                 report_log.append(LogEntry(level="warning", message=d.problem or d.status, document_id=d.id))
         tree_items = _count_nodes(tree.roots)
         need = _count_nodes(
@@ -468,8 +468,16 @@ def _str(ex: Extracted | None) -> str | None:
 
 
 def _page_problems(doc: LoadedDocument) -> list[LogEntry]:
-    """Pages not read or parsed go to the log; the file gets ``warning`` unless its status already says more."""
-    failed = [p for p in doc.pages if p.problem]
+    """Pages not read or parsed go to the log; the file gets ``warning`` unless its status already says more.
+
+    A blank page in a file with other pages is a note: a scanned back of a sheet or a spare form is no error.
+    """
+    blank = [p.number for p in doc.pages if p.blank]
+    if blank and doc.info.status != "blank":
+        numbers = ", ".join(map(str, blank))
+        which = f"Пустой лист {numbers}" if len(blank) == 1 else f"Пустые листы {numbers}"
+        doc.info.notes.append(f"{which} из {len(doc.pages)}: ни текста, ни линий, не распознаются")
+    failed = [p for p in doc.pages if p.problem and not p.blank]
     if not failed:
         return []
     numbers = ", ".join(str(p.number) for p in failed)

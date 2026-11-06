@@ -19,7 +19,7 @@ from pathlib import Path
 
 from synth.model import Change, Drawing, Output, Row, Spec
 from synth.render import Box, draw_drawing, draw_foreign, draw_spec
-from synth.scans import scan, scan_pdf
+from synth.scans import blank_pdf, scan, scan_pdf
 from synth.truth import DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
 from synth.vocab import Param
 
@@ -446,6 +446,7 @@ PROBLEM_FILES = {
     "скан_0034.jpg": "unreadable",
     "Акт приёмки КД.pdf": "foreign",
     "Thumbs.db": "unsupported",
+    "скан_0035.jpg": "blank",
 }
 
 
@@ -485,6 +486,8 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> KitTruth:
     unreadable.save(out / "скан_0034.jpg", "JPEG", quality=40)
     (out / "Акт приёмки КД.pdf").write_bytes(draw_foreign(ROOT, SPECS[0].name))
     (out / "Thumbs.db").write_bytes(bytes(rng.randrange(256) for _ in range(1024)))
+    blank = scan(blank_pdf(), rng=rng, noise=noise)  # the scanned back of a sheet
+    blank.save(out / "скан_0035.jpg", "JPEG", quality=72, dpi=(150, 150))
     truth.problem_files = PROBLEM_FILES
     truth.discrepancies = [ExpectedDiscrepancy(type=t, designation=d, rule_id=r) for t, d, r in EXPECTED_DISCREPANCIES]
     truth.write(truth_path or out.with_name(out.name + "_truth.json"))
