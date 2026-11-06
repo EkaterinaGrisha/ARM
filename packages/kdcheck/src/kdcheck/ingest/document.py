@@ -18,6 +18,7 @@ from typing import Literal
 
 from PIL import Image, ImageChops, ImageFilter, ImageStat
 
+from kdcheck import limits
 from kdcheck.config import ScanQuality, Settings, Sheet
 from kdcheck.ingest.pdf import EncryptedPdfError, PdfBackend, PdfPage, get_backend
 from kdcheck.ingest.text import BBox, Line
@@ -208,6 +209,8 @@ def _ocr(page: Page, image: Image.Image, settings: Settings, scale: float, origi
         page.read_by("ocr", ocr.engine, tesseract.version(), settings.ingest.confidence.ocr)
         try:
             page.regions = cells.find(image, scale, origin, page.mm / scale, settings)
+        except limits.SheetTimeout:
+            raise
         except Exception:  # the page keeps the text read from the whole of it
             log.warning("Страница %s: области по линиям не найдены из-за ошибки", page.number, exc_info=True)
 
@@ -227,26 +230,40 @@ def _load_pdf(doc: LoadedDocument, data: bytes, backend: PdfBackend, settings: S
         raise ValueError("в документе нет страниц")
     count = _pages_to_read(doc, pdf.page_count, ingest.max_pages_per_file)
     version = backend.versions()[backend.name]
+    layered: list[int] = []
     for index in range(count):
         page = Page(number=index + 1, width=0.0, height=0.0, unit="pt")
         doc.pages.append(page)
         try:
-            pg = pdf.page(index)
-            page.width, page.height = pg.width, pg.height
-            page.format = sheet_format(pg.width / MM_PT, pg.height / MM_PT, settings.forms.sheet)
-            page.lines = pg.lines(ingest.text)
-            if page.lines:
-                page.read_by("text_layer", backend.name, version, ingest.confidence.text_layer)
-                continue
-            page.image_only = pg.has_images()
-            image, origin, scale = _page_image(pg, settings)
-            if index == 0:
-                doc.quality = image_quality(image, ingest.quality)
-                doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
-            if use_ocr and not doc.unreadable:
-                _ocr(page, image, settings, scale, origin)
+            with limits.sheet_limit(ingest.page_timeout_sec):
+                pg = pdf.page(index)
+                page.width, page.height = pg.width, pg.height
+                page.format = sheet_format(pg.width / MM_PT, pg.height / MM_PT, settings.forms.sheet)
+                page.lines = pg.lines(ingest.text)
+                if page.lines and pg.image_cover() >= ingest.scan.min_coverage:
+                    # Text over images that cover the page is a recognition layer over a scan: someone's OCR, garbled
+                    # as a rule, so the page is read as a scan (plan item 4.1). On the real sheets with such a layer it
+                    # holds 2 of their 23 values.
+                    page.lines = []
+                    layered.append(page.number)
+                if page.lines:
+                    page.read_by("text_layer", backend.name, version, ingest.confidence.text_layer)
+                    continue
+                page.image_only = pg.has_images()
+                image, origin, scale = _page_image(pg, settings)
+                if index == 0:
+                    doc.quality = image_quality(image, ingest.quality)
+                    doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
+                if use_ocr and not doc.unreadable:
+                    _ocr(page, image, settings, scale, origin)
+        except limits.SheetTimeout:  # one slow page never costs the others
+            _timed_out(page, ingest.page_timeout_sec)
         except Exception as exc:  # one bad page never costs the others
             _read_failed(page, exc)
+    if layered:
+        pages = ", ".join(map(str, layered))
+        note = f"Скан со слоем распознавания, страницы {pages}: слой не используется, листы читаются как скан"
+        doc.info.notes.append(note)
     read = _pages_read(doc)
     text_pages = sum(1 for p in read if p.method == "text_layer")
     doc.info.origin = "vector" if text_pages == len(read) else "scan" if text_pages == 0 else "mixed"
@@ -298,18 +315,21 @@ def _load_image(doc: LoadedDocument, data: bytes, settings: Settings) -> None:
         page = Page(number=index + 1, width=0.0, height=0.0, unit="px", image_only=True)
         doc.pages.append(page)
         try:
-            image.seek(index)
-            frame = image.convert("L")
-            page.width, page.height = frame.width, frame.height
-            page.dpi = dpi or estimated_dpi(frame.width, frame.height, settings)
-            if dpi:  # an estimated resolution assumes a format, so only a known one tells it
-                size = (frame.width / dpi * MM_PER_INCH, frame.height / dpi * MM_PER_INCH)
-                page.format = sheet_format(*size, settings.forms.sheet)
-            if index == 0:
-                doc.quality = image_quality(frame, ingest.quality)
-                doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
-            if use_ocr and not doc.unreadable:
-                _ocr(page, frame, settings, 1.0, (0.0, 0.0))
+            with limits.sheet_limit(ingest.page_timeout_sec):
+                image.seek(index)
+                frame = image.convert("L")
+                page.width, page.height = frame.width, frame.height
+                page.dpi = dpi or estimated_dpi(frame.width, frame.height, settings)
+                if dpi:  # an estimated resolution assumes a format, so only a known one tells it
+                    size = (frame.width / dpi * MM_PER_INCH, frame.height / dpi * MM_PER_INCH)
+                    page.format = sheet_format(*size, settings.forms.sheet)
+                if index == 0:
+                    doc.quality = image_quality(frame, ingest.quality)
+                    doc.unreadable = unreadable_reason(doc.quality, ingest.quality)
+                if use_ocr and not doc.unreadable:
+                    _ocr(page, frame, settings, 1.0, (0.0, 0.0))
+        except limits.SheetTimeout:  # one slow frame never costs the others
+            _timed_out(page, ingest.page_timeout_sec)
         except Exception as exc:  # one bad frame never costs the others
             _read_failed(page, exc)
     _pages_read(doc)
@@ -320,6 +340,13 @@ def _read_failed(page: Page, exc: Exception) -> None:
     log.info("Страница %s не прочитана: %s", page.number, exc)
     page.lines, page.method, page.engine, page.engine_version, page.confidence = [], None, None, None, None
     page.problem = f"ошибка чтения: {_short(exc)}"
+
+
+def _timed_out(page: Page, limit: float) -> None:
+    log.info("Страница %s читалась дольше %s с и не дочитана", page.number, limit)
+    page.lines, page.method, page.engine, page.engine_version, page.confidence = [], None, None, None, None
+    page.regions = None
+    page.problem = f"лист читался дольше {limit:g} с и не дочитан: лимит page_timeout_sec в configs/ingest.yaml"
 
 
 def _pages_read(doc: LoadedDocument) -> list[Page]:

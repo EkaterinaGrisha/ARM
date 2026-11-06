@@ -13,6 +13,7 @@ from collections.abc import Callable
 
 from PIL import Image
 
+from kdcheck import limits
 from kdcheck.config import OcrEngine, TextLayout
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 
@@ -73,9 +74,15 @@ def words(
     config = f"--psm {page_segmentation}"
     if characters:
         config += f" -c tessedit_char_whitelist={characters}"
-    data = pytesseract.image_to_data(
-        image.convert("L"), lang=languages, config=config, output_type=pytesseract.Output.DICT
-    )
+    left = limits.remaining()  # the time left for the sheet bounds the call: a hung Tesseract is killed
+    try:
+        data = pytesseract.image_to_data(
+            image.convert("L"), lang=languages, config=config, output_type=pytesseract.Output.DICT, timeout=left or 0
+        )
+    except RuntimeError as exc:  # pytesseract stops the process on its timeout and says so
+        if left is not None and "timeout" in str(exc).lower():
+            raise limits.SheetTimeout from exc
+        raise
     grouped: dict[tuple[int, int, int], list[tuple[Word, float]]] = {}
     for i, text in enumerate(data["text"]):
         text = (text or "").strip()

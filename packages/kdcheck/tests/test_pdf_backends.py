@@ -199,3 +199,49 @@ def test_missing_pymupdf_names_the_extra(monkeypatch):
 def test_unknown_backend_name():
     with pytest.raises(ValueError, match="pdfium, pymupdf"):
         get_backend("acrobat")
+
+
+def _layered_pdf(path: Path, logo_only: bool = False) -> Path:
+    """Text over a scan that covers the page, as an archive keeps a scan with its recognition layer; with
+    ``logo_only``, a vector page with a small picture in a corner."""
+    scan = Image.new("L", (1240, 1754), 255)
+    scan.paste(0, (100, 100, 400, 160))
+    canvas = _canvas(path)
+    if logo_only:
+        canvas.drawImage(ImageReader(scan.resize((62, 88))), 20, 20, 62, 88)
+    else:
+        canvas.drawImage(ImageReader(scan), 0, 0, 595, 842)
+    canvas.drawString(100, 642, "AB-CD 12")
+    canvas.save()
+    return path
+
+
+@pytest.mark.parametrize("name", BACKENDS)
+def test_both_backends_measure_how_much_of_the_page_images_cover(tmp_path, name):
+    backend = get_backend(name)
+    assert backend.open(_layered_pdf(tmp_path / "scan.pdf").read_bytes()).page(0).image_cover() == pytest.approx(1)
+    vector = backend.open(_layered_pdf(tmp_path / "logo.pdf", logo_only=True).read_bytes()).page(0)
+    assert vector.image_cover() == pytest.approx(62 * 88 / (595 * 842), rel=0.01)
+    assert backend.open(_text_pdf(tmp_path / "text.pdf").read_bytes()).page(0).image_cover() == 0
+
+
+def test_text_over_a_scan_is_a_recognition_layer_and_the_page_reads_as_a_scan(tmp_path, settings):
+    doc = load_document(_layered_pdf(tmp_path / "scan.pdf"), tmp_path, settings)
+    assert doc.info.origin == "scan" and doc.pages[0].lines == [] and doc.pages[0].method is None
+    assert doc.info.notes == ["Скан со слоем распознавания, страницы 1: слой не используется, листы читаются как скан"]
+    vector = load_document(_layered_pdf(tmp_path / "logo.pdf", logo_only=True), tmp_path, settings)
+    assert vector.info.origin == "vector" and [ln.text for ln in vector.pages[0].lines] == ["AB-CD 12"]
+    assert vector.info.notes == []
+
+
+def test_a_scan_kept_in_layers_is_rendered_whole(tmp_path, settings):
+    """MRC compression keeps a scan as a background picture and a mask of the ink over it: each layer alone
+    misses the sheet, so the page is rendered."""
+    paper, ink = Image.new("L", (620, 877), 235), Image.new("L", (1240, 1754), 255)
+    ink.paste(0, (100, 100, 400, 160))
+    canvas = _canvas(tmp_path / "mrc.pdf")
+    canvas.drawImage(ImageReader(paper), 0, 0, 595, 842)
+    canvas.drawImage(ImageReader(ink), 0, 0, 595, 842)
+    canvas.save()
+    page = get_backend("pdfium").open((tmp_path / "mrc.pdf").read_bytes()).page(0)
+    assert page.image_cover() == pytest.approx(2) and page.scan(settings.ingest.scan) is None

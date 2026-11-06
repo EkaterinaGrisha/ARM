@@ -99,16 +99,27 @@ class PdfiumPage:
     def has_images(self) -> bool:
         return any(True for _ in self._page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_IMAGE], max_depth=2))
 
+    def image_cover(self) -> float:
+        covered = 0.0
+        for obj in self._page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_IMAGE], max_depth=2):
+            left, bottom, right, top = obj.get_bounds()
+            covered += max(0.0, right - left) * max(0.0, top - bottom)
+        return covered / (self.width * self.height) if self.width and self.height else 0.0
+
     def scan(self, rules: ScanRules) -> tuple[Image.Image, BBox] | None:
         if self._rotation:  # the pixels would need turning first
             return None
         best: tuple[float, pdfium.PdfImage, tuple[float, float, float, float]] | None = None
+        covering = 0
         for obj in self._page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_IMAGE], max_depth=2):
             left, bottom, right, top = obj.get_bounds()
             area = (right - left) * (top - bottom)
+            covering += area >= rules.min_coverage * self.width * self.height
             if best is None or area > best[0]:
                 best = (area, obj, (left, bottom, right, top))
         if best is None or best[0] < rules.min_coverage * self.width * self.height:
+            return None
+        if covering > 1:  # layers of one scan, as MRC compression keeps it: only the rendered page shows it whole
             return None
         _, obj, (left, bottom, right, top) = best
         a, b, c, d, _, _ = obj.get_matrix().get()
