@@ -8,3 +8,5 @@ job_memory_mb: 8192              # ARM_JOB_MEMORY_MB: memory of the job process,
 workers: 1                       # ARM_WORKERS: doc sets processed at once
 progress_poll_sec: 0.2           # how often the job process is checked for progress
 page_image_px: 2000              # the long side of a page image in the document viewer
+cache_dir: ""                    # ARM_CACHE_DIR: a folder where jobs keep the readings of OCR and the model (ADR-0018).
+                                 # Empty — none: the texts of the customer's documents stay on disk only if ARM agrees

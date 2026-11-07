@@ -89,6 +89,7 @@ uv run kdcheck run ПАПКА --no-ocr                               # без р
 uv run kdcheck run ПАПКА --vlm                                  # + мультимодальная модель дочитывает основные надписи сканов
 uv run kdcheck run ПАПКА --max-pages 50                         # не больше 50 страниц на файл (по умолчанию из ingest.yaml)
 uv run kdcheck run ПАПКА --config мои_настройки                 # свои пороги и словари: копия configs/ с правками
+uv run kdcheck run ПАПКА --cache data/cache                     # повторный прогон не читает OCR и моделью заново (ADR-0018)
 uv run python -m synth.demo_kit samples/demo_kit                # пересоздать демо-комплект и эталон к нему
 uv run python -m synth.kits data/synth/kits --kits 20 --seed 1    # синтетические комплекты с заложенными ошибками
 uv run python eval/synth_kits.py                                  # Блоки 1 и 2 на этих комплектах: eval/results/synth-kits.md
@@ -166,6 +167,7 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
 | `ARM_VLM=1` | `vlm.enabled`, `models.yaml` | мультимодальная модель дочитывает основные надписи сканов |
 | `ARM_VLM_URL` | `vlm.base_url`, `models.yaml` | OpenAI-совместимый сервер модели; адрес вне этой машины — только с `allow_remote: true` |
 | `ARM_VLM_MODEL` | `vlm.model`, `models.yaml` | имя модели на этом сервере |
+| `ARM_CACHE_DIR` | `cache_dir`, `api.yaml`; `kdcheck run --cache` | папка кэша прочтений OCR и модели; пусто — без кэша, тексты документов на диске не остаются |
 
 ## Базовый конвейер
 

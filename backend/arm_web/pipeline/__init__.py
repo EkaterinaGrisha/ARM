@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 from ..settings import api_settings, config_dir
 from .base import Pipeline, ProgressCallback, no_progress
@@ -27,6 +28,8 @@ def get_pipeline() -> Pipeline:
     args = [sys.executable, "-m", "kdcheck", "run", "{input}", "-o", "{output}", "--config", str(config_dir())]
     # The name is typed by the user: as «--name=…» a name that starts with «-» stays a value, not an option.
     args += ["--kit-id", "{kit_id}", "--name={kit_name}", "--progress-file", "{output}/progress.json"]
+    if api.cache_dir:  # ADR-0018: the readings of one upload are given back to the next with the same pages
+        args += ["--cache", str(Path(api.cache_dir).resolve())]
     return ProcessPipeline(
         BaselinePipeline.name, BaselinePipeline.version, args, timeout_sec=timeout, memory_mb=memory, poll_sec=poll
     )

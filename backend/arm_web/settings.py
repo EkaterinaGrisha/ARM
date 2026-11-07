@@ -22,6 +22,7 @@ OVERRIDES = {
     "job_timeout_sec": "ARM_PIPELINE_TIMEOUT",
     "job_memory_mb": "ARM_JOB_MEMORY_MB",
     "workers": "ARM_WORKERS",
+    "cache_dir": "ARM_CACHE_DIR",
 }
 
 
@@ -35,6 +36,7 @@ class ApiSettings(BaseModel):
     workers: int = Field(gt=0)
     progress_poll_sec: float = Field(gt=0)
     page_image_px: int = Field(gt=0)
+    cache_dir: str = ""  # the cache of readings of OCR and the model the jobs share (ADR-0018); empty — none
 
 
 def config_dir() -> Path:

@@ -16,7 +16,8 @@ is not scored, as in backend/arm_web/evaluate.py.
         [--verify google/gemma-4-e4b] [--real] [--append]
 
 ``--append`` keeps the runs of the earlier results file, replaces the runs of the models given and adds the new
-ones; the command written to the results is the union of both.
+ones; the command written to the results is the union of both. ``--cache`` keeps the readings of OCR and the models in
+data/cache (ADR-0018): a run gives back what an earlier one read, so its time is no time of reading.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from kdcheck import cache as read_cache
 from kdcheck.config import Settings
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.run import load_settings, ocr_available
@@ -45,6 +47,7 @@ from synth import kits
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "samples" / "demo_kit"
 CORPUS = ROOT / "data" / "synth" / "vlm_kits"
+CACHE = ROOT / "data" / "cache"
 SHEETS = ROOT / "data" / "gold_sheets"
 GOLD = ROOT / "eval" / "gold"
 OUT = Path(__file__).resolve().parent / "results"
@@ -233,7 +236,12 @@ def markdown(result: dict[str, Any]) -> str:
         "",
         f"Получено `uv run python eval/vlm_title_block.py {result['command']}` {result['date']}; "
         f"{env['machine']}, Python {env['python']}, Tesseract {env['tesseract']}; сервер моделей {result['url']}.",
-        where,
+        where
+        + (
+            " Прочтения OCR и моделей взяты из кэша, где они были (ADR-0018): время прогона — не время чтения."
+            if result.get("cache")
+            else ""
+        ),
         "Поля: обозначение, наименование, материал, масса, масштаб, литера; поле, которое в эталоне пусто или которого "
         "нет на бланке, не считается. Сравнение — по правилу верного извлечения "
         "([eval/gold/README.md](../gold/README.md#что-считается-верным-извлечением)). Модель читает только ячейки, "
@@ -324,6 +332,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="оставить прогоны прежнего файла результатов и добавить или заменить прогоны этих моделей",
     )
+    parser.add_argument("--cache", action="store_true", help="брать и хранить прочтения в data/cache (ADR-0018)")
     args = parser.parse_args(argv)
     if not ocr_available(load_settings(use_ocr=True)):
         parser.error("нужен Tesseract с языками rus+eng: замер сравнивает модель с OCR")
@@ -334,11 +343,12 @@ def main(argv: list[str] | None = None) -> int:
     if earlier is not None and (earlier["kits"], earlier["seed"]) != (args.kits, args.seed):
         parser.error("--append: у прежних результатов другие --kits или --seed")
     truths = {SHEETS: KitTruth.read(GOLD / "sheets.json")} if args.real else corpus(args.kits, args.seed)
-    runs = [run("OCR", None, args.url, False, truths)]
-    for model in args.model:
-        runs.append(run(f"OCR + {model}", model, args.url, False, truths))
-    for model in args.verify:
-        runs.append(run(f"OCR + {model}, проверка", model, args.url, True, truths))
+    with read_cache.use(CACHE if args.cache else None):
+        runs = [run("OCR", None, args.url, False, truths)]
+        for model in args.model:
+            runs.append(run(f"OCR + {model}", model, args.url, False, truths))
+        for model in args.verify:
+            runs.append(run(f"OCR + {model}, проверка", model, args.url, True, truths))
     models, verify = list(args.model), list(args.verify)
     if earlier is not None:
         # The runs are deterministic, so the union of both commands reproduces the merged file.
@@ -356,11 +366,14 @@ def main(argv: list[str] | None = None) -> int:
                 *(f"--model {m}" for m in models),
                 *(f"--verify {m}" for m in verify),
                 *(["--real"] if args.real else []),
+                *(["--cache"] if args.cache else []),
             ]
         ),
         "date": datetime.now(UTC).date().isoformat(),
         "url": args.url,
         "real": args.real,
+        "cache": args.cache,
+        "cache_stats": dict(read_cache.stats),
         "inputs": sheet_inputs() if args.real else {},
         "kits": args.kits,
         "seed": args.seed,

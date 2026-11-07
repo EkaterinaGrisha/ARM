@@ -244,3 +244,34 @@ def test_a_dead_server_leaves_the_run_to_the_rules(settings, tmp_path):
     assert report.parts[0].title_block.material is None
     assert all(e.name != MODEL for e in report.kit.engines)
     assert any("не ответила" in e.message and "без неё" in e.message for e in report.log)
+
+
+def test_the_same_cell_is_asked_once_with_a_cache(settings, server, tmp_path):
+    """The key is the request with the hash of the pixels: another cell, label or prompt asks the server again; the
+    readings asked for are counted all the same, so a run reports the same number with a cache or without."""
+    from kdcheck import cache
+    from PIL import Image
+
+    server.say("Материал", "Сталь 45 ГОСТ 1050-2013")
+    client = _client(settings, server.url)
+    cell = Image.new("L", (40, 20), 255)
+    with cache.use(tmp_path):
+        assert client.read(cell, "Материал") == "Сталь 45 ГОСТ 1050-2013"
+        assert client.read(cell.copy(), "Материал") == "Сталь 45 ГОСТ 1050-2013"
+        client.read(cell, "Масса")
+        other = Image.new("L", (40, 20), 255)
+        other.putpixel((5, 5), 0)
+        client.read(other, "Материал")
+    assert len(server.requests) == 3 and client.calls == 4
+    records = [r.read_text(encoding="utf-8") for r in (tmp_path / "vlm").rglob("*.json")]
+    assert len(records) == 3 and all("base64" not in r and "sha256:" in r for r in records)  # no image is kept
+
+
+def test_a_failed_reading_is_not_kept(settings, tmp_path):
+    from kdcheck import cache
+    from PIL import Image
+
+    client = VlmClient(_settings(settings, _closed_port()).models.vlm, Prompt("cell.v1", "«{label}»"))
+    with cache.use(tmp_path), pytest.raises(VlmError):
+        client.read(Image.new("L", (10, 10), 255), "Масса")
+    assert not list(tmp_path.rglob("*.json"))
