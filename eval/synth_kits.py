@@ -21,7 +21,8 @@ Writes eval/results/synth-kits.json and eval/results/synth-kits.md.
 
     uv run python eval/synth_kits.py [--kits 20] [--seed 1] [--sheet-files 0.5]
 
-``--sheet-files`` is the share of kits that keep their rasters and scans one sheet per file.
+``--sheet-files`` is the share of kits that keep their rasters and scans one sheet per file. ``--cache`` keeps the
+readings of OCR in data/cache (ADR-0018): a second run of the same corpus reads nothing again.
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 import scoring
+from kdcheck import cache as read_cache
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.report.labels import PARAMETER_CATEGORY
 from kdcheck.run import load_settings, ocr_available
@@ -48,6 +50,7 @@ from synth import kits, mutations
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "data" / "synth" / "kits"
+CACHE = ROOT / "data" / "cache"
 OUT = Path(__file__).resolve().parent / "results"
 
 Key = tuple[str, str]  # rule id, or the type for a discrepancy with no rule; the designation
@@ -569,6 +572,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--kits", type=int, default=20)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--sheet-files", type=float, default=0.5, help="доля комплектов с растрами по листу в файле")
+    parser.add_argument("--cache", action="store_true", help="брать и хранить прочтения OCR в data/cache (ADR-0018)")
     args = parser.parse_args(argv)
     shutil.rmtree(CORPUS, ignore_errors=True)
     CORPUS.mkdir(parents=True)
@@ -592,8 +596,10 @@ def main(argv: list[str] | None = None) -> int:
             "captured": dict(Counter(d.origin for t in truths.values() for d in t.documents.values())),
             "mutations": sorted(mutations.CATALOG),
         },
-        "runs": [run(truths, use_ocr) for use_ocr in ([False, True] if ocr_available() else [False])],
+        "runs": [],
     }
+    with read_cache.use(CACHE if args.cache else None):
+        result["runs"] = [run(truths, use_ocr) for use_ocr in ([False, True] if ocr_available() else [False])]
     OUT.mkdir(exist_ok=True)
     (OUT / "synth-kits.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (OUT / "synth-kits.md").write_text(markdown(result), encoding="utf-8")

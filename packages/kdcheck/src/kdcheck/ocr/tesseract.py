@@ -10,10 +10,11 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Callable
+from typing import Any
 
 from PIL import Image
 
-from kdcheck import limits
+from kdcheck import cache, limits
 from kdcheck.config import OcrEngine, TextLayout
 from kdcheck.ingest.text import Line, Word, split_wide_lines
 
@@ -68,21 +69,17 @@ def words(
     characters: str | None = None,
 ) -> list[Line]:
     """The lines of words Tesseract reads on ``image``, of ``characters`` only when given; ``place`` takes a pixel to
-    the page."""
-    import pytesseract
-
+    the page. The answer of Tesseract is kept by :mod:`kdcheck.cache` when a run keeps one; the threshold and ``place``
+    apply to it after."""
     config = f"--psm {page_segmentation}"
     if characters:
         config += f" -c tessedit_char_whitelist={characters}"
-    left = limits.remaining()  # the time left for the sheet bounds the call: a hung Tesseract is killed
-    try:
-        data = pytesseract.image_to_data(
-            image.convert("L"), lang=languages, config=config, output_type=pytesseract.Output.DICT, timeout=left or 0
-        )
-    except RuntimeError as exc:  # pytesseract stops the process on its timeout and says so
-        if left is not None and "timeout" in str(exc).lower():
-            raise limits.SheetTimeout from exc
-        raise
+    gray = image.convert("L")
+    data = cache.lookup(
+        "tesseract",
+        lambda: {"version": version(), "languages": languages, "config": config, "pixels": cache.pixels(gray)},
+        lambda: _read(gray, languages, config),
+    )
     grouped: dict[tuple[int, int, int], list[tuple[Word, float]]] = {}
     for i, text in enumerate(data["text"]):
         text = (text or "").strip()
@@ -119,3 +116,19 @@ def words(
             )
         )
     return lines
+
+
+def _read(image: Image.Image, languages: str, config: str) -> dict[str, list[Any]]:
+    """What Tesseract reads on ``image``: its words with their boxes, confidence and place in the block."""
+    import pytesseract
+
+    left = limits.remaining()  # the time left for the sheet bounds the call: a hung Tesseract is killed
+    try:
+        data: dict[str, list[Any]] = pytesseract.image_to_data(
+            image, lang=languages, config=config, output_type=pytesseract.Output.DICT, timeout=left or 0
+        )
+    except RuntimeError as exc:  # pytesseract stops the process on its timeout and says so
+        if left is not None and "timeout" in str(exc).lower():
+            raise limits.SheetTimeout from exc
+        raise
+    return data

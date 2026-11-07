@@ -19,6 +19,7 @@ from typing import Any
 
 from PIL import Image
 
+from kdcheck import cache
 from kdcheck.config import ConfigError, VlmEngine, prompts_dir
 
 ANSWER = {
@@ -100,28 +101,38 @@ class VlmClient:
         return None
 
     def read(self, image: Image.Image, label: str) -> str:
-        """The text of the cell ``label`` in ``image``; an empty string when the model sees none."""
-        png = io.BytesIO()
-        image.save(png, "PNG")
-        picture = "data:image/png;base64," + base64.b64encode(png.getvalue()).decode("ascii")
-        body = {
-            "model": self.engine.model,
-            "temperature": 0,
-            "seed": self.engine.seed,
-            "max_tokens": self.engine.max_tokens,
-            "response_format": ANSWER,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        # Replace, not format: braces of a JSON example in the prompt stay as they are.
-                        {"type": "text", "text": self.prompt.text.replace("{label}", label)},
-                        {"type": "image_url", "image_url": {"url": picture}},
-                    ],
-                }
-            ],
-        }
+        """The text of the cell ``label`` in ``image``; an empty string when the model sees none. The answer is kept
+        by :mod:`kdcheck.cache` when a run keeps one, by the request with the hash of the pixels in place of the image:
+        the same cell, model, prompt and limits give it back without asking the server."""
         self.calls += 1
+
+        def body(picture: str) -> dict[str, Any]:
+            return {
+                "model": self.engine.model,
+                "temperature": 0,
+                "seed": self.engine.seed,
+                "max_tokens": self.engine.max_tokens,
+                "response_format": ANSWER,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            # Replace, not format: braces of a JSON example in the prompt stay as they are.
+                            {"type": "text", "text": self.prompt.text.replace("{label}", label)},
+                            {"type": "image_url", "image_url": {"url": picture}},
+                        ],
+                    }
+                ],
+            }
+
+        def ask() -> str:
+            png = io.BytesIO()
+            image.save(png, "PNG")
+            return self._answer(body("data:image/png;base64," + base64.b64encode(png.getvalue()).decode("ascii")))
+
+        return cache.lookup("vlm", lambda: {"request": body(f"sha256:{cache.pixels(image)}")}, ask)
+
+    def _answer(self, body: dict[str, Any]) -> str:
         reply = self._request("/chat/completions", body)
         try:
             message = reply["choices"][0]["message"]

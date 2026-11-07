@@ -8,6 +8,7 @@ import sys
 import uuid
 from pathlib import Path
 
+from kdcheck import cache as read_cache
 from kdcheck.report import write_report
 from kdcheck.run import ConfigError, ProgressCallback, run
 
@@ -44,6 +45,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             max_pages=args.max_pages,
             use_vlm=True if args.vlm else None,
             progress=_progress_to_file(Path(args.progress_file)) if args.progress_file else _progress,
+            cache=Path(args.cache) if args.cache else None,
         )
     except ConfigError as exc:
         print(exc, file=sys.stderr)
@@ -56,6 +58,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         f"критичных параметров: {s.critical_parameters}"
     )
     print(f"Отчёт: {out / 'report.json'} (+ report.xlsx, report.html)")
+    if args.cache or read_cache.folder_from_env():
+        print(f"Кэш прочтений — {read_cache.summary() or 'обращений к OCR и модели не было'}", file=sys.stderr)
     return 0
 
 
@@ -72,6 +76,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--config", help="каталог настроек (по умолчанию — ARM_CONFIG_DIR, иначе configs/ рабочей копии)")
     p.add_argument("--kit-id", help="идентификатор комплекта в отчёте (по умолчанию случайный)")
     p.add_argument("--progress-file", help="писать ход обработки в JSON-файл")
+    p.add_argument(
+        "--cache", help="папка кэша прочтений OCR и модели (по умолчанию — ARM_CACHE_DIR, иначе без кэша; ADR-0018)"
+    )
     p.set_defaults(func=cmd_run)
     args = parser.parse_args(argv)
     result: int = args.func(args)

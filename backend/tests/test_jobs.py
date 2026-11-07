@@ -140,6 +140,16 @@ def test_default_pipeline_is_the_core_in_a_process(monkeypatch):
     assert isinstance(get_pipeline(), BaselinePipeline)
 
 
+def test_jobs_keep_no_readings_unless_a_cache_folder_is_set(monkeypatch, tmp_path):
+    """ADR-0018: the texts of the customer's documents stay on disk only with ``cache_dir`` in configs/api.yaml."""
+    for var in ("ARM_PIPELINE_CMD", "ARM_INPROCESS", "ARM_CONFIG_DIR", "ARM_CACHE_DIR"):
+        monkeypatch.delenv(var, raising=False)
+    assert "--cache" not in get_pipeline().command
+    monkeypatch.setenv("ARM_CACHE_DIR", str(tmp_path / "cache"))
+    command = get_pipeline().command
+    assert command[command.index("--cache") + 1] == str((tmp_path / "cache").resolve())
+
+
 def test_report_kit_gets_the_job_identity(tmp_path):
     store = store_with(tmp_path, pipeline())
     job = upload(store, "Имя комплекта")
