@@ -163,3 +163,13 @@ coating_hints:                   # a requirement with any of these is about a co
   - лак
   - окрасить
   - оксидир
+
+row_designations:                # designations of specification rows checked against the designations of the kit
+                                 # (ADR-0020): a row read this way whose designation the kit lacks gets the one
+                                 # designation of the kit with the same digits; the letters, the code of the maker most of
+                                 # all, OCR loses on rasters
+  methods: [ocr, vlm]            # the text layer is read as written: a row of it names what it names
+  min_digits: 5                  # a reading with fewer digits names nothing: the designations of the makers' systems
+                                 # have five (ADR-0016), those of the classifier nine
+  one_digit: true                # the digits may differ by one dropped or doubled, a thin «1» most often; a digit read as
+                                 # another never: neighbouring documents differ by one digit

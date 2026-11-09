@@ -125,6 +125,10 @@ class Designations:
         look, count = looks.most_common(1)[0]
         return (look, count) if count > share * len(stems) else None
 
+    def cyrillic(self, text: str) -> str:
+        """``text`` with the Latin letters that look like Cyrillic ones made Cyrillic."""
+        return text.translate(self._lat_to_cyr)
+
     def normalize_name(self, name: str | None) -> str:
         """Name for comparison: ignores case, ё/е, punctuation and spaces."""
         if not name:

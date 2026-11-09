@@ -348,6 +348,14 @@ class Grammar(Section):
         return self
 
 
+class RowDesignations(Section):
+    """Designations of specification rows checked against the designations of the kit (ADR-0020)."""
+
+    methods: tuple[Literal["text_layer", "ocr", "vlm"], ...]  # rows read this way are checked
+    min_digits: int = Field(ge=1)  # a reading with fewer digits names nothing
+    one_digit: bool  # the digits may differ by one digit dropped or doubled, never by one read as another
+
+
 class Dictionaries(Section):
     spec_sections: dict[str, NodeKind]
     needs_drawing: tuple[NodeKind, ...]
@@ -366,6 +374,7 @@ class Dictionaries(Section):
     geometric_tolerances: tuple[Term, ...]
     gdt_symbols: dict[str, str]
     coating_hints: tuple[str, ...]
+    row_designations: RowDesignations
 
     @field_validator("latin_lookalikes", "digit_lookalikes")
     @classmethod
