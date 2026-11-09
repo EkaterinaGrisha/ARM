@@ -13,12 +13,14 @@ The kits are customer data. They stay in data/arm outside git, and so do the reg
   of all kits, so the test kits are not looked at for every change.
 
 There is no truth yet, so a cell counts as filled, not as right. The one check against something outside the core is
-the kind of a document by the code the customer writes into the file name: «СП» or «СБ». Images get the statistics
-of eval/scan_quality.py, the same as the real scans of the gold set, to tell a scan from a raster exported from CAD.
+the kind of a document by the code the customer writes into the file name: «СП» or «СБ». ``--vlm MODEL`` runs the
+core with a model on the server of this machine on title blocks and specification rows (ADR-0019, ADR-0021) and
+writes eval/results/arm-kits[-<role>]-vlm.*. Images get the statistics of eval/scan_quality.py, the same as the real
+scans of the gold set, to tell a scan from a raster exported from CAD.
 
     uv run python eval/arm_kits.py register arm-1 data/arm/raw/<папка> --role dev
     uv run python eval/arm_kits.py verify
-    uv run python eval/arm_kits.py run [--role dev]
+    uv run python eval/arm_kits.py run [--role dev] [--vlm qwen3.6-35b-a3b-mlx]
 """
 
 from __future__ import annotations
@@ -97,6 +99,9 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+KIT_NOTE = re.compile(r"^Спецификация, строка .+: прочитано «.*», в комплекте «.+»$")
 
 
 def files_of(folder: Path) -> dict[str, str]:
@@ -184,8 +189,9 @@ def aggregate(report: Report, seconds: float, eskd: Designations) -> dict[str, A
         "rows_designation_parsed": sum(
             1 for r in rows if _filled(r.designation) and eskd.normalize_designation(str(r.designation.value))
         ),
-        # rows whose reading the core checked against the designations of the kit and replaced (ADR-0020)
-        "rows_by_kit": sum(1 for r in rows if r.designation is not None and r.designation.status == "conflict"),
+        # rows whose reading the core checked against the designations of the kit and replaced (ADR-0020), by the
+        # notes of the stage: the conflict status is set by the model as well (ADR-0019)
+        "rows_by_kit": sum(1 for d in docs for note in d.notes if KIT_NOTE.search(note)),
         "drawings": len(report.parts),
         "title_block": {f: sum(1 for p in report.parts if _filled(getattr(p.title_block, f))) for f in TITLE_FIELDS},
         "tree_items": report.summary.tree_items,
@@ -197,8 +203,12 @@ def aggregate(report: Report, seconds: float, eskd: Designations) -> dict[str, A
     }
 
 
-def run(kits: dict[str, Any], use_ocr: bool) -> tuple[dict[str, Any], dict[str, str | None]]:
-    pipeline = BaselinePipeline(load_settings(use_ocr=use_ocr))
+def run(kits: dict[str, Any], use_ocr: bool, model: str | None = None) -> tuple[dict[str, Any], dict[str, str | None]]:
+    settings = load_settings(use_ocr=use_ocr, use_vlm=model is not None)
+    if model is not None:  # a model on the server of this machine: the files never leave it (allow_remote: false)
+        vlm = settings.models.vlm.model_copy(update={"model": model})
+        settings = settings.model_copy(update={"models": settings.models.model_copy(update={"vlm": vlm})})
+    pipeline = BaselinePipeline(settings)
     REPORTS.mkdir(parents=True, exist_ok=True)
     result: dict[str, Any] = {}
     engines: dict[str, str | None] = {}
@@ -207,8 +217,11 @@ def run(kits: dict[str, Any], use_ocr: bool) -> tuple[dict[str, Any], dict[str, 
         start = time.perf_counter()
         report = pipeline.run(folder, kit_id=kit, kit_name=kit)
         seconds = time.perf_counter() - start
-        (REPORTS / f"{kit}.json").write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
-        engines.update({e.name: e.version for e in report.kit.engines})
+        name = f"{kit}-vlm" if model else kit
+        (REPORTS / f"{name}.json").write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        for e in report.kit.engines:  # a model reads with two prompts: both versions are kept
+            versions = {*(engines.get(e.name) or "").split("; "), e.version or ""} - {""}
+            engines[e.name] = "; ".join(sorted(versions)) or None
         result[kit] = {"role": entry["role"], **aggregate(report, seconds, pipeline.eskd), "images": images(folder)}
         print(f"{kit}: {result[kit]['pages']} листов, {seconds:.0f} с")
     return result, engines
@@ -235,7 +248,8 @@ def markdown(result: dict[str, Any]) -> str:
     lines = [
         "# Комплекты АРМ: прогон ядра",
         "",
-        f"Получено `uv run python eval/arm_kits.py run{' --role ' + result['role'] if result['role'] else ''}` "
+        f"Получено `uv run python eval/arm_kits.py run{' --role ' + result['role'] if result['role'] else ''}"
+        f"{' --vlm ' + result['model'] if result.get('model') else ''}` "
         f"{result['date']}; {result['machine']}; {engines}; "
         f"OCR {'включён' if result['ocr'] else 'выключен'}. Комплекты — данные заказчика: они лежат в `data/arm` "
         "вне git, папки и sha256 файлов — в реестре и манифесте там же. Здесь только числа под обезличенными "
@@ -330,6 +344,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("verify", help="сверить файлы комплектов с манифестом")
     p = sub.add_parser("run", help="прогнать ядро на комплектах")
     p.add_argument("--role", choices=ROLES, help="только комплекты этой роли; результаты — в arm-kits-<роль>")
+    p.add_argument(
+        "--vlm", metavar="MODEL", help="с этой моделью на основных надписях и строках; результаты — в arm-kits-…-vlm"
+    )
     args = parser.parse_args(argv)
     if args.command == "register":
         return register(args.kit, args.folder, args.role)
@@ -344,8 +361,10 @@ def main(argv: list[str] | None = None) -> int:
         print("Файлы комплектов не совпадают с манифестом: прогон остановлен")
         return 1
     use_ocr = ocr_available()
-    measured, engines = run(chosen, use_ocr)
+    model = getattr(args, "vlm", None)
+    measured, engines = run(chosen, use_ocr, model)
     result = {
+        "model": model,
         "date": datetime.now(UTC).date().isoformat(),
         "machine": f"{platform.system()} {platform.machine()}, Python {platform.python_version()}",
         "role": args.role,
@@ -353,7 +372,7 @@ def main(argv: list[str] | None = None) -> int:
         "engines": engines,
         "kits": measured,
     }
-    stem = f"arm-kits-{args.role}" if args.role else "arm-kits"
+    stem = (f"arm-kits-{args.role}" if args.role else "arm-kits") + ("-vlm" if model else "")
     OUT.mkdir(exist_ok=True)
     (OUT / f"{stem}.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (OUT / f"{stem}.md").write_text(markdown(result), encoding="utf-8")

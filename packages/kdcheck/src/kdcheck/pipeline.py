@@ -46,6 +46,7 @@ from kdcheck.schemas import (
 from kdcheck.tree.documents import assemble
 from kdcheck.tree.product import DrawingRef, build_tree
 from kdcheck.tree.rows import check_rows
+from kdcheck.vlm import spec_rows as vlm_spec_rows
 from kdcheck.vlm import title_block as vlm_title_block
 from kdcheck.vlm.client import VlmClient, VlmError, load_prompt
 
@@ -76,6 +77,8 @@ class BaselinePipeline:
         self.parameters = parameters.Parser(settings.dictionaries)
         vlm = settings.models.vlm
         self.vlm = VlmClient(vlm, load_prompt(vlm.prompt)) if vlm.enabled else None
+        # the cells of specification rows, with a prompt of their own (ADR-0021)
+        self.vlm_rows = VlmClient(vlm, load_prompt(vlm.rows.prompt)) if vlm.enabled else None
         self.vlm_problem: str | None = None  # why the model is not asked in this run
         self.vlm_used = False
         self.later_sheets: set[str] = set()  # files whose form 2a says they are later sheets of a document
@@ -206,6 +209,8 @@ class BaselinePipeline:
             found.append(EngineInfo(name=ocr.engine, version=tesseract.version()))
         if self.vlm is not None and self.vlm_used:
             found.append(EngineInfo(name=self.vlm.engine.model, version=self.vlm.version))
+        if self.vlm_rows is not None and self.vlm_rows.calls:
+            found.append(EngineInfo(name=self.vlm_rows.engine.model, version=self.vlm_rows.version))
         found.append(EngineInfo(name="pillow", version=metadata.version("pillow")))
         return found
 
@@ -220,6 +225,7 @@ class BaselinePipeline:
             return
         if any(specification.is_specification(p, forms) for p in text_pages[: forms.specification.header_pages]):
             spec = specification.parse(doc, forms, self.eskd)
+            self._read_spec_cells(doc, spec)
             info.kind = "specification"
             info.designation = _str(spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
@@ -238,6 +244,7 @@ class BaselinePipeline:
         geom = title_block.locate(page, forms)
         if geom is not None and geom.form == 2:
             spec = specification.parse(doc, forms, self.eskd)
+            self._read_spec_cells(doc, spec)
             info.kind = "specification"
             info.designation = _str(spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
@@ -383,6 +390,35 @@ class BaselinePipeline:
         info.sheet = number if number is not None else named
         if form == "later":
             self.later_sheets.add(doc.id)
+
+    def _read_spec_cells(self, doc: LoadedDocument, spec: Specification) -> None:
+        """A specification read by the model as a drawing is (ADR-0021): the cells of form 2 on the first page that
+        has it, its designation, name and litera, and the cells of the rows of each page whose table was placed by its
+        ruled lines."""
+        if self.vlm is None or self.vlm_rows is None or self.vlm_problem is not None:
+            return
+        forms, methods = self.settings.forms, self.settings.models.vlm.methods
+        pages = [p for p in doc.pages if p.lines and p.method in methods]
+        for page in pages:
+            geom = title_block.locate(page, forms)
+            if geom is not None and geom.form == 2:
+                tb = TitleBlock(designation=spec.designation, name=spec.name, litera=spec.litera)
+                self._read_cells(doc, page, geom, tb)
+                spec.designation, spec.name, spec.litera = tb.designation, tb.name, tb.litera
+                break
+        for page in pages:
+            if self.vlm_problem is not None or page.regions is None or page.regions.table is None:
+                continue
+            calls = self.vlm_rows.calls
+            image = page_raster(doc, page, self.settings, self.pdf)
+            try:
+                doc.info.notes += vlm_spec_rows.read_rows(
+                    doc, page, spec.rows, client=self.vlm_rows, image=image, settings=self.settings, eskd=self.eskd
+                )
+            except VlmError as exc:  # the server stopped answering: the other scans are read without the model
+                self.vlm_problem = str(exc)
+                doc.info.notes.append(f"Модель не прочитала строки спецификации: {exc}")
+            self.vlm_used = self.vlm_used or self.vlm_rows.calls > calls
 
     def _read_cells(self, doc: LoadedDocument, page: Page, geom: title_block.Geometry, tb: TitleBlock) -> None:
         """The title block cells the rules left empty, read by the vision-language model (ADR-0014)."""
