@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from kdcheck.config import Review
-from kdcheck.extract import review, specification, title_block
+from kdcheck.extract import review, specification, tech_requirements, title_block
 from kdcheck.ingest.document import load_document
 from kdcheck.normalize.designations import Designations
 from kdcheck.schemas import Extracted, PartRecord, SourceRef, TitleBlock
@@ -115,3 +115,50 @@ def test_section_header_read_with_errors(settings):
     assert specification._section("детолу", sections, similarity) == "Детали"  # OCR of «Детали» in GOST lettering
     assert specification._section("тондортныеизделия", sections, similarity) == "Стандартные изделия"
     assert specification._section("всборе", sections, similarity) is None  # the second line of a name
+
+
+def test_items_of_a_requirements_block(settings):
+    """A numbered line starts an item; a line that starts with a range or a decimal continues the item before."""
+    lines = [
+        "Технические требования",
+        "1. 269...302 HB.",
+        "2. Поверхности Б закалить ТВЧ h 1,5...2,0 мм,",
+        "48...53 HRC.",
+        "3) Покрытие Хим.Окс.прм.",
+        "2,5 мм от торца.",
+    ]
+    items = tech_requirements.item_texts(lines, settings.forms.tech_requirements)
+    assert items == [
+        ("269...302 HB.", [1]),
+        ("Поверхности Б закалить ТВЧ h 1,5...2,0 мм, 48...53 HRC.", [2, 3]),
+        ("Покрытие Хим.Окс.прм. 2,5 мм от торца.", [4, 5]),
+    ]
+    single = tech_requirements.item_texts(
+        ["Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2."], settings.forms.tech_requirements
+    )
+    assert [text for text, _ in single] == [
+        "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2."
+    ]  # one item, unnumbered
+
+
+def test_without_item_numbers_the_block_ends_at_a_row_of_the_field(settings, eskd):
+    """OCR missed every item number: the block is taken all the same, a piece of a row stays with its row, and the
+    text of the field that starts far right of the block is left to the parameters of the field."""
+    from kdcheck.ingest.text import Line
+
+    doc = load_document(KIT / "Чертежи/АРМ.303411.201 Вал ведомый.pdf", KIT, settings)
+    page = doc.pages[0]
+    geom = title_block.locate(page, settings.forms)
+    block = settings.forms.tech_requirements
+    mm = geom.s
+    x, y = geom.x0, geom.y0
+    pieces = [
+        Line("р. Покрытие Ц9.хр", (x, y - 16 * mm, x + 60 * mm, y - 12 * mm), 3.5 * mm),
+        Line("Общие допуски по ГОСТ 30893.1:", (x, y - 22 * mm, x + 70 * mm, y - 18 * mm), 3.5 * mm),
+        Line("H14, h14, ±IT14/2", (x + 72 * mm, y - 22 * mm, x + 110 * mm, y - 18 * mm), 3.5 * mm),  # same row
+        Line("Ø42 h6 (-0,016)", (x + 90 * mm, y - 28 * mm, x + 130 * mm, y - 24 * mm), 3.5 * mm),  # the field
+    ]
+    page.lines = pieces
+    assert tech_requirements.requirement_lines(page, geom, block) == []  # no item number read
+    taken = tech_requirements.requirement_lines(page, geom, block, numbered=False)
+    assert [ln.text for ln in taken] == [pieces[1].text, pieces[2].text, pieces[0].text]

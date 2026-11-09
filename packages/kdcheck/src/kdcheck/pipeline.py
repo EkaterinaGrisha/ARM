@@ -48,6 +48,7 @@ from kdcheck.tree.documents import assemble
 from kdcheck.tree.product import DrawingRef, build_tree
 from kdcheck.tree.rows import check_rows
 from kdcheck.vlm import spec_rows as vlm_spec_rows
+from kdcheck.vlm import tech_requirements as vlm_tech_requirements
 from kdcheck.vlm import title_block as vlm_title_block
 from kdcheck.vlm.client import VlmClient, VlmError, load_prompt
 
@@ -80,6 +81,9 @@ class BaselinePipeline:
         self.vlm = VlmClient(vlm, load_prompt(vlm.prompt)) if vlm.enabled else None
         # the cells of specification rows, with a prompt of their own (ADR-0021)
         self.vlm_rows = VlmClient(vlm, load_prompt(vlm.rows.prompt)) if vlm.enabled else None
+        # the technical requirements block, with a prompt and a longer answer of its own (ADR-0023)
+        longer = vlm.model_copy(update={"max_tokens": vlm.requirements.max_tokens})
+        self.vlm_requirements = VlmClient(longer, load_prompt(vlm.requirements.prompt)) if vlm.enabled else None
         self.vlm_problem: str | None = None  # why the model is not asked in this run
         self.vlm_used = False
         self.later_sheets: set[str] = set()  # files whose form 2a says they are later sheets of a document
@@ -212,6 +216,8 @@ class BaselinePipeline:
             found.append(EngineInfo(name=self.vlm.engine.model, version=self.vlm.version))
         if self.vlm_rows is not None and self.vlm_rows.calls:
             found.append(EngineInfo(name=self.vlm_rows.engine.model, version=self.vlm_rows.version))
+        if self.vlm_requirements is not None and self.vlm_requirements.calls:
+            found.append(EngineInfo(name=self.vlm_requirements.engine.model, version=self.vlm_requirements.version))
         found.append(EngineInfo(name="pillow", version=metadata.version("pillow")))
         return found
 
@@ -297,6 +303,14 @@ class BaselinePipeline:
         block = forms.tech_requirements
         tt_lines = tech_requirements.requirement_lines(page, geom, block)
         part.requirements = tech_requirements.requirement_items(doc, page, tt_lines, block)
+        if (
+            self.vlm_requirements is not None
+            and self.vlm_problem is None
+            and page.method in self.settings.models.vlm.methods
+        ):
+            loose = tech_requirements.requirement_lines(page, geom, block, numbered=False)
+            if loose and (read := self._read_requirements(doc, page, loose)):  # an empty answer keeps OCR's
+                part.requirements, tt_lines = read, loose
         for item in part.requirements:
             part.parameters += self.parameters.requirement(item, next_id)
         skip = {id(ln) for ln in tt_lines}
@@ -417,6 +431,24 @@ class BaselinePipeline:
                 self.vlm_problem = str(exc)
                 doc.info.notes.append(f"Модель не прочитала строки спецификации: {exc}")
             self.vlm_used = self.vlm_used or self.vlm_rows.calls > calls
+
+    def _read_requirements(self, doc: LoadedDocument, page: Page, lines: list[Line]) -> list[Extracted] | None:
+        """The items of the technical requirements block over ``lines``, read by the model (ADR-0023); None or none
+        when it did not read them, so the items of OCR stay."""
+        assert self.vlm_requirements is not None
+        calls = self.vlm_requirements.calls
+        raster = page_raster(doc, page, self.settings, self.pdf)
+        try:
+            items = vlm_tech_requirements.read_block(
+                doc, page, lines, client=self.vlm_requirements, raster=raster, settings=self.settings
+            )
+        except VlmError as exc:
+            if exc.fatal:  # the server stopped answering: the other scans are read without the model
+                self.vlm_problem = str(exc)
+            doc.info.notes.append(f"Модель не прочитала технические требования: {exc}")
+            items = None
+        self.vlm_used = self.vlm_used or self.vlm_requirements.calls > calls
+        return items
 
     def _read_cells(self, doc: LoadedDocument, page: Page, geom: title_block.Geometry, tb: TitleBlock) -> None:
         """The title block cells the rules left empty, read by the vision-language model (ADR-0014)."""

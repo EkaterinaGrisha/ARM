@@ -39,6 +39,7 @@ from typing import Any
 
 from kdcheck.normalize.designations import Designations
 from kdcheck.pipeline import BaselinePipeline
+from kdcheck.report.labels import PARAMETER_CATEGORY
 from kdcheck.run import load_settings, ocr_available
 from kdcheck.schemas import Extracted, Report
 from scan_quality import image_statistics, page_image
@@ -194,6 +195,14 @@ def aggregate(report: Report, seconds: float, eskd: Designations) -> dict[str, A
         "rows_by_kit": sum(1 for d in docs for note in d.notes if KIT_NOTE.search(note)),
         "drawings": len(report.parts),
         "title_block": {f: sum(1 for p in report.parts if _filled(getattr(p.title_block, f))) for f in TITLE_FIELDS},
+        # Block 2: technical requirements of part drawings and the parameters of every drawing, by category
+        "part_drawings": sum(1 for p in report.parts if p.kind == "part_drawing"),
+        "part_drawings_with_requirements": sum(1 for p in report.parts if p.kind == "part_drawing" and p.requirements),
+        "requirement_items": sum(len(p.requirements) for p in report.parts),
+        "requirements_by_model": sum(
+            1 for p in report.parts for i in p.requirements if i.source is not None and i.source.method == "vlm"
+        ),
+        "parameters": dict(Counter(x.category for p in report.parts for x in p.parameters)),
         "tree_items": report.summary.tree_items,
         "root": report.kit.root_designation is not None,
         "discrepancies": dict(Counter(x.rule_id or x.type for x in report.discrepancies)),
@@ -331,6 +340,26 @@ def markdown(result: dict[str, Any]) -> str:
     for kit, k in kits.items():
         cells = " | ".join(str(k["title_block"][f]) for f in TITLE_FIELDS)
         lines.append(f"| `{kit}` | {k['drawings']} | {cells} |")
+    lines += [
+        "",
+        "## Блок 2: технические требования и параметры",
+        "",
+        "Пункты технических требований — у чертежей деталей; «моделью» — пункты, которые прочла модель "
+        "([ADR-0023](../../docs/adr/0023-vlm-tech-requirements.md)). Параметры — у всех чертежей, по категориям.",
+        "",
+        "| Комплект | Чертежей деталей | с пунктами ТТ | Пунктов | моделью | "
+        + " | ".join(PARAMETER_CATEGORY.values())
+        + " |",
+        "| --- | ---: | ---: | ---: | ---: | " + " | ".join("---:" for _ in PARAMETER_CATEGORY) + " |",
+    ]
+    for kit, k in kits.items():
+        if "parameters" not in k:
+            continue
+        cells = " | ".join(str(k["parameters"].get(c, 0)) for c in PARAMETER_CATEGORY)
+        lines.append(
+            f"| `{kit}` | {k['part_drawings']} | {k['part_drawings_with_requirements']} | {k['requirement_items']} "
+            f"| {k['requirements_by_model']} | {cells} |"
+        )
     return "\n".join(lines) + "\n"
 
 

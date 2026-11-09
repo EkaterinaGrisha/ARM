@@ -5,6 +5,7 @@
 | Файл | Задача | Где используется |
 | --- | --- | --- |
 | `spec_row_cell.v1.txt` | Текст одной ячейки строки спецификации; `{label}` — графа из `vlm.rows.fields` в `configs/models.yaml` | `kdcheck.vlm`, [ADR-0021](../docs/adr/0021-vlm-spec-rows.md) |
+| `tech_requirements.v1.txt` | Текст блока технических требований строка за строкой, ответ — JSON; текст тот же, что у `bench_requirements.v1`, на котором модели мерились | `kdcheck.vlm`, [ADR-0023](../docs/adr/0023-vlm-tech-requirements.md) |
 | `title_block_cell.v1.txt` | Текст одной ячейки основной надписи; `{label}` — название ячейки из `vlm.fields` в `configs/models.yaml` | `kdcheck.vlm`, [ADR-0014](../docs/adr/0014-local-vlm.md) |
 | `bench_sheet_fields.v1.txt` | Поля основной надписи со всего листа, ответ — JSON | `eval/vlm_bench.py` |
 | `bench_requirements.v1.txt` | Текст блока технических требований, ответ — JSON | `eval/vlm_bench.py` |

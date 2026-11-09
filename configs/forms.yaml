@@ -177,3 +177,7 @@ tech_requirements:               # the text block right above the title block; d
   first_gap: 25                  # the first line lies at most this far above the block
   line_gap: 2.5                  # the next lines: at most this many line heights apart
   min_line_gap: 4                # but this far apart is always allowed
+  row_indent: 20                 # taken without the check of item numbers (ADR-0023), the block ends at a row that starts
+                                 # this far right of the rows below it: its rows start at one left edge, text of the field
+                                 # next to it does not
+  row_overlap: 0.5               # OCR splits a row into pieces: pieces of one row share this part of their height

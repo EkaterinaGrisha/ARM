@@ -450,8 +450,7 @@ def markdown(result: dict[str, Any]) -> str:
         total = run_["total"]
         lines += [
             "",
-            f"## OCR {'включён' if run_['ocr'] else 'выключен'}"
-            + (f", модель {run_['model']} на основных надписях и строках спецификаций" if run_.get("model") else ""),
+            f"## {_run_label(run_)}" + (READ_BY_MODEL if run_.get("model") else ""),
             "",
             f"Всего: найдено {total['found']} из {total['expected']}, лишних {total['extra']}; "
             f"точность {_number(total['precision'])}, полнота {_number(total['recall'])}. "
@@ -479,6 +478,14 @@ def markdown(result: dict[str, Any]) -> str:
         lines += _regions_section(run_)
         lines += _sheets_section(run_)
     return "\n".join(lines) + "\n"
+
+
+READ_BY_MODEL = " на основных надписях, строках спецификаций и технических требованиях"  # ADR-0019, 0021, 0023
+
+
+def _run_label(run_: dict[str, Any]) -> str:
+    label = f"OCR {'включён' if run_['ocr'] else 'выключен'}"
+    return label + (f", модель {run_['model']}" if run_.get("model") else "")
 
 
 def _sheets_section(run_: dict[str, Any]) -> list[str]:
@@ -509,7 +516,7 @@ def _regions_section(run_: dict[str, Any]) -> list[str]:
     places = run_.get("regions", {})
     lines = [
         "",
-        f"### Прослеживаемость: области значений, OCR {'включён' if run_['ocr'] else 'выключен'}",
+        f"### Прослеживаемость: области значений, {_run_label(run_)}",
         "",
         "Область, которую отчёт даёт значению, против области, где генератор нарисовал значение, — по правилу "
         "[eval/gold/README.md](../gold/README.md#что-считается-верным-извлечением): та же страница, внутри — центр "
@@ -536,7 +543,7 @@ def _parameters_section(run_: dict[str, Any]) -> list[str]:
     params = run_["parameters"]
     lines = [
         "",
-        f"### Блок 2: параметры чертежей, OCR {'включён' if run_['ocr'] else 'выключен'}",
+        f"### Блок 2: параметры чертежей, {_run_label(run_)}",
         "",
         "Параметры технических требований, поля чертежа и знака общей шероховатости из разметки против параметров "
         "отчёта — по правилу [eval/gold/README.md](../gold/README.md#что-считается-верным-извлечением): один к одному "
