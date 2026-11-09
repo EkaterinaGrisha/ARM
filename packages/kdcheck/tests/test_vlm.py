@@ -261,6 +261,28 @@ def test_a_dead_server_leaves_the_run_to_the_rules(settings, tmp_path):
     assert any("не ответила" in e.message and "без неё" in e.message for e in report.log)
 
 
+@pytest.mark.parametrize(
+    ("reading", "want", "named"),
+    [
+        ("АБМ.303411.201", "АРМ.303411.201", True),  # a letter misread: the designation of the file name (ADR-0022)
+        ("АРМ.303411.204", "АРМ.303411.204", False),  # a digit read as another: the reading stays
+    ],
+)
+def test_a_designation_the_model_misread_is_decided_by_the_file_name(settings, server, tmp_path, reading, want, named):
+    (tmp_path / "Чертежи").mkdir()
+    (tmp_path / DRAWING).write_bytes((KIT / DRAWING).read_bytes())
+    server.say("Обозначение документа", reading)
+    on = _settings(settings, server.url, methods=("text_layer",))
+    report = BaselinePipeline(on).run(tmp_path, kit_id="t", kit_name="t")
+    designation = report.parts[0].title_block.designation
+    assert (report.parts[0].designation, report.documents[0].designation) == (want, want)
+    assert (designation.value, designation.raw, designation.status) == (want, reading, "conflict")
+    assert designation.source.method == "vlm"
+    notes = report.documents[0].notes
+    assert any("в имени файла «АРМ.303411.201»; в отчёте" in n for n in notes) is named
+    assert any(n.startswith("Обозначение в имени файла") for n in notes) is not named
+
+
 def test_the_same_cell_is_asked_once_with_a_cache(settings, server, tmp_path):
     """The key is the request with the hash of the pixels: another cell, label or prompt asks the server again; the
     readings asked for are counted all the same, so a run reports the same number with a cache or without."""

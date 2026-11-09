@@ -356,6 +356,15 @@ class RowDesignations(Section):
     one_digit: bool  # the digits may differ by one digit dropped or doubled, never by one read as another
 
 
+class FileDesignations(Section):
+    """The designation of a title block read from a raster decided against the designation of its file name
+    (ADR-0022)."""
+
+    methods: tuple[Literal["text_layer", "ocr", "vlm"], ...]  # a title block read this way may take the file name's
+    min_digits: int = Field(ge=1)  # a file name with fewer digits in its designation decides nothing
+    one_digit: bool  # the digits may differ by one digit dropped or doubled, never by one read as another
+
+
 class Dictionaries(Section):
     spec_sections: dict[str, NodeKind]
     needs_drawing: tuple[NodeKind, ...]
@@ -375,6 +384,7 @@ class Dictionaries(Section):
     gdt_symbols: dict[str, str]
     coating_hints: tuple[str, ...]
     row_designations: RowDesignations
+    file_designations: FileDesignations
 
     @field_validator("latin_lookalikes", "digit_lookalikes")
     @classmethod
