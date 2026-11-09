@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-06",
+  "date": "2026-11-09",
   "machine": "Darwin arm64, Python 3.11.15",
   "role": "dev",
   "ocr": true,
@@ -39,7 +39,8 @@
       "specifications_with_designation": 0,
       "spec_rows": 82,
       "rows_with_designation": 64,
-      "rows_designation_parsed": 2,
+      "rows_designation_parsed": 19,
+      "rows_by_kit": 17,
       "drawings": 37,
       "title_block": {
         "designation": 37,
@@ -51,18 +52,19 @@
         "revision": 31,
         "sheets": 37
       },
-      "tree_items": 94,
+      "tree_items": 91,
       "root": false,
       "discrepancies": {
-        "B1.ORPHAN.001": 26,
-        "B1.NAME.001": 10
+        "B1.ORPHAN.001": 17,
+        "B1.DUP.002": 1,
+        "B1.NAME.001": 15
       },
       "log": {
-        "info": 1,
+        "info": 2,
         "warning": 1
       },
-      "seconds": 99.6,
-      "seconds_per_page": 1.88,
+      "seconds": 99.2,
+      "seconds_per_page": 1.87,
       "images": {
         "count": 53,
         "dpi": {

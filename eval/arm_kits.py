@@ -184,6 +184,8 @@ def aggregate(report: Report, seconds: float, eskd: Designations) -> dict[str, A
         "rows_designation_parsed": sum(
             1 for r in rows if _filled(r.designation) and eskd.normalize_designation(str(r.designation.value))
         ),
+        # rows whose reading the core checked against the designations of the kit and replaced (ADR-0020)
+        "rows_by_kit": sum(1 for r in rows if r.designation is not None and r.designation.status == "conflict"),
         "drawings": len(report.parts),
         "title_block": {f: sum(1 for p in report.parts if _filled(getattr(p.title_block, f))) for f in TITLE_FIELDS},
         "tree_items": report.summary.tree_items,
@@ -278,17 +280,18 @@ def markdown(result: dict[str, Any]) -> str:
         "## Что построило ядро",
         "",
         "Обозначение строки «заполнено» — в графе есть текст, «по грамматике» — в нём нашлось обозначение "
-        "одной из грамматик ядра.",
+        "одной из грамматик ядра, «по комплекту» — ядро заменило прочтение обозначением документа комплекта с теми же "
+        "цифрами ([ADR-0020](../../docs/adr/0020-row-designations-by-kit.md)).",
         "",
         "| Комплект | Спецификаций | из них с обозначением | Строк | обозначение заполнено | по грамматике "
-        "| Документов с обозначением | Элементов дерева | Корень | Расхождений | Проблемных файлов |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |",
+        "| по комплекту | Документов с обозначением | Элементов дерева | Корень | Расхождений | Проблемных файлов |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |",
     ]
     for kit, k in kits.items():
         problems = sum(n for status, n in k["status"].items() if status not in ("ok", "warning"))
         lines.append(
             f"| `{kit}` | {k['specifications']} | {k['specifications_with_designation']} | {k['spec_rows']} "
-            f"| {k['rows_with_designation']} | {k['rows_designation_parsed']} "
+            f"| {k['rows_with_designation']} | {k['rows_designation_parsed']} | {k.get('rows_by_kit', '—')} "
             f"| {k['documents_with_designation']} из {k['files']} "
             f"| {k['tree_items']} | {'найден' if k['root'] else 'нет'} | {sum(k['discrepancies'].values())} "
             f"| {problems} |"

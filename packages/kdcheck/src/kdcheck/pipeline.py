@@ -45,6 +45,7 @@ from kdcheck.schemas import (
 )
 from kdcheck.tree.documents import assemble
 from kdcheck.tree.product import DrawingRef, build_tree
+from kdcheck.tree.rows import check_rows
 from kdcheck.vlm import title_block as vlm_title_block
 from kdcheck.vlm.client import VlmClient, VlmError, load_prompt
 
@@ -125,6 +126,12 @@ class BaselinePipeline:
         report_log += [LogEntry(level="warning", message=m) for m in assembly.log]
         kept = {info.id for info, _ in assembly.specs}
         specs, parts = [(d, s) for d, s in specs if d.id in kept], assembly.parts
+        designations = {d.info.designation for d in docs if d.info.designation}
+        designations |= {f for d in docs if (f := self._filename_designation(d.info.file_name))}
+        if changed := check_rows(assembly.specs, designations, self.eskd, self.settings.dictionaries.row_designations):
+            report_log.append(
+                LogEntry(level="info", message=f"Обозначения строк спецификаций сверены с комплектом: {changed}")
+            )
         drawing_refs = [
             DrawingRef(doc=d.info, part=next((p for p in parts if p.document_id == d.id), None))
             for d in docs
