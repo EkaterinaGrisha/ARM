@@ -290,3 +290,80 @@ def test_a_failed_reading_is_not_kept(settings, tmp_path):
     with cache.use(tmp_path), pytest.raises(VlmError):
         client.read(Image.new("L", (10, 10), 255), "Масса")
     assert not list(tmp_path.rglob("*.json"))
+
+
+def _rows_on_a_table(settings, eskd, monkeypatch, server, conflict="model"):
+    """A page with a table of one row placed by its lines: the layout is given, so the test needs no raster."""
+    from kdcheck.layout import raster
+    from kdcheck.schemas import Extracted, SourceRef, SpecRow
+    from kdcheck.vlm import spec_rows
+    from PIL import Image
+
+    on = _settings(settings, server.url, conflict=conflict)
+    doc, page, _, _ = _drawing(on, eskd)
+    scale = 0.5  # page units per pixel
+    image = Image.new("L", (int(page.width / scale), int(page.height / scale)), 255)
+    columns = {"designation": (20.0, 90.0), "name": (90.0, 160.0)}
+    table = raster.Table(left=100.0, s=4.0, columns=columns, rows=[(400.0, 432.0)])
+    corner = raster.Corner(turn=raster.Turn(pivot=(0.0, 0.0)), level=128, block=None)  # type: ignore[arg-type]
+    monkeypatch.setattr(spec_rows.raster, "find_corner", lambda *a: corner)
+    monkeypatch.setattr(spec_rows.raster, "find_table", lambda *a: table)
+    band = page.norm_bbox((100 * scale, 405 * scale, 400 * scale, 427 * scale))
+    source = SourceRef(document_id=doc.id, page=page.number, bbox=band, text="?", method="ocr")
+    row = SpecRow(id="r1", position=Extracted(value="3", raw="3"), source=source)
+    row.designation = Extracted(value="АРМ.7584.22.002", raw="АРМ.7584.22.002", source=source)
+    client = VlmClient(on.models.vlm, Prompt("rows.v1", "Графа «{label}»"))
+    notes = spec_rows.read_rows(
+        doc, page, [row], client=client, image=(image, (0.0, 0.0), scale), settings=on, eskd=eskd
+    )
+    return row, notes, client, page
+
+
+def test_the_model_reads_the_cells_of_a_specification_row(settings, eskd, monkeypatch, server):
+    """ADR-0021: a different designation is a conflict that keeps the model's reading, an empty name is filled."""
+    server.say("Обозначение", "АРМ.758422.002")
+    server.say("Наименование", "Гайка специальная")
+    row, notes, client, page = _rows_on_a_table(settings, eskd, monkeypatch, server)
+    assert (row.designation.value, row.designation.status, row.designation.source.method) == (
+        "АРМ.758422.002",
+        "conflict",
+        "vlm",
+    )
+    assert (row.name.value, row.name.status, row.name.source.engine_version) == (
+        "Гайка специальная",
+        None,
+        client.version,
+    )
+    assert notes == [
+        "Спецификация, строка поз. 3, «Обозначение»: прочитано «АРМ.7584.22.002», модель прочла «АРМ.758422.002»; "
+        "в отчёте — прочтение модели"
+    ]
+    x0, y0, x1, y1 = row.designation.source.bbox  # the cell of the column in the band, not the words OCR found
+    assert y0 < row.source.bbox[1] and y1 > row.source.bbox[3] and x1 < row.name.source.bbox[0] + 1e-9
+    assert [r["messages"][0]["content"][0]["text"] for r in server.requests] == [
+        "Графа «Обозначение»",
+        "Графа «Наименование»",
+    ]
+
+
+def test_a_row_conflict_may_keep_the_reading_of_ocr(settings, eskd, monkeypatch, server):
+    server.say("Обозначение", "АРМ.758422.002")
+    row, notes, _, _ = _rows_on_a_table(settings, eskd, monkeypatch, server, conflict="ocr")
+    assert (row.designation.value, row.designation.status, row.designation.source.method) == (
+        "АРМ.7584.22.002",
+        "conflict",
+        "ocr",
+    )
+    assert notes[0].endswith("модель прочла «АРМ.758422.002»")
+
+
+def test_a_page_without_a_table_placed_by_its_lines_asks_nothing(settings, eskd, server):
+    from kdcheck.vlm import spec_rows
+    from PIL import Image
+
+    on = _settings(settings, server.url)
+    doc, page, _, _ = _drawing(on, eskd)  # a drawing: no table of a specification on it
+    client = VlmClient(on.models.vlm, Prompt("rows.v1", "«{label}»"))
+    image = (Image.new("L", (200, 140), 255), (0.0, 0.0), page.width / 200)
+    assert spec_rows.read_rows(doc, page, [], client=client, image=image, settings=on, eskd=eskd) == []
+    assert client.calls == 0 and server.requests == []

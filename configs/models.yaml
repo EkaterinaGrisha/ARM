@@ -42,6 +42,11 @@ vlm:                             # a vision-language model reads title block cel
     mass: Масса
     scale: Масштаб
     litera: Литера
+  rows:                          # cells of specification rows of rasters and scans the model reads too (ADR-0021)
+    prompt: spec_row_cell.v1
+    fields:
+      designation: Обозначение
+      name: Наименование
   timeout_sec: 120               # one cell; a model on a laptop may take a while to load and answer
   max_tokens: 512                # the answer is JSON {"text": …}; a reasoning model may spend tokens before it
   seed: 7                        # repeatable answers from the same server and model

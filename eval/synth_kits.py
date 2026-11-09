@@ -313,8 +313,12 @@ def _ratio(numerator: int, denominator: int) -> float | None:
     return round(numerator / denominator, 3) if denominator else None
 
 
-def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
-    pipeline = BaselinePipeline(load_settings(use_ocr=use_ocr))
+def run(truths: dict[str, KitTruth], use_ocr: bool, model: str | None = None) -> dict[str, Any]:
+    settings = load_settings(use_ocr=use_ocr, use_vlm=model is not None)
+    if model is not None:  # the model reads title blocks and specification rows of rasters (ADR-0019, ADR-0021)
+        vlm = settings.models.vlm.model_copy(update={"model": model})
+        settings = settings.model_copy(update={"models": settings.models.model_copy(update={"vlm": vlm})})
+    pipeline = BaselinePipeline(settings)
     rules: dict[str, Counter[str]] = defaultdict(Counter)
     by_mutation: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     clean_false: list[dict[str, str]] = []
@@ -373,6 +377,8 @@ def run(truths: dict[str, KitTruth], use_ocr: bool) -> dict[str, Any]:
     extra = sum(r["extra"] for r in table)
     return {
         "ocr": use_ocr,
+        "model": model,
+        "prompts": [pipeline.vlm.version, pipeline.vlm_rows.version] if pipeline.vlm and pipeline.vlm_rows else [],
         "total": {
             "expected": expected,
             "found": found,
@@ -427,7 +433,7 @@ def markdown(result: dict[str, Any]) -> str:
         "# Блоки 1 и 2 на синтетических комплектах",
         "",
         f"Получено `uv run python eval/synth_kits.py --kits {corpus['kits']} --seed {corpus['seed']} "
-        f"--sheet-files {corpus['sheet_files']:g}` "
+        f"--sheet-files {corpus['sheet_files']:g}{' --vlm ' + corpus['model'] if corpus.get('model') else ''}` "
         f"{result['date']}; {result['machine']}; Tesseract {result['tesseract'] or 'нет'}. "
         f"Корпус: {corpus['kits']} комплектов из `synth.kits`, из них {corpus['clean']} без ошибок; заложено "
         f"{corpus['planted']} расхождений и {corpus['problem_files']} проблемных файлов. Из {corpus['documents']} "
@@ -444,7 +450,8 @@ def markdown(result: dict[str, Any]) -> str:
         total = run_["total"]
         lines += [
             "",
-            f"## OCR {'включён' if run_['ocr'] else 'выключен'}",
+            f"## OCR {'включён' if run_['ocr'] else 'выключен'}"
+            + (f", модель {run_['model']} на основных надписях и строках спецификаций" if run_.get("model") else ""),
             "",
             f"Всего: найдено {total['found']} из {total['expected']}, лишних {total['extra']}; "
             f"точность {_number(total['precision'])}, полнота {_number(total['recall'])}. "
@@ -573,6 +580,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--sheet-files", type=float, default=0.5, help="доля комплектов с растрами по листу в файле")
     parser.add_argument("--cache", action="store_true", help="брать и хранить прочтения OCR в data/cache (ADR-0018)")
+    parser.add_argument("--vlm", metavar="MODEL", help="ещё прогон с OCR и этой моделью на растрах и сканах")
     args = parser.parse_args(argv)
     shutil.rmtree(CORPUS, ignore_errors=True)
     CORPUS.mkdir(parents=True)
@@ -587,6 +595,7 @@ def main(argv: list[str] | None = None) -> int:
             "kits": args.kits,
             "seed": args.seed,
             "sheet_files": args.sheet_files,
+            "model": args.vlm,
             "sheet_documents": len(split),
             "sheet_file_count": sum(len(d.sheet_files) for d in split),
             "clean": sum(1 for t in truths.values() if not t.mutations),
@@ -600,6 +609,8 @@ def main(argv: list[str] | None = None) -> int:
     }
     with read_cache.use(CACHE if args.cache else None):
         result["runs"] = [run(truths, use_ocr) for use_ocr in ([False, True] if ocr_available() else [False])]
+        if args.vlm and ocr_available():
+            result["runs"].append(run(truths, True, args.vlm))
     OUT.mkdir(exist_ok=True)
     (OUT / "synth-kits.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (OUT / "synth-kits.md").write_text(markdown(result), encoding="utf-8")

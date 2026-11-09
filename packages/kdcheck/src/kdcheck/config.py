@@ -494,6 +494,13 @@ class OcrEngine(Section):
 TitleBlockField = Literal["designation", "name", "material", "mass", "scale", "litera", "sheet", "sheets"]
 
 
+class VlmRows(Section):
+    """Cells of specification rows of rasters and scans the model reads (ADR-0021)."""
+
+    prompt: str
+    fields: dict[Literal["designation", "name"], str]  # the columns of GOST 2.106, as the prompt names them
+
+
 class VlmEngine(Section):
     """A vision-language model on an OpenAI-compatible server that reads title block cells (ADR-0014)."""
 
@@ -506,6 +513,7 @@ class VlmEngine(Section):
     verify: bool
     conflict: Literal["ocr", "model"]  # whose reading a cell keeps when the two differ (ADR-0019)
     fields: dict[TitleBlockField, str]
+    rows: VlmRows
     timeout_sec: float = Field(gt=0)
     max_tokens: int = Field(gt=0)
     seed: int
