@@ -173,3 +173,11 @@ row_designations:                # designations of specification rows checked ag
                                  # have five (ADR-0016), those of the classifier nine
   one_digit: true                # the digits may differ by one dropped or doubled, a thin «1» most often; a digit read as
                                  # another never: neighbouring documents differ by one digit
+
+file_designations:               # the designation of a title block read from a raster against the designation of its file
+                                 # name (ADR-0022): the file name is typed, the reading may miss a letter of the code of the
+                                 # maker or a digit; with the same digits the document takes the designation of its file name
+  methods: [ocr, vlm]            # the text layer is the document's own: a file named otherwise is a conflict, not a misread
+  min_digits: 5                  # as row_designations: the designations of the makers' systems have five digits
+  one_digit: true                # a digit dropped or doubled is forgiven, a digit read as another is not: the file may be
+                                 # named wrong

@@ -15,7 +15,7 @@ import re
 from collections import defaultdict
 
 from kdcheck.config import RowDesignations
-from kdcheck.normalize.designations import Designations, base_designation, doc_code
+from kdcheck.normalize.designations import Designations, base_designation, digits, doc_code, one_digit_apart
 from kdcheck.schemas import DocumentInfo, Specification
 
 _SEPARATORS = re.compile(r"[\s.,\-–—_]+")
@@ -28,8 +28,8 @@ def check_rows(
     known = kit | {base_designation(d) for d in kit}
     by_digits: dict[str, set[str]] = defaultdict(set)
     for designation in known:
-        if (digits := _digits(base_designation(designation))) and len(digits) >= rules.min_digits:
-            by_digits[digits].add(base_designation(designation))
+        if (found := digits(base_designation(designation))) and len(found) >= rules.min_digits:
+            by_digits[found].add(base_designation(designation))
     changed = 0
     for info, spec in specs:
         for row in spec.rows:
@@ -62,12 +62,12 @@ def _target(
     the reading as the grammars normalized it: a code of a document they gave back, «С5» read for «СБ», is kept."""
     words = _SEPARATORS.sub(" ", eskd.cyrillic(value.upper())).split()
     code = words[-1] if len(words) > 1 and words[-1] in eskd.words.document_codes else None
-    digits = _digits(" ".join(words[:-1] if code else words))
-    if len(digits) < rules.min_digits:
+    read = digits(" ".join(words[:-1] if code else words))
+    if len(read) < rules.min_digits:
         return None
-    bases = by_digits.get(digits, set())
+    bases = by_digits.get(read, set())
     if not bases and rules.one_digit:
-        bases = {b for d, group in by_digits.items() if _one_apart(digits, d) for b in group}
+        bases = {b for d, group in by_digits.items() if one_digit_apart(read, d) for b in group}
     if len(bases) != 1:
         return None
     (base,) = bases
@@ -75,15 +75,3 @@ def _target(
         coded = sorted(d for d in known if base_designation(d) == base and doc_code(d))
         return coded[0] if len(coded) == 1 else None
     return f"{base} {code}" if code else base
-
-
-def _digits(text: str) -> str:
-    return "".join(ch for ch in text if ch.isdigit())
-
-
-def _one_apart(a: str, b: str) -> bool:
-    """Whether one of the strings is the other with one digit more: a digit dropped or doubled by OCR."""
-    if abs(len(a) - len(b)) != 1:
-        return False
-    short, long_ = sorted((a, b), key=len)
-    return any(long_[:i] + long_[i + 1 :] == short for i in range(len(long_)))

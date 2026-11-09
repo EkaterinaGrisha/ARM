@@ -173,3 +173,16 @@ def base_designation(designation: str) -> str:
 def doc_code(designation: str) -> str | None:
     parts = designation.split(" ", 1)
     return parts[1] if len(parts) == 2 else None
+
+
+def digits(text: str) -> str:
+    """The digits of a text in their order: what OCR keeps of a designation on a raster (ADR-0020)."""
+    return "".join(ch for ch in text if ch.isdigit())
+
+
+def one_digit_apart(a: str, b: str) -> bool:
+    """Whether one of the strings is the other with one digit more: a digit dropped or doubled by OCR."""
+    if abs(len(a) - len(b)) != 1:
+        return False
+    short, long_ = sorted((a, b), key=len)
+    return any(long_[:i] + long_[i + 1 :] == short for i in range(len(long_)))

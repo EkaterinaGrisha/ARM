@@ -26,6 +26,7 @@ from kdcheck.extract import review, specification, tech_requirements, title_bloc
 from kdcheck.ingest.document import LoadedDocument, Page, load_document, page_raster
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.ingest.text import Line
+from kdcheck.normalize import file_designation
 from kdcheck.normalize.designations import Designations
 from kdcheck.ocr import tesseract
 from kdcheck.params import critical, parameters
@@ -227,7 +228,7 @@ class BaselinePipeline:
             spec = specification.parse(doc, forms, self.eskd)
             self._read_spec_cells(doc, spec)
             info.kind = "specification"
-            info.designation = _str(spec.designation) or self._filename_designation(info.file_name)
+            info.designation = self._designation(doc, spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
             head = title_block.locate(text_pages[0], forms)
             later = title_block.later_sheet(doc, text_pages[0], forms, self.eskd) if head is None else None
@@ -238,7 +239,6 @@ class BaselinePipeline:
             if not spec.rows:
                 info.status, info.problem = "warning", "Спецификация распознана, но строки таблицы не найдены"
             specs.append((doc, spec))
-            self._check_filename(doc)
             return
         page = text_pages[0]
         geom = title_block.locate(page, forms)
@@ -246,14 +246,13 @@ class BaselinePipeline:
             spec = specification.parse(doc, forms, self.eskd)
             self._read_spec_cells(doc, spec)
             info.kind = "specification"
-            info.designation = _str(spec.designation) or self._filename_designation(info.file_name)
+            info.designation = self._designation(doc, spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
             self._set_sheet(doc, None, "first")
             specs.append((doc, spec))
             return
         if geom is None and (later := title_block.later_sheet(doc, page, forms, self.eskd)) is not None:
             parts.append(self._parse_later_sheet(doc, page, later))
-            self._check_filename(doc)
             return
         if geom is None:
             fallback = title_block.default_geometry(page, forms)
@@ -273,7 +272,6 @@ class BaselinePipeline:
                     info.problem = "Посторонний документ: нет основной надписи чертежа и граф спецификации"
                 return
         parts.append(self._parse_drawing(doc, page, geom))
-        self._check_filename(doc)
 
     def _parse_drawing(self, doc: LoadedDocument, page: Page, geom: title_block.Geometry) -> PartRecord:
         info, forms = doc.info, self.settings.forms
@@ -282,7 +280,7 @@ class BaselinePipeline:
             self._read_cells(doc, page, geom, tb)
         self._designation_from_filename(doc, tb)
         self._set_sheet(doc, tb.sheet, "first" if geom.anchored else None)
-        designation = _str(tb.designation)
+        designation = self._designation(doc, tb.designation)
         name = _str(tb.name)
         info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(designation, name) else "part_drawing"
         info.designation = designation
@@ -318,7 +316,7 @@ class BaselinePipeline:
         tb = TitleBlock(designation=later.designation, sheet=later.sheet)
         self._designation_from_filename(doc, tb)
         self._set_sheet(doc, tb.sheet, "later")
-        designation = _str(tb.designation)
+        designation = self._designation(doc, tb.designation)
         info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(designation, None) else "part_drawing"
         info.designation = designation
         info.name = self._filename_name(info.file_name)
@@ -460,17 +458,14 @@ class BaselinePipeline:
             tb.name = Extracted(value=info.name, raw=info.file_name, confidence=confidence.filename_name, source=src)
         parts.append(PartRecord(document_id=doc.id, designation=des, name=info.name, kind=info.kind, title_block=tb))
 
-    def _check_filename(self, doc: LoadedDocument) -> None:
-        fname = self._filename_designation(doc.info.file_name)
-        if (
-            fname
-            and doc.info.designation
-            and fname != doc.info.designation
-            and fname != doc.info.designation.split(" ")[0]
-        ):
-            doc.info.notes.append(
-                f"Обозначение в имени файла ({fname}) отличается от основной надписи ({doc.info.designation})"
-            )
+    def _designation(self, doc: LoadedDocument, read: Extracted | None) -> str | None:
+        """The designation of the title block, decided against the designation of the file name (ADR-0022)."""
+        named = self._filename_designation(doc.info.file_name)
+        if read is not None and read.value not in (None, "") and named:
+            rules = self.settings.dictionaries.file_designations
+            if note := file_designation.reconcile(read, named, rules):
+                doc.info.notes.append(note)
+        return _str(read)
 
     def _filename_designation(self, file_name: str) -> str | None:
         return self.eskd.normalize_designation(Path(file_name).stem, file_name=True)
