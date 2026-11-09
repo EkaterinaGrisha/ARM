@@ -190,8 +190,8 @@ def test_a_model_the_server_does_not_serve(settings, server):
 
 def test_the_model_fills_a_cell_the_rules_left_empty(settings, eskd, server):
     server.say("Материал", "Сталь 45 ГОСТ 1050-2013")
-    server.say("Масса", "9,9")  # not asked: the rules read the mass
-    on = _settings(settings, server.url)
+    server.say("Масса", "9,9")  # not asked without verify: the rules read the mass
+    on = _settings(settings, server.url, verify=False)
     doc, page, geom, tb = _drawing(on, eskd)
     tb.material = None
     client = VlmClient(on.models.vlm, Prompt("cell.v1", "«{label}»"))
@@ -206,15 +206,30 @@ def test_the_model_fills_a_cell_the_rules_left_empty(settings, eskd, server):
     assert source.bbox == cell  # the evidence is the template cell the model was shown
 
 
-def test_verify_marks_a_different_reading_as_a_conflict(settings, eskd, server):
+def _verified(settings, eskd, server, conflict: str):
     server.say("Масса", "4.2")  # the same value written with a point
     server.say("Масштаб", "Масштаб 1:2")  # the rules read 1:1
-    on = _settings(settings, server.url, verify=True, fields={"mass": "Масса", "scale": "Масштаб"})
+    on = _settings(settings, server.url, verify=True, conflict=conflict, fields={"mass": "Масса", "scale": "Масштаб"})
     doc, page, geom, tb = _drawing(on, eskd)
     client = VlmClient(on.models.vlm, Prompt("cell.v1", "«{label}»"))
     raster = page_raster(doc, page, on, get_backend(on.models.pdf.backend))
     notes = vlm_title_block.read_cells(doc, page, geom, tb, client=client, raster=raster, settings=on, eskd=eskd)
-    assert (tb.mass.value, tb.mass.status) == ("4,2", None)
+    assert (tb.mass.value, tb.mass.status, tb.mass.source.method) == ("4,2", None, "text_layer")  # they agree
+    return on, page, geom, tb, client, notes
+
+
+def test_a_conflict_keeps_the_reading_of_the_model_with_its_evidence(settings, eskd, server):
+    """ADR-0019: the model reads the cells; the other reading stays in the notes, the cell goes to a check."""
+    on, page, geom, tb, client, notes = _verified(settings, eskd, server, "model")
+    assert (tb.scale.value, tb.scale.status, tb.scale.raw) == ("1:2", "conflict", "Масштаб 1:2")
+    source = tb.scale.source
+    assert (source.method, source.engine, source.engine_version) == ("vlm", MODEL, client.version)
+    assert source.bbox == page.norm_bbox(geom.rect(on.forms.title_block.forms[1].cells.scale))
+    assert notes == ["Основная надпись, «Масштаб»: прочитано «1:1», модель прочла «1:2»; в отчёте — прочтение модели"]
+
+
+def test_a_conflict_may_keep_the_reading_before_the_model(settings, eskd, server):
+    _, _, _, tb, _, notes = _verified(settings, eskd, server, "ocr")
     assert (tb.scale.value, tb.scale.status, tb.scale.source.method) == ("1:1", "conflict", "text_layer")
     assert notes == ["Основная надпись, «Масштаб»: прочитано «1:1», модель прочла «1:2»"]
 

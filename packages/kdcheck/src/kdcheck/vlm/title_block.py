@@ -3,8 +3,9 @@
 The GOST template of ``forms.yaml`` gives the rectangle of each cell. The model reads the text of that rectangle
 only, and :func:`kdcheck.extract.title_block.cell_value` turns the text into the value by the same rules as OCR text,
 so the cell is the evidence of the value. The model reads the cells the rules left empty, and with ``verify`` every
-one: when its value differs from the one read before, that value stays, gets the ``conflict`` status, and the
-model's reading goes to the notes of the document.
+one. When its value differs from the one read before, the cell gets the ``conflict`` status and keeps the reading
+``vlm.conflict`` names (ADR-0019): the model's, with the evidence of the model, or the one read before; the other
+reading goes to the notes of the document.
 """
 
 from __future__ import annotations
@@ -59,22 +60,31 @@ def read_cells(
         value = cell_value(field, text, eskd, labels)
         if value is None:
             continue
+        if current is not None and _same(field, current.value, value, eskd):
+            continue
+        confidence = settings.ingest.confidence.vlm
+        source = SourceRef(
+            document_id=doc.id,
+            page=page.number,
+            bbox=page.norm_bbox(rect),
+            text=text,
+            method="vlm",
+            confidence=confidence,
+            engine=vlm.model,
+            engine_version=client.version,
+        )
+        read = Extracted(value=value, raw=text, confidence=confidence, source=source)
         if current is None:
-            confidence = settings.ingest.confidence.vlm
-            source = SourceRef(
-                document_id=doc.id,
-                page=page.number,
-                bbox=page.norm_bbox(rect),
-                text=text,
-                method="vlm",
-                confidence=confidence,
-                engine=vlm.model,
-                engine_version=client.version,
-            )
-            setattr(tb, field, Extracted(value=value, raw=text, confidence=confidence, source=source))
-        elif not _same(field, current.value, value, eskd):
+            setattr(tb, field, read)
+            continue
+        note = f"Основная надпись, «{label}»: прочитано «{current.value}», модель прочла «{value}»"
+        if vlm.conflict == "model":
+            read.status = "conflict"
+            setattr(tb, field, read)
+            notes.append(f"{note}; в отчёте — прочтение модели")
+        else:
             current.status = "conflict"
-            notes.append(f"Основная надпись, «{label}»: прочитано «{current.value}», модель прочла «{value}»")
+            notes.append(note)
     return notes
 
 
