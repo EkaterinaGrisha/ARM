@@ -495,6 +495,7 @@ class VlmEngine(Section):
     prompt: str
     methods: tuple[Literal["text_layer", "ocr"], ...]
     verify: bool
+    conflict: Literal["ocr", "model"]  # whose reading a cell keeps when the two differ (ADR-0019)
     fields: dict[TitleBlockField, str]
     timeout_sec: float = Field(gt=0)
     max_tokens: int = Field(gt=0)

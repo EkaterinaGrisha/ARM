@@ -53,7 +53,10 @@ GOLD = ROOT / "eval" / "gold"
 OUT = Path(__file__).resolve().parent / "results"
 FIELDS = ("designation", "name", "material", "mass", "scale", "litera")
 UNREAD = re.compile(r"Ячейку «[^»]+» модель не прочитала: (?P<why>.+)")
-CONFLICT = re.compile(r"«(?P<label>[^»]+)»: прочитано «(?P<ocr>[^»]*)», модель прочла «(?P<vlm>[^»]*)»")
+# A reading may hold «»» itself, as OCR reads a stray mark: the readings run to the separators, not to the next quote.
+CONFLICT = re.compile(
+    r"«(?P<label>[^»]+)»: прочитано «(?P<ocr>.*?)», модель прочла «(?P<vlm>.*)»(?:; в отчёте — прочтение модели)?$"
+)
 
 
 def settings_for(model: str | None, url: str, verify: bool) -> Settings:
@@ -76,6 +79,8 @@ def score(report: Report, truth: KitTruth, labels: dict[str, str], tally: dict[s
         part = parts.get(ids.get(path, ""))
         tb = part.title_block if part else None
         sheet = tally.setdefault(f"sheet:{path}", Counter())
+        doc_notes = notes.get(ids.get(path, ""), [])
+        conflicted = {by_label[m["label"]] for n in doc_notes if (m := CONFLICT.search(n)) and m["label"] in by_label}
         for field in FIELDS:
             want = getattr(doc, field)
             if want in (None, ""):
@@ -90,10 +95,10 @@ def score(report: Report, truth: KitTruth, labels: dict[str, str], tally: dict[s
             right = norm(got.value) == norm(want)
             counts["right" if right else "wrong"] += 1
             sheet["right"] += right
-            if got.source and got.source.method == "vlm":
+            if got.source and got.source.method == "vlm" and field not in conflicted:  # a cell OCR left empty
                 counts["by_model"] += 1
                 counts["by_model_right"] += right
-        for note in notes.get(ids.get(path, ""), []):
+        for note in doc_notes:
             m = CONFLICT.search(note)
             if m and m["label"] in by_label:
                 want = getattr(doc, by_label[m["label"]])
@@ -145,6 +150,8 @@ def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path,
         "model": model,
         "prompt": pipeline.vlm.version if pipeline.vlm else None,
         "verify": verify,
+        # whose reading a conflict keeps in the report (ADR-0019); runs before it kept OCR
+        "conflict": settings.models.vlm.conflict if verify else None,
         "scans": tally["drawings"]["scans"],
         "accuracy": round(right / total, 3) if total else None,
         "fields": fields,
@@ -161,18 +168,24 @@ def run(name: str, model: str | None, url: str, verify: bool, truths: dict[Path,
         },
     }
     if verify and total:
-        result["modes"] = modes(fields, tally["conflicts"], total, right)
+        result["modes"] = modes(fields, tally["conflicts"], total, right, result["conflict"])
     return result
 
 
-def modes(fields: dict[str, dict[str, Any]], conflicts: Counter[str], total: int, right: int) -> dict[str, Any]:
+def modes(
+    fields: dict[str, dict[str, Any]], conflicts: Counter[str], total: int, right: int, kept: str | None = "ocr"
+) -> dict[str, Any]:
     """What a verify run gives under each policy for a conflict, counted on the scored fields.
 
-    ``fill_empty`` keeps the OCR value, as the pipeline does; ``model_wins`` takes the model's; ``review`` keeps the
-    OCR value and marks it for a check. ``agreement``: OCR filled the cell and the model read the same.
+    ``fill_empty`` keeps the OCR value; ``model_wins`` takes the model's; ``review`` keeps the OCR value and marks it
+    for a check. ``agreement``: OCR filled the cell and the model read the same. ``kept`` is the reading the report
+    of the run kept on a conflict: runs before ADR-0019 kept OCR, later ones keep the model's, and the counts of the
+    report are taken back to OCR first.
     """
     wrong = sum(f["wrong"] for f in fields.values())
     scored, model_right, kept_right = (conflicts[k] for k in ("scored", "scored_model_right", "scored_kept_right"))
+    if kept == "model":
+        right, wrong = right - model_right + kept_right, wrong + model_right - kept_right
     by_model = sum(f["by_model"] for f in fields.values())
     by_model_right = sum(f["by_model_right"] for f in fields.values())
     agreed = right + wrong - by_model - scored
@@ -266,18 +279,29 @@ def markdown(result: dict[str, Any]) -> str:
         lines.append(f"| {r['name']} | " + " | ".join(cells) + " |")
     verify = [r for r in result["runs"] if r["verify"] and r["conflicts"].get("total")]
     if verify:
-        lines += ["", "Конфликты при проверке: чьё прочтение совпало с эталоном.", ""]
-        lines += ["| Прогон | Конфликтов | Модель права | OCR прав |", "| --- | ---: | ---: | ---: |"]
+        lines += [
+            "",
+            "Конфликты при проверке: чьё прочтение совпало с эталоном и какое из них осталось в отчёте прогона "
+            "([ADR-0019](../../docs/adr/0019-vlm-main-reader.md)); от этого — точность прогона в первой таблице.",
+            "",
+        ]
+        lines += [
+            "| Прогон | Конфликтов | Модель права | OCR прав | В отчёте |",
+            "| --- | ---: | ---: | ---: | --- |",
+        ]
         for r in verify:
             c = r["conflicts"]
-            lines.append(f"| {r['name']} | {c['total']} | {c.get('model_right', 0)} | {c.get('kept_right', 0)} |")
+            kept = "модель" if r.get("conflict") == "model" else "OCR"
+            lines.append(
+                f"| {r['name']} | {c['total']} | {c.get('model_right', 0)} | {c.get('kept_right', 0)} | {kept} |"
+            )
     with_modes = [r for r in result["runs"] if r.get("modes")]
     if with_modes:
         lines += [
             "",
-            "Режимы при расхождении OCR и модели, по полям эталона: «дочитывание» оставляет OCR, как конвейер сейчас; "
-            "«модель» берёт значение модели; «проверить» оставляет OCR и отмечает поле. «Неверных без пометки» — "
-            "неверные значения, которые отчёт выдаст как есть.",
+            "Режимы при расхождении OCR и модели, по полям эталона: «дочитывание» оставляет OCR, как конвейер до "
+            "ADR-0019; «модель» берёт значение модели; «проверить» оставляет OCR и отмечает поле. "
+            "«Неверных без пометки» — неверные значения, которые отчёт выдаст как есть.",
             "",
             "| Прогон | Режим | Доля верных полей | Неверных без пометки | Отмечено «проверить» |",
             "| --- | --- | ---: | ---: | ---: |",
@@ -285,7 +309,7 @@ def markdown(result: dict[str, Any]) -> str:
         names = {"fill_empty": "дочитывание", "model_wins": "модель", "review": "проверить"}
         for r in with_modes:
             for key, label in names.items():
-                m = r["modes"][key]
+                m = r["modes"][key]  # recounted from the reading the report kept, the same for either
                 lines.append(f"| {r['name']} | {label} | {m['accuracy']} | {m['unflagged_wrong']} | {m['flagged']} |")
         lines += ["", "Поля, где OCR прочёл значение и модель с ним не разошлась: верно из всех.", ""]
         lines += ["| Прогон | Верно | Всего |", "| --- | ---: | ---: |"]

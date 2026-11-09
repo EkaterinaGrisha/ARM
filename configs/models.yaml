@@ -27,11 +27,14 @@ ocr:
 vlm:                             # a vision-language model reads title block cells (ADR-0014); off by default
   enabled: false                 # ARM_VLM=1 or kdcheck run --vlm turn it on
   base_url: http://127.0.0.1:1234/v1  # an OpenAI-compatible server: LM Studio, llama.cpp, Ollama, vLLM. ARM_VLM_URL overrides
-  model: google/gemma-4-e4b      # the model id on that server; ARM_VLM_MODEL overrides
+  model: qwen3.6-35b-a3b-mlx     # the model id on that server; ARM_VLM_MODEL overrides. Qwen3.6-35B-A3B, the 4-bit MLX
+                                 # build measured in the model report; another build of it has an id of its own
   allow_remote: false            # a server on another machine gets the customer's documents: only with ARM's consent
   prompt: title_block_cell.v1    # prompts/<name>.txt; a changed prompt is a new file with a new version
   methods: [ocr]                 # pages read this way get their title block cells read by the model too
-  verify: false                  # false: only the cells OCR left empty; true: every cell, and a different value is a conflict
+  verify: true                   # false: only the cells OCR left empty; true: every cell, and a different value is a conflict
+  conflict: model                # whose reading a conflict keeps (ADR-0019): model — the model's, ocr — the one read before;
+                                 # the other goes to the notes of the document
   fields:                        # the cells the model reads, as the prompt names them
     designation: Обозначение документа
     name: Наименование изделия
