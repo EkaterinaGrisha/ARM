@@ -128,6 +128,10 @@ export interface Specification {
    */
   sheets?: Extracted | null;
   /**
+   * «Перв. примен.» первого листа: обозначение, где изделие записано впервые. С версии 1.8
+   */
+  first_use?: Extracted | null;
+  /**
    * Номера исполнений групповой спецификации ГОСТ 2.113: по варианту Б — в порядке граф, по варианту А — в порядке заголовков переменных данных; «–» — базовое, затем «01», «02»…; обозначение исполнения — обозначение спецификации с «-01». Пусто у единичной. С версии 1.6, вариант А — с версии 1.7
    */
   variants: string[];
@@ -227,7 +231,11 @@ export interface Discrepancy {
     | "duplicate_designation"
     | "revision_mismatch"
     | "missing_specification"
-    | "sheets_missing";
+    | "sheets_missing"
+    | "format_mismatch"
+    | "section_mismatch"
+    | "position_anomaly"
+    | "first_use_mismatch";
   severity: "high" | "medium" | "low";
   designation?: string | null;
   title: string;
@@ -237,6 +245,10 @@ export interface Discrepancy {
   document_ids: string[];
   tree_node_ids: string[];
   sources: SourceRef[];
+  /**
+   * Предварительное: в комплекте есть документы без прочитанного обозначения, и искомый может быть среди них; они перечислены в сообщении и в `document_ids`. С версии 1.8
+   */
+  preliminary: boolean;
 }
 /**
  * Извлечённые данные одного чертежа.

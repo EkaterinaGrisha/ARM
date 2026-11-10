@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.7"
+SCHEMA_VERSION = "1.8"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
@@ -34,6 +34,10 @@ DiscrepancyType = Literal[
     "revision_mismatch",
     "missing_specification",
     "sheets_missing",
+    "format_mismatch",
+    "section_mismatch",
+    "position_anomaly",
+    "first_use_mismatch",
 ]
 Severity = Literal["high", "medium", "low"]
 ParameterCategory = Literal[
@@ -218,6 +222,9 @@ class Specification(Model):
     litera: Extracted | None = None
     revision: Extracted | None = None
     sheets: Extracted | None = Field(None, description="«Листов» основной надписи первого листа. С версии 1.4")
+    first_use: Extracted | None = Field(
+        None, description="«Перв. примен.» первого листа: обозначение, где изделие записано впервые. С версии 1.8"
+    )
     variants: list[str] = Field(
         [],
         description=(
@@ -262,6 +269,13 @@ class Discrepancy(Model):
     document_ids: list[str] = []
     tree_node_ids: list[str] = []
     sources: list[SourceRef] = []
+    preliminary: bool = Field(
+        False,
+        description=(
+            "Предварительное: в комплекте есть документы без прочитанного обозначения, и искомый может быть среди "
+            "них; они перечислены в сообщении и в `document_ids`. С версии 1.8"
+        ),
+    )
 
 
 class CriticalParameter(Model):

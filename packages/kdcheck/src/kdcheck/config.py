@@ -448,10 +448,20 @@ class SheetCount(Section):
     count_methods: tuple[ExtractionMethod, ...]
 
 
+class PositionCheck(Section):
+    methods: tuple[ExtractionMethod, ...]
+
+
+class Preliminary(Section):
+    listed: int = Field(ge=1)
+
+
 class Checks(Section):
     rules: dict[str, RuleSettings]  # by rule id; kdcheck.checks.rules checks that every rule has its settings
     names: NameMatch
     sheets: SheetCount
+    positions: PositionCheck
+    preliminary: Preliminary
 
 
 # ---------------------------------------------------------------- criticality.yaml

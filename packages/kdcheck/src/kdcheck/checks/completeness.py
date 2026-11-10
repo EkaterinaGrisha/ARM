@@ -3,18 +3,30 @@
 Input: the product tree of :mod:`kdcheck.tree.product` and its indexes. Output: the discrepancies, each found by a
 rule of :mod:`kdcheck.checks.rules`, classified by type and linked to the tree nodes and to the documents and page
 regions they come from. A rule turned off in ``configs/checks.yaml`` reports nothing.
+
+A finding that a document is missing, or that one is in no specification, is preliminary when the kit holds documents
+the core did not read and the one wanted may be among them (ADR-0027): files it could not read or tell, for a missing
+drawing, document or specification; specifications without rows read, for one in no specification. The finding names
+them and stays in the report.
 """
 
 from __future__ import annotations
 
 import difflib
+import re
 from collections import defaultdict
 
 from kdcheck.checks.rules import ActiveRule
-from kdcheck.config import NameMatch, SheetCount
-from kdcheck.normalize.designations import Designations, base_designation, doc_code
-from kdcheck.schemas import Discrepancy, DocumentInfo, SourceRef, SpecRow, TreeNode
+from kdcheck.config import Checks
+from kdcheck.normalize.designations import Designations, base_designation, doc_code, split_variant
+from kdcheck.schemas import Discrepancy, DocumentInfo, SourceRef, Specification, SpecRow, TreeNode
 from kdcheck.tree.product import ProductTree, text
+
+_FORMAT = re.compile(r"А\d(?:Х\d{1,2})?")  # a format of GOST 2.301 as a specification writes it: «А4», «А4х3»
+_COMPONENTS = ("assembly", "part", "standard", "other_item", "material")  # sections whose rows have a quantity
+_DESIGNATED = ("assembly", "part")  # sections whose positions have a designation; documents get no position
+UNREAD_DOCUMENTS = "в комплекте есть документы, вид или обозначение которых не прочитаны"
+UNREAD_SPECIFICATIONS = "в комплекте есть спецификации без прочитанных строк"
 
 
 class Checker:
@@ -23,15 +35,17 @@ class Checker:
         tree: ProductTree,
         eskd: Designations,
         rules: dict[str, ActiveRule],
-        names: NameMatch,
-        sheets: SheetCount,
+        checks: Checks,
     ) -> None:
         self.tree = tree
         self.eskd = eskd
         self.rules = rules
-        self.names = names
-        self.sheets = sheets
+        self.names = checks.names
+        self.sheets = checks.sheets
+        self.positions = checks.positions
+        self.listed = checks.preliminary.listed
         self.sb = eskd.words.assembly_drawing_code
+        self.sections = eskd.words.spec_sections
         self.discrepancies: list[Discrepancy] = []
         self._ids = 0
 
@@ -50,6 +64,7 @@ class Checker:
         docs: list[str] | None = None,
         nodes: list[TreeNode] | None = None,
         sources: list[SourceRef | None] | None = None,
+        preliminary: bool = False,
     ) -> None:
         active = self.rules[rule_id]
         if not active.settings.enabled:
@@ -67,6 +82,7 @@ class Checker:
             document_ids=sorted(set(docs or [])),
             tree_node_ids=[n.id for n in nodes or []],
             sources=[s for s in sources or [] if s is not None],
+            preliminary=preliminary,
         )
         for n in nodes or []:
             n.discrepancy_ids.append(disc.id)
@@ -76,12 +92,23 @@ class Checker:
 
     def run(self) -> list[Discrepancy]:
         self._check_missing()
+        self._check_unlisted_assemblies()
         self._check_orphans()
         self._check_duplicates()
         self._check_names()
         self._check_litera()
         self._check_sheets()
+        self._check_sections()
+        self._check_formats()
+        self._check_positions()
+        self._check_first_use()
         return self.discrepancies
+
+    def _unread_note(self, docs: list[DocumentInfo], what: str) -> str:
+        """The tail of a preliminary finding: which documents of the kit were not read."""
+        n = self.listed
+        listed = ", ".join(d.path for d in docs[:n]) + (f" и ещё {len(docs) - n}" if len(docs) > n else "")
+        return f". Находка предварительная: {what} ({len(docs)}: {listed}), искомый документ может быть среди них"
 
     def _same_name(self, a: str | None, b: str | None, *sources: SourceRef | None) -> bool:
         """Whether two names are one: the same after normalization or, when one of them was read by OCR or a model,
@@ -105,6 +132,8 @@ class Checker:
         for nodes in by_row.values():
             node = nodes[0]
             row = self.tree.rows.get(node.id)
+            unread = self.tree.unread
+            tail = self._unread_note(unread, UNREAD_DOCUMENTS) if unread else ""
             if node.kind == "assembly":
                 self.add(
                     "B1.SPEC.001",
@@ -115,10 +144,12 @@ class Checker:
                         "; сборочный чертёж есть, состав раскрыть невозможно"
                         if node.drawing_document_ids
                         else "; сборочного чертежа также нет"
-                    ),
-                    docs=node.drawing_document_ids,
+                    )
+                    + tail,
+                    docs=node.drawing_document_ids + [d.id for d in unread],
                     nodes=nodes,
                     sources=[row.source if row else None],
+                    preliminary=bool(unread),
                 )
                 continue
             parent = self.tree.parents[node.id]
@@ -128,17 +159,45 @@ class Checker:
                 "B1.MISSING.002" if document else "B1.MISSING.001",
                 node.designation,
                 f"{what} {node.designation} «{node.name or '—'}» указан в спецификации {parent.designation}, "
-                "но в комплекте не найден",
+                "но в комплекте не найден" + tail,
                 expected=node.designation,
-                docs=[parent.spec_document_id] if parent.spec_document_id else [],
+                docs=([parent.spec_document_id] if parent.spec_document_id else []) + [d.id for d in unread],
                 nodes=nodes,
                 sources=[row.source if row else None],
+                preliminary=bool(unread),
             )
+
+    def _check_unlisted_assemblies(self) -> None:
+        """An assembly drawing of an assembly without a specification that no specification names either, as in a kit
+        without specifications: GOST 2.102 makes the specification the main document of an assembly. A listed one is
+        reported from its row."""
+        tree = self.tree
+        unread = tree.unread
+        tail = self._unread_note(unread, UNREAD_DOCUMENTS) if unread else ""
+        for des, refs in tree.drawings_by_des.items():
+            base = base_designation(des)
+            if doc_code(des) != self.sb or base in tree.referenced:
+                continue
+            if base in tree.spec_by_des or split_variant(base)[0] in tree.spec_by_des:
+                continue
+            for ref in refs:
+                self.add(
+                    "B1.SPEC.001",
+                    base,
+                    f"Сборочный чертёж {des} ({ref.doc.path}) есть, но спецификации сборочной единицы {base} "
+                    "в комплекте нет" + tail,
+                    actual=ref.doc.path,
+                    docs=[ref.doc.id] + [d.id for d in unread],
+                    sources=[ref.tb_source("designation")],
+                    preliminary=bool(unread),
+                )
 
     def _check_orphans(self) -> None:
         tree = self.tree
         if not tree.specs:
             return
+        unread = [doc for doc, spec in tree.specs if not spec.rows]  # specifications whose rows were not read
+        tail = self._unread_note(unread, UNREAD_SPECIFICATIONS) if unread else ""
         for des, refs in tree.drawings_by_des.items():
             base, code = base_designation(des), doc_code(des)
             if des in tree.referenced or (code == self.sb and base in tree.referenced):
@@ -148,10 +207,11 @@ class Checker:
                     "B1.ORPHAN.001",
                     des,
                     f"Документ {des} «{ref.doc.name or '—'}» ({ref.doc.path}) есть в комплекте, "
-                    "но не указан ни в одной спецификации",
+                    "но не указан ни в одной спецификации" + tail,
                     actual=ref.doc.path,
-                    docs=[ref.doc.id],
+                    docs=[ref.doc.id] + [d.id for d in unread],
                     sources=[ref.tb_source("designation")],
+                    preliminary=bool(unread),
                 )
 
     def _check_duplicates(self) -> None:
@@ -337,13 +397,221 @@ class Checker:
                             sources=[src, row.source],
                         )
 
+    def _check_sections(self) -> None:
+        """An assembly written in «Детали», or a part in «Сборочные единицы» (GOST 2.106, 3.5): the tree takes each
+        for what its documents are, and the row keeps its section."""
+        for node in self.tree.nodes():
+            listed = self.sections.get(node.section or "")
+            if node.kind not in ("assembly", "part") or listed not in ("assembly", "part") or listed == node.kind:
+                continue
+            parent = self.tree.parents.get(node.id)
+            row = self.tree.rows.get(node.id)
+            what, why = (
+                ("сборочная единица", "в комплекте есть её спецификация")
+                if node.kind == "assembly"
+                else ("деталь", "в комплекте есть её чертёж детали, а спецификации и сборочного чертежа нет")
+            )
+            where = parent.designation if parent is not None else "—"
+            self.add(
+                "B1.SECTION.001",
+                node.designation,
+                f"{node.designation} «{node.name or '—'}» записана в спецификации {where} в разделе «{node.section}», "
+                f"но это {what}: {why}",
+                expected="Сборочные единицы" if node.kind == "assembly" else "Детали",
+                actual=node.section,
+                docs=[d for d in [parent.spec_document_id if parent else None, node.spec_document_id] if d]
+                + node.drawing_document_ids,
+                nodes=[node],
+                sources=[row.source if row else None],
+            )
+
+    def _format(self, value: str | None) -> str | None:
+        """A format of GOST 2.301 as a specification writes it, «А4», «А4х3»; None for «БЧ», «*» or any other text."""
+        cell = self.eskd.cyrillic((value or "").upper()).replace(" ", "")
+        return cell.replace("Х", "х") if _FORMAT.fullmatch(cell) else None
+
+    def _sheet_formats(self) -> dict[str, tuple[DocumentInfo, list[str]]]:
+        """Document id → the document and the formats of its sheets in every file of it."""
+        found: dict[str, tuple[DocumentInfo, list[str]]] = {}
+        for doc in self.tree.documents:
+            formats = [f for info in doc.files for p in info.pages if not p.problem and (f := self._format(p.format))]
+            for info in doc.files:
+                found[info.id] = (doc.first, formats)
+        loose = [d.doc for d in self.tree.drawings] + [d for d, _ in self.tree.specs]
+        for info in loose:
+            if info.id not in found:
+                found[info.id] = (info, [f for p in info.pages if not p.problem and (f := self._format(p.format))])
+        return found
+
+    def _check_formats(self) -> None:
+        """The format column of a row names the format of the document its designation is (GOST 2.106, 3.6): the
+        drawing of a part or a document, the specification of an assembly. Some makers write the format of the
+        assembly drawing for an assembly, so either one is taken. A document on sheets of several formats is written
+        «*» with the formats in the note, and is not checked."""
+        formats = self._sheet_formats()
+        seen: set[tuple[int, str]] = set()
+        for node in self.tree.nodes():
+            row = self.tree.rows.get(node.id)
+            written = self._format(text(row.format)) if row is not None and row.format is not None else None
+            if row is None or row.format is None or written is None:
+                continue
+            ids = node.drawing_document_ids
+            if node.kind == "assembly":  # its specification, then its assembly drawing; without the first, unknown
+                ids = [node.spec_document_id, *node.drawing_document_ids] if node.spec_document_id else []
+            known = [formats[d] for d in ids if d in formats and formats[d][1]]
+            if not known or (id(row), ids[0]) in seen or any(written in actual for _, actual in known):
+                continue
+            seen.add((id(row), ids[0]))
+            doc, actual = known[0]
+            parent = self.tree.parents.get(node.id)
+            where = parent.designation if parent is not None else "—"
+            listed = ", ".join(sorted(set(actual)))
+            self.add(
+                "B1.FORMAT.001",
+                node.designation,
+                f"{node.designation}: в спецификации {where} формат {written}, "
+                f"документ {doc.path} выполнен на {listed}",
+                expected=written,
+                actual=listed,
+                docs=[d for d in [parent.spec_document_id if parent else None, doc.id] if d],
+                nodes=[node],
+                sources=[row.format.source],
+            )
+
+    def _checked(self, row: SpecRow) -> bool:
+        return row.source is not None and row.source.method in self.positions.methods
+
+    def _check_positions(self) -> None:
+        """Within a specification, one position number on rows that serve one variant, a component row without a
+        quantity and a position of an assembly or a part without a designation (GOST 2.106, 3.8 and 3.11); the
+        documents of «Документация» get no position numbers.
+        A gap in the numbers is no anomaly: GOST lets positions be reserved. Rows of the variable data of different
+        variants by variant A share positions, and rows of different variants by variant B may share one."""
+        for doc, spec in self.tree.specs:
+            des = text(spec.designation) or doc.designation
+            by_position: dict[tuple[str | None, str], list[SpecRow]] = defaultdict(list)
+            for r in spec.rows:
+                kind = self.sections.get(r.section or "")
+                if not self._checked(r):
+                    continue
+                if kind in _DESIGNATED and r.designation is None and r.name is not None:
+                    self._no_designation(doc, des, r)
+                if kind not in _COMPONENTS:
+                    continue
+                if r.quantity is None and not r.quantities:
+                    self._no_quantity(doc, des, r)
+                position = text(r.position)
+                if position and position.isdigit():
+                    by_position[(r.variant, position)].append(r)
+            for (_, position), rows in by_position.items():
+                clash = [r for r in rows if any(_same_variants(r, o) for o in rows if o is not r)]
+                if len(clash) < 2:
+                    continue
+                named = "; ".join(f"{text(r.designation) or '—'} «{text(r.name) or '—'}»" for r in clash)
+                self.add(
+                    "B1.POS.001",
+                    des,
+                    f"В спецификации {des} ({doc.path}) позиция {position} у {len(clash)} строк: {named}",
+                    actual=named,
+                    docs=[doc.id],
+                    sources=[r.position.source if r.position else r.source for r in clash],
+                )
+
+    def _no_quantity(self, doc: DocumentInfo, des: str | None, row: SpecRow) -> None:
+        item = text(row.designation) or text(row.name) or "—"
+        self.add(
+            "B1.POS.002",
+            des,
+            f"В спецификации {des} ({doc.path}) у позиции {text(row.position) or '—'} {item} "
+            f"раздела «{row.section}» нет количества",
+            expected="количество",
+            docs=[doc.id],
+            sources=[row.source],
+        )
+
+    def _no_designation(self, doc: DocumentInfo, des: str | None, row: SpecRow) -> None:
+        self.add(
+            "B1.POS.003",
+            des,
+            f"В спецификации {des} ({doc.path}) у позиции {text(row.position) or '—'} «{text(row.name) or '—'}» "
+            f"раздела «{row.section}» нет обозначения: документ позиции в комплекте не найти",
+            expected="обозначение",
+            docs=[doc.id],
+            sources=[row.source],
+        )
+
+    def _first_uses(self, node: TreeNode) -> list[tuple[str, str, SourceRef | None]]:
+        """«Перв. примен.» of the documents of a node, with the document and the source of each."""
+        if node.kind == "assembly":
+            specs: list[Specification] = [s for d, s in self.tree.specs if d.id == node.spec_document_id]
+            return [
+                (str(s.first_use.value), node.spec_document_id or "", s.first_use.source)
+                for s in specs
+                if s.first_use is not None and s.first_use.value not in (None, "")
+            ]
+        found = []
+        for ref in self.tree.drawings_by_des.get(node.designation or "", []):
+            value = ref.tb_value("first_use")
+            if value not in (None, ""):
+                found.append((str(value), ref.doc.id, ref.tb_source("first_use")))
+        return found
+
+    def _lists(self, spec: Specification, item: str) -> bool:
+        """Whether a specification lists ``item``, or a variant of it."""
+        wanted = split_variant(item)[0]
+        listed = (self.eskd.normalize_designation(text(r.designation)) for r in spec.rows)
+        return any(d is not None and split_variant(d)[0] == wanted for d in listed)
+
+    def _check_first_use(self) -> None:
+        """«Перв. примен.» names the specification an item was first written in (GOST 2.104). Informational: an item
+        first used in another product names one outside the kit, and a specification without rows read tells
+        nothing, nor does one read by OCR, which may miss a row; so only a specification of the kit whose rows,
+        read in a way of ``positions.methods``, do not list the item is reported. The specification
+        and the assembly drawing of an assembly name the product it goes into, as GOST has them do: for them the
+        item is the assembly; a drawing that names its own assembly, which lists it, is taken too."""
+        tree = self.tree
+        for des, nodes in tree.node_index.items():
+            node = nodes[0]
+            parent = tree.parents.get(node.id)
+            own = node.kind == "document" and parent is not None and base_designation(des) == parent.designation
+            item = parent.designation if own and parent is not None and parent.designation else base_designation(des)
+            done: set[str] = set()
+            for value, doc_id, source in self._first_uses(node):
+                named = self.eskd.normalize_designation(value)
+                first = split_variant(named)[0] if named else None
+                if first is None or doc_id in done or first == split_variant(item)[0]:
+                    continue
+                if own and first == split_variant(base_designation(des))[0]:
+                    continue
+                specs = tree.spec_by_des.get(first, [])
+                rows = specs[0][1].rows if specs else []
+                if not rows or not all(self._checked(r) for r in rows) or self._lists(specs[0][1], item):
+                    continue
+                done.add(doc_id)
+                self.add(
+                    "B1.FIRSTUSE.001",
+                    des,
+                    f"{des}: «Перв. примен.» — {named}, но в спецификации {named} ({specs[0][0].path}) "
+                    f"{item} не записан",
+                    expected=item,
+                    actual=named,
+                    docs=[doc_id, specs[0][0].id],
+                    nodes=nodes,
+                    sources=[source],
+                )
+
+
+def _same_variants(a: SpecRow, b: SpecRow) -> bool:
+    """Whether two rows of a group specification by variant B serve a variant in common; any row of another one."""
+    if not a.quantities or not b.quantities:
+        return True
+    return bool(set(a.quantities) & set(b.quantities))
+
 
 def _name_source(row: SpecRow) -> SourceRef | None:
     return row.name.source if row.name is not None else None
 
 
-def check(
-    tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule], names: NameMatch, sheets: SheetCount
-) -> list[Discrepancy]:
+def check(tree: ProductTree, eskd: Designations, rules: dict[str, ActiveRule], checks: Checks) -> list[Discrepancy]:
     """Discrepancies of the kit; the tree nodes they concern get their ids and the ``warning`` status."""
-    return Checker(tree, eskd, rules, names, sheets).run()
+    return Checker(tree, eskd, rules, checks).run()

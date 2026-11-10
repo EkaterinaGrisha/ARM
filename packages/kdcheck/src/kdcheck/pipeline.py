@@ -31,6 +31,7 @@ from kdcheck.normalize.designations import Designations
 from kdcheck.ocr import cells, tesseract
 from kdcheck.params import critical, parameters
 from kdcheck.schemas import (
+    DocumentInfo,
     EngineInfo,
     Extracted,
     KitInfo,
@@ -147,9 +148,9 @@ class BaselinePipeline:
             and d.info.designation
             and d.info.sheet_of is None
         ]
-        tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd, assembly.documents)
-        checks = self.settings.checks
-        discrepancies = check(tree, self.eskd, self.rules, checks.names, checks.sheets)
+        unread = [d.info for d in docs if _unread(d.info)]
+        tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd, assembly.documents, unread)
+        discrepancies = check(tree, self.eskd, self.rules, self.settings.checks)
         report_log += [LogEntry(level="warning", message=m) for m in tree.log]
 
         progress("Анализ требований", 0.93, None)
@@ -531,6 +532,15 @@ class BaselinePipeline:
             )
             found.append(LogEntry(level="warning", message=message))
         return found
+
+
+def _unread(info: DocumentInfo) -> bool:
+    """Whether a file may be a document of the kit the core did not read: a scan it could not read, a damaged or
+    encrypted file, a file of a kind not told, or a drawing or specification without a designation."""
+    if info.status in ("unreadable", "damaged", "encrypted"):
+        return True
+    readable = info.status in ("ok", "warning") and info.sheet_of is None
+    return readable and (info.kind == "unknown" or (info.kind != "other" and not info.designation))
 
 
 def _str(ex: Extracted | None) -> str | None:

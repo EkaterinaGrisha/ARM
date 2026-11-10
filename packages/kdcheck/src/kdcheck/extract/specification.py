@@ -203,6 +203,7 @@ def parse(doc: LoadedDocument, forms: Forms, eskd: Designations) -> Specificatio
                     tb.revision,
                     tb.sheets,
                 )
+                spec.first_use = tb.first_use
         ruled = page.regions.table if page.regions is not None else None
         if ruled is not None:  # read row by row by its ruled lines
             similarity = forms.specification.section_similarity

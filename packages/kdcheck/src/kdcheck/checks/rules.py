@@ -34,6 +34,12 @@ RULES: tuple[Rule, ...] = (
     Rule("B1.LITERA.001", "revision_mismatch", "Литера спецификации и сборочного чертежа различается"),
     Rule("B1.LITERA.002", "revision_mismatch", "Литера составной части ниже литеры изделия"),
     Rule("B1.SHEETS.001", "sheets_missing", "Не хватает листов документа"),
+    Rule("B1.FORMAT.001", "format_mismatch", "Формат в спецификации не совпадает с форматом документа"),
+    Rule("B1.SECTION.001", "section_mismatch", "Позиция записана не в своём разделе спецификации"),
+    Rule("B1.POS.001", "position_anomaly", "Номер позиции повторяется в спецификации"),
+    Rule("B1.POS.002", "position_anomaly", "У позиции спецификации нет количества"),
+    Rule("B1.POS.003", "position_anomaly", "У сборочной единицы или детали нет обозначения"),
+    Rule("B1.FIRSTUSE.001", "first_use_mismatch", "Первичное применение не совпадает с вхождением в дерево"),
 )
 
 

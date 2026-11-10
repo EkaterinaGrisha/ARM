@@ -1,11 +1,11 @@
 {
-  "date": "2026-11-05",
+  "date": "2026-11-10",
   "machine": "Darwin arm64, Python 3.11.15",
   "ocr": true,
   "kits": {
     "github/AiuRat_breadboard-power-qcpd": {
       "expected": 11,
-      "found": 0,
+      "found": 3,
       "missed": [
         "missing_drawing: ",
         "missing_drawing: ",
@@ -14,10 +14,7 @@
         "name_mismatch: ",
         "name_mismatch: ",
         "name_mismatch: ",
-        "orphan_drawing: ",
-        "position_anomaly: ",
-        "position_anomaly: ",
-        "position_anomaly: "
+        "orphan_drawing: "
       ],
       "extra": [],
       "tree_items": 0

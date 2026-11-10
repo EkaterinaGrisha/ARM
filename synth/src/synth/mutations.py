@@ -247,7 +247,7 @@ def format_in_spec(kit: Kit) -> bool:
     row = next(r for r in kit.specs[unit.designation].rows if r.designation == part.designation)
     row.fmt = "А3" if row.fmt == "А4" else "А4"
     kit.touched.add(part.designation)
-    kit.expect("format_mismatch", part.designation, None, "format_in_spec")
+    kit.expect("format_mismatch", part.designation, "B1.FORMAT.001", "format_in_spec")
     return True
 
 

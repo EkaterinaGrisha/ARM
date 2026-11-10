@@ -15,10 +15,24 @@ rules:
   B1.LITERA.001: {enabled: true, severity: medium}   # a specification and its assembly drawing differ in litera
   B1.LITERA.002: {enabled: true, severity: medium}   # a component has a lower litera than its assembly (GOST 2.103)
   B1.SHEETS.001: {enabled: true, severity: high}     # a document has fewer sheets than its title block counts (ADR-0017)
+  B1.FORMAT.001: {enabled: true, severity: low}      # the format column names another format than the document has
+  B1.SECTION.001: {enabled: true, severity: medium}  # an assembly in «Детали», or a part in «Сборочные единицы»
+  B1.POS.001: {enabled: true, severity: medium}      # one position number on several rows of a specification
+  B1.POS.002: {enabled: true, severity: medium}      # a component row of a specification without a quantity
+  B1.POS.003: {enabled: true, severity: medium}      # a position of an assembly or a part without a designation
+  B1.FIRSTUSE.001: {enabled: true, severity: low}    # «Перв. примен.» names an assembly of the kit that does not list it
 
 sheets:                          # B1.SHEETS.001 (ADR-0017)
   count_methods: [text_layer]    # «Листов» read this way counts the sheets of a document; OCR reads the 1 of the GOST
                                  # lettering as 7, so without it a document is short of sheets only by a gap in their numbers
+
+positions:                       # B1.POS.001–B1.POS.003 (ADR-0027)
+  methods: [text_layer]          # rows read this way are checked: OCR reads the 1 of the GOST lettering as 7 and
+                                 # loses a narrow quantity cell, and a misread is no anomaly of the specification.
+                                 # A gap in the numbers is none either: GOST 2.106 lets positions be reserved
+
+preliminary:                     # a finding that an unread document may explain (ADR-0027)
+  listed: 5                      # files its message names; document_ids holds every one
 
 names:                           # a misread letter is not another name
   methods: [ocr, vlm]            # when either of two names was read this way they may differ a little
