@@ -115,6 +115,23 @@ def test_specification_table_by_its_column_lines(settings):
     assert other is not None and other.other_form  # form 5 of GOST 2.113: its rows are not read as form 1
 
 
+def test_a_table_drawn_larger_than_its_block_keeps_its_proportions(settings):
+    """The frame and the table are 187.3 mm wide over a block of 185: the columns and rows go by the outer lines."""
+    spec = settings.forms.specification
+    edges = sorted({edge for pair in spec.columns.model_dump().values() for edge in pair} - {0.0, 185.0})
+    left, ratio = -2.3, 187.3 / 185  # the left line of the frame and the table, mm from the block
+    image = _sheet(settings, 2, (212.3, 297), columns=[left + e * ratio for e in edges])
+    found = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
+    table = raster.find_table(image, found, settings.forms, settings.ingest.regions)
+    assert table is not None and not table.other_form
+    x0 = 212.3 - 5 - 185  # the block, mm on the sheet
+    assert table.left / PX == pytest.approx(x0 + left, abs=0.3)
+    assert table.s / PX == pytest.approx(ratio, abs=0.003)
+    designation = table.columns["designation"][0]
+    assert (table.left + designation * table.s) / PX == pytest.approx(x0 + left + designation * ratio, abs=0.3)
+    assert (table.rows[1][0] - table.rows[0][0]) / PX == pytest.approx(spec.row_height * ratio, abs=0.05)
+
+
 def test_a_name_across_the_blank_place_of_form_2_keeps_the_specification(settings):
     """A large name in the name cell lays ink along the blank place of form 2, so form 2 scores no better than form 1
     laid at the same top with its bottom past the edge of the sheet, which loses only lines beyond the image. Of the

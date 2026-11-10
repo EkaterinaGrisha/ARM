@@ -416,36 +416,59 @@ class Table:
 def find_table(gray: Image.Image, found: Corner, forms: Forms, rules: RegionRules) -> Table | None:
     """The table of form 1 of GOST 2.106 above a title block of form 2 or 2a; None without its column lines.
 
-    The table is as wide as the block and ends at it. Its header is one header height under the top line of the
-    frame, and its rows one row height each.
+    The table ends at the block. Its header is one header height under the top line of the frame, and its rows one
+    row height each. Its outer column lines are looked for within ``frame_reach`` of the edges of the block: a table
+    drawn at a scale a little other than its block's has its columns and rows in the same proportion between them.
     """
     block, template = found.block, forms.specification
     if block.form not in (2, None):
         return None
     k = rules.sample / block.s  # mask pixels per image pixel
-    s, margin = rules.sample, rules.max_line_width * rules.sample  # in mask pixels
+    s, widest = rules.sample, rules.max_line_width * rules.sample  # in mask pixels
+    margin = widest + template.frame_reach * s  # left and right of the block
     window: Box = (block.x0 - margin / k, 0, block.x1 + margin / k, block.y0)
     mask = straight_ink(gray, found.turn, window, found.level, k, rules)
     inner = crop(mask, (margin, 0, mask.width - margin, mask.height), fill=0)
-    lines = runs(profile(inner, vertical=False), rules.line_ink, margin)
+    lines = runs(profile(inner, vertical=False), rules.line_ink, widest)
     if not lines:
         return None
     band, height = rules.line_band * s, template.header_height * s
     # the first long line one header height under another, as the edge of a lid may lie above the frame
     pairs = (y for y in lines if any(abs(y - top - height) <= band * 2 for top in lines))
     header = next(pairs, lines[0] + height)
-    body = crop(mask, (0, header + margin, mask.width, mask.height - margin), fill=0)
+    body = crop(mask, (0, header + widest, mask.width, mask.height - widest), fill=0)
+    width = forms.title_block.width
+    left, right = _outer_lines(body, width, margin, template.frame_reach, rules)
+    ratio = (right - left) / width  # of the table to its block
 
     def present(edge: float) -> bool:
-        return coverage(body, (margin + edge * s, 0, margin + edge * s, body.height), band) >= rules.line_ink
+        x = margin + (left + edge * ratio) * s
+        return coverage(body, (x, 0, x, body.height), band) >= rules.line_ink
 
     columns: dict[str, tuple[float, float]] = template.columns.model_dump()
-    edges = sorted({edge for pair in columns.values() for edge in pair} - {0.0, forms.title_block.width})
+    edges = sorted({edge for pair in columns.values() for edge in pair} - {0.0, width})
     if sum(map(present, edges)) < len(edges) - 1:
         return None
-    table = Table(block.x0, block.s, columns, other_form=any(map(present, template.other_columns)))
-    step, y = template.row_height * s, header
+    other = any(map(present, template.other_columns))
+    table = Table(block.x0 + left * block.s, block.s * ratio, columns, other_form=other)
+    step, y = template.row_height * s * ratio, header
     while y + step / 2 <= mask.height:
         table.rows.append((window[1] + y / k, window[1] + (y + step) / k))
         y += step
     return table
+
+
+def _outer_lines(
+    body: Image.Image, width: float, margin: float, reach: float, rules: RegionRules
+) -> tuple[float, float]:
+    """The left and right column lines of a table, mm from the left edge of its block: the vertical lines of ``body``
+    nearest to the edges of the block within ``reach``, else the edges themselves."""
+    s = rules.sample
+    found = [(x - margin) / s for x in runs(profile(body, vertical=True), rules.line_ink, rules.max_line_width * s)]
+
+    def nearest(edge: float) -> float:
+        near = [x for x in found if abs(x - edge) <= reach]
+        return min(near, key=lambda x: abs(x - edge)) if near else edge
+
+    left, right = nearest(0.0), nearest(width)
+    return (left, right) if right > left else (0.0, width)

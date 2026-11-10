@@ -165,6 +165,9 @@ specification:                   # GOST 2.106, form 1
   designation_zone: 0.8          # without a title block the designation is looked for below this share of the height
   header_height: 15              # on a page image: the header row under the top line of the frame
   row_height: 8                  # and the rows under it, down to the title block
+  frame_reach: 3                 # the outer column lines are looked for this far from the edges of the title block: a
+                                 # table drawn 1.2 % larger than its block has them at −0.5 and 186.8 mm, and its
+                                 # columns and rows in the same proportion
   other_columns: [133, 143]      # column lines of form 5 of GOST 2.113 (variant B): its rows are not read as form 1
   section_similarity: 0.65       # a row that is only a name this similar to a section name is its header: OCR misreads
 
