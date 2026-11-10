@@ -62,6 +62,7 @@
       "parameters": {
         "coating": 9,
         "dimension_tolerance": 13,
+        "general_tolerance": 25,
         "roughness": 25,
         "hardness": 3
       },
@@ -77,8 +78,8 @@
       "log": {
         "info": 1
       },
-      "seconds": 698.6,
-      "seconds_per_page": 13.18,
+      "seconds": 680.2,
+      "seconds_per_page": 12.83,
       "images": {
         "count": 53,
         "dpi": {

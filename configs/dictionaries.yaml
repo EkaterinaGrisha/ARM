@@ -114,9 +114,9 @@ digit_lookalikes:                # Cyrillic letters recognized instead of digits
   "З": "3"
   "б": "6"
 
-heat_treatments:                 # the first match names the treatment
-  - {pattern: "цементир|цементац", name: Цементация}
+heat_treatments:                 # the first match names the treatment, so a compound one comes before its part
   - {pattern: "нитроцемент", name: Нитроцементация}
+  - {pattern: "цементир|цементац", name: Цементация}
   - {pattern: "азотир", name: Азотирование}
   - {pattern: '(закал\w*|закалк\w*)\s+ТВЧ|ТВЧ', name: Закалка ТВЧ}
   - {pattern: "закал", name: Закалка}
@@ -124,6 +124,21 @@ heat_treatments:                 # the first match names the treatment
   - {pattern: "нормализ", name: Нормализация}
   - {pattern: "отжиг|отжечь", name: Отжиг}
   - {pattern: "старени|состарить", name: Старение}
+
+layer_depth_marks: [h, һ, В, в, Н]  # «h» of the depth of a layer (GOST 2.310) and the letters OCR reads it as;
+                                 # the letters count only in an item read by OCR, a text layer writes «h»
+
+general_tolerances:              # limit deviations of the sizes with none of their own (GOST 2.307-2011, table 1):
+  patterns:                      # the wording of GOST 25670 and the general tolerances of GOST 30893.1
+    - 'неуказанн\w*\s+предельн\w*\s+отклонени'
+    - 'общ\w*\s+допуск\w*\s+по\s+гост\s*30893[.,]\s?1'
+  classes: {t1: 12, t2: 14, t3: 16, t4: 17, f: 12, m: 14, c: 16, v: 17}  # accuracy classes of GOST 25670 (t1–t4)
+                                 # and GOST 30893.1 (f, m, c, v) and the IT grade each stands for
+
+general_geometric:               # general tolerances of form and position by GOST 30893.2, classes H, K, L; a record
+  pattern: '30893[.,]\s?2'       # «ГОСТ 30893.2-mK» gives the class of GOST 30893.1 for the sizes too
+  name: Общие допуски формы и расположения
+  classes: [H, K, L]
 
 geometric_tolerances:            # in requirement texts; the first match names the tolerance
   - {pattern: "позиционн", name: Позиционный допуск}
