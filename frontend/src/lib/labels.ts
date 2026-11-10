@@ -20,7 +20,20 @@ export const DISCREPANCY_TYPES: Record<DiscrepancyType, { label: string; hint: s
   revision_mismatch: { label: "Литера / номер изменения", hint: "Разные версии документа или несогласованные литеры" },
   missing_specification: { label: "Нет спецификации СЕ", hint: "Сборочная единица указана, но её спецификации нет" },
   sheets_missing: { label: "Не хватает листов", hint: "В комплекте меньше листов документа, чем в основной надписи" },
+  format_mismatch: { label: "Расхождение формата", hint: "Формат в спецификации не совпадает с форматом листов документа" },
+  section_mismatch: {
+    label: "Позиция не в своём разделе",
+    hint: "Сборочная единица записана в «Деталях» или деталь — в «Сборочных единицах»",
+  },
+  position_anomaly: { label: "Нарушение позиций", hint: "Номер позиции повторяется или у позиции нет количества" },
+  first_use_mismatch: {
+    label: "Первичное применение",
+    hint: "«Перв. примен.» называет сборочную единицу комплекта, в спецификации которой документа нет",
+  },
 };
+export const PRELIMINARY_HINT =
+  "В комплекте есть документы, которые не прочитаны: искомый может быть среди них — они перечислены в сообщении";
+
 export const DISCREPANCY_ORDER: DiscrepancyType[] = [
   "missing_drawing",
   "missing_specification",
@@ -29,6 +42,10 @@ export const DISCREPANCY_ORDER: DiscrepancyType[] = [
   "duplicate_designation",
   "revision_mismatch",
   "name_mismatch",
+  "section_mismatch",
+  "position_anomaly",
+  "format_mismatch",
+  "first_use_mismatch",
 ];
 
 export const SEVERITY: Record<Severity, string> = { high: "Высокая", medium: "Средняя", low: "Низкая" };

@@ -67,13 +67,14 @@
       "discrepancies": {
         "B1.MISSING.001": 3,
         "B1.DUP.002": 1,
-        "B1.NAME.001": 7
+        "B1.NAME.001": 7,
+        "B1.FORMAT.001": 3
       },
       "log": {
         "info": 2
       },
-      "seconds": 90.4,
-      "seconds_per_page": 1.71,
+      "seconds": 91.8,
+      "seconds_per_page": 1.73,
       "images": {
         "count": 53,
         "dpi": {

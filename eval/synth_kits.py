@@ -138,6 +138,7 @@ def compare(report: Report, truth: KitTruth) -> dict[str, Any]:
     expected = _expected(truth)
     want = Counter(key for key, _ in expected)
     got = Counter((d.rule_id or d.type, d.designation or "") for d in report.discrepancies)
+    preliminary = Counter((d.rule_id or d.type, d.designation or "") for d in report.discrepancies if d.preliminary)
     found = want & got
     by_mutation: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     left = Counter(found)
@@ -152,6 +153,8 @@ def compare(report: Report, truth: KitTruth) -> dict[str, Any]:
         "found": found,
         "missed": want - got,
         "extra": got - want,
+        "found_preliminary": found & preliminary,
+        "extra_preliminary": (got - want) & preliminary,
         "by_mutation": by_mutation,
         "files_right": sum(statuses.get(p) == s for p, s in truth.problem_files.items()),
         "files_total": len(truth.problem_files),
@@ -354,7 +357,7 @@ def run(truths: dict[str, KitTruth], use_ocr: bool, model: str | None = None) ->
         regions(report, truth, places, misplaced)
         sheet_files(report, truth, sheets, sheets_wrong, name)
         result = compare(report, truth)
-        for part in ("expected", "found", "missed", "extra"):
+        for part in ("expected", "found", "missed", "extra", "found_preliminary", "extra_preliminary"):
             for (rule, _), count in result[part].items():
                 rules[rule][part] += count
         for mutation, (hit, total) in result["by_mutation"].items():
@@ -366,6 +369,8 @@ def run(truths: dict[str, KitTruth], use_ocr: bool, model: str | None = None) ->
         for key in result["extra"]:
             cause = _cause(key, truth, missed=False, use_ocr=use_ocr)
             item = {"kit": name, "kind": "лишнее", "rule": key[0], "designation": key[1], "cause": cause}
+            if key in result["extra_preliminary"]:
+                item["preliminary"] = True
             errors.append(item)
             if not truth.mutations:
                 clean_false.append(item)
@@ -391,6 +396,8 @@ def run(truths: dict[str, KitTruth], use_ocr: bool, model: str | None = None) ->
     expected = sum(r["expected"] for r in table)
     found = sum(r["found"] for r in table)
     extra = sum(r["extra"] for r in table)
+    found_sure = found - sum(rules[r]["found_preliminary"] for r in rules)
+    extra_sure = extra - sum(rules[r]["extra_preliminary"] for r in rules)
     return {
         "ocr": use_ocr,
         "model": model,
@@ -401,6 +408,9 @@ def run(truths: dict[str, KitTruth], use_ocr: bool, model: str | None = None) ->
             "extra": extra,
             "precision": _ratio(found, found + extra),
             "recall": _ratio(found, expected),
+            "found_preliminary": found - found_sure,
+            "extra_preliminary": extra - extra_sure,
+            "precision_sure": _ratio(found_sure, found_sure + extra_sure),
         },
         "rules": table,
         "mutations": {m: {"found": h, "expected": t} for m, (h, t) in sorted(by_mutation.items())},
@@ -463,14 +473,15 @@ def markdown(result: dict[str, Any]) -> str:
         "обозначением. Лишнее — срабатывание, которого нет в разметке.",
     ]
     for run_ in result["runs"]:
-        total = run_["total"]
+        total, files = run_["total"], run_["problem_files"]
         lines += [
             "",
             f"## {_run_label(run_)}" + (READ_BY_MODEL if run_.get("model") else ""),
             "",
             f"Всего: найдено {total['found']} из {total['expected']}, лишних {total['extra']}; "
             f"точность {_number(total['precision'])}, полнота {_number(total['recall'])}. "
-            f"Проблемные файлы: верный статус у {run_['problem_files']['right']} из {run_['problem_files']['total']}. "
+            + _preliminary(total)
+            + f"Проблемные файлы: верный статус у {files['right']} из {files['total']}. "
             f"Ложных срабатываний на {run_['clean_kits']} чистых комплектах: {len(run_['clean_false'])}.",
             "",
             "| Правило | Заложено | Найдено | Пропущено | Лишних | Точность | Полнота |",
@@ -553,6 +564,17 @@ def _regions_section(run_: dict[str, Any]) -> list[str]:
         lines += ["", "| Неверная область: что, вход, причина | Число |", "| --- | --- |"]
         lines += [f"| {why} | {count} |" for why, count in run_["wrong_regions"].items()]
     return lines
+
+
+def _preliminary(total: dict[str, Any]) -> str:
+    """Of the found and the extra discrepancies, how many are preliminary (ADR-0027), and the precision without them."""
+    found, extra = total.get("found_preliminary", 0), total.get("extra_preliminary", 0)
+    if not found and not extra:
+        return ""
+    return (
+        f"Предварительных среди найденных {found}, среди лишних {extra}: в комплекте есть непрочитанные документы; "
+        f"точность без предварительных {_number(total['precision_sure'])}. "
+    )
 
 
 def _parameters_section(run_: dict[str, Any]) -> list[str]:

@@ -8,6 +8,10 @@ DISCREPANCY_TYPES = {
     "revision_mismatch": "Расхождение литеры / изменения",
     "missing_specification": "Нет спецификации сборочной единицы",
     "sheets_missing": "Не хватает листов документа",
+    "format_mismatch": "Расхождение формата",
+    "section_mismatch": "Позиция не в своём разделе",
+    "position_anomaly": "Нарушение позиций",
+    "first_use_mismatch": "Расхождение первичного применения",
 }
 SEVERITY = {"high": "Высокая", "medium": "Средняя", "low": "Низкая"}
 DOCUMENT_STATUS = {

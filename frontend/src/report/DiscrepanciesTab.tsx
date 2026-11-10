@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { DiscrepancyType, Severity } from "../api/types";
 import { DocLink, Empty, SearchInput, SeverityIcon, SourceButton } from "../components/common";
-import { DISCREPANCY_ORDER, DISCREPANCY_TYPES, SEVERITY } from "../lib/labels";
+import { DISCREPANCY_ORDER, DISCREPANCY_TYPES, PRELIMINARY_HINT, SEVERITY } from "../lib/labels";
 import { matchesQuery } from "../lib/report";
 import { useReport } from "./ReportContext";
 
@@ -114,6 +114,11 @@ export function DiscrepanciesTab() {
                 {d.rule_id && (
                   <span className="mono subtle" style={{ fontSize: 11.5 }} title="Правило проверки">
                     {d.rule_id}
+                  </span>
+                )}
+                {d.preliminary && (
+                  <span className="subtle" style={{ fontSize: 12.5 }} title={PRELIMINARY_HINT}>
+                    предварительно
                   </span>
                 )}
               </div>

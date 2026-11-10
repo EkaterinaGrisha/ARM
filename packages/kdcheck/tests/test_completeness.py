@@ -19,6 +19,7 @@ from kdcheck.schemas import (
     DiscrepancyType,
     DocumentInfo,
     Extracted,
+    PageInfo,
     Parameter,
     PartRecord,
     SourceRef,
@@ -40,17 +41,24 @@ class Result(NamedTuple):
     log: list[str]
 
 
-def check(specs, drawings, checks: Checks = SETTINGS.checks, later: set[str] | None = None) -> Result:
+def check(
+    specs,
+    drawings,
+    checks: Checks = SETTINGS.checks,
+    later: set[str] | None = None,
+    unread: list[DocumentInfo] | None = None,
+) -> Result:
     """The tree and the discrepancies as the pipeline gets them: files assembled into documents first. ``later`` are
-    the files with form 2a of a later sheet; by default every file past sheet 1."""
+    the files with form 2a of a later sheet; by default every file past sheet 1. ``unread`` are files without a
+    designation read."""
     parts = [d.part for d in drawings if d.part is not None]
     infos = [info for info, _ in specs] + [d.doc for d in drawings]
     if later is None:
         later = {info.id for info in infos if (info.sheet or 0) > 1}
     assembly = assemble(infos, specs, parts, later)
     refs = [d for d in drawings if d.doc.sheet_of is None]
-    tree = build_tree(assembly.specs, refs, ESKD, assembly.documents)
-    found = run_check(tree, ESKD, configured(checks), checks.names, checks.sheets)
+    tree = build_tree(assembly.specs, refs, ESKD, assembly.documents, unread)
+    found = run_check(tree, ESKD, configured(checks), checks)
     return Result(tree.roots, found, assembly.log + tree.log)
 
 
@@ -372,6 +380,7 @@ def test_no_specifications_is_reported_not_crashed():
 # ---------------------------------------------------------------- one case and one near miss per rule
 
 TOP, UNIT, PART = "АБВГ.100000.000", "АБВГ.100000.100", "АБВГ.100000.001"
+AXLE = "АБВГ.100000.101"
 Kit = tuple[list[tuple[DocumentInfo, Specification]], list[DrawingRef]]
 
 
@@ -389,6 +398,29 @@ def unit_row() -> SpecRow:
 
 def drawing_row() -> SpecRow:
     return row(3, "Документация", f"{TOP} СБ", "Сборочный чертёж", None)
+
+
+def sized(ref: DrawingRef, *formats: str) -> DrawingRef:
+    """The drawing on sheets of these formats of GOST 2.301, as ingest names them."""
+    ref.doc.pages = [PageInfo(number=n, width=595, height=842, format=f) for n, f in enumerate(formats, start=1)]
+    return ref
+
+
+def formatted(found: SpecRow, fmt: str) -> SpecRow:
+    found.format = Extracted(value=fmt)
+    return found
+
+
+def read_row(found: SpecRow, position: str | None, method: str = "text_layer") -> SpecRow:
+    """The row as a reader gives it: its position, and its source read in this way."""
+    found.position = Extracted(value=position) if position else None
+    found.source = SourceRef(document_id="s0", method=method)
+    return found
+
+
+def first_used(ref: DrawingRef, where: str) -> DrawingRef:
+    ref.part.title_block.first_use = Extracted(value=where)
+    return ref
 
 
 CASES: dict[str, tuple[Callable[[], Kit], Callable[[], Kit]]] = {
@@ -459,6 +491,42 @@ CASES: dict[str, tuple[Callable[[], Kit], Callable[[], Kit]]] = {
             [drawing("d1", PART, "Вал", sheet=1, sheets=2), drawing("d2", PART, "Вал", sheet=2)],
         ),
     ),
+    "B1.FORMAT.001": (
+        lambda: ([product(formatted(part_row(), "А3"))], [sized(drawing("d1", PART, "Вал"), "A4")]),
+        lambda: ([product(formatted(part_row(), "A4"))], [sized(drawing("d1", PART, "Вал"), "A4")]),  # Latin «A»
+    ),
+    "B1.SECTION.001": (  # an assembly with a specification of its own written in «Детали»
+        lambda: ([product(row(1, "Детали", UNIT, "Узел")), spec("s1", UNIT, "Узел", [])], []),
+        lambda: ([product(unit_row()), spec("s1", UNIT, "Узел", [])], []),
+    ),
+    "B1.POS.001": (
+        lambda: ([product(read_row(part_row(), "1"), read_row(row(2, "Детали", f"{PART[:-1]}2", "Ось"), "1"))], []),
+        lambda: ([product(read_row(part_row(), "1"), read_row(row(2, "Детали", f"{PART[:-1]}2", "Ось"), "2"))], []),
+    ),
+    "B1.POS.002": (
+        lambda: ([product(read_row(row(1, "Детали", PART, "Вал", None), "1"))], []),
+        lambda: ([product(read_row(row(3, "Документация", f"{TOP} СБ", "Сборочный чертёж", None), None))], []),
+    ),
+    "B1.POS.003": (  # a part with no designation, read from a text layer; a standard item and a document have none
+        lambda: ([product(read_row(row(1, "Детали", "", "Вал"), "1"))], []),
+        lambda: (
+            [
+                product(
+                    read_row(row(1, "Стандартные изделия", "", "Болт М8 ГОСТ 7798-70", 4), "1"),
+                    read_row(row(2, "Документация", "", "Схема электрическая принципиальная", None), None),
+                )
+            ],
+            [],
+        ),
+    ),
+    "B1.FIRSTUSE.001": (  # the shaft names the unit as its first use, and the unit lists only an axle
+        lambda: (
+            [product(part_row(), unit_row()), spec("s1", UNIT, "Узел", [read_row(row(1, "Детали", AXLE, "Ось"), "1")])],
+            [first_used(drawing("d1", PART, "Вал"), UNIT)],
+        ),
+        # first used in another product, outside the kit
+        lambda: ([product(part_row())], [first_used(drawing("d1", PART, "Вал"), "АБВГ.999999.000")]),
+    ),
 }
 
 
@@ -508,6 +576,102 @@ def test_positions_with_two_readings_of_one_name_are_not_a_duplicate():
     _read_by(other.name, "ocr")
     kit = [product(one, unit_row()), spec("s1", UNIT, "Узел", [other])], []
     assert "B1.DUP.002" not in fired(kit)
+
+
+def test_a_part_written_in_the_assemblies_is_a_part_of_the_wrong_section():
+    """A part drawing and neither a specification nor an assembly drawing: the row is a part, so its drawing is found
+    and no specification is missing."""
+    result = check([product(row(2, "Сборочные единицы", PART, "Вал"))], [drawing("d1", PART, "Вал")])
+    assert found(result) == {("B1.SECTION.001", PART)}
+    [shaft] = result.tree[0].children
+    assert (shaft.kind, shaft.section, shaft.drawing_document_ids) == ("part", "Сборочные единицы", ["d1"])
+
+
+def test_an_assembly_written_in_the_parts_is_expanded_through_its_specification():
+    kit = [product(row(1, "Детали", UNIT, "Узел")), spec("s1", UNIT, "Узел", [row(1, "Детали", PART, "Вал")])]
+    result = check(kit, [drawing("d1", PART, "Вал"), drawing("d2", f"{UNIT} СБ", "Узел")])
+    assert found(result) == {("B1.SECTION.001", UNIT)}
+    [unit] = result.tree[0].children
+    assert (unit.kind, unit.children[0].designation) == ("assembly", PART)
+
+
+def test_the_format_of_an_assembly_is_that_of_its_specification_or_its_assembly_drawing():
+    """GOST 2.106: the format column names the format of the document the row designates, the specification of an
+    assembly; some makers write that of its assembly drawing. A document on sheets of several formats is written «*»
+    and is not checked."""
+
+    def kit(fmt: str, sb: str | None) -> Kit:
+        unit = spec("s1", UNIT, "Узел", [])
+        unit[0].pages = [PageInfo(number=1, width=595, height=842, format="A4")]
+        drawings = [sized(drawing("d2", f"{UNIT} СБ", "Узел"), sb)] if sb else []
+        return [product(formatted(unit_row(), fmt)), unit], drawings
+
+    assert "B1.FORMAT.001" not in fired(kit("А4", "A3"))
+    assert "B1.FORMAT.001" not in fired(kit("А3", "A3"))
+    assert "B1.FORMAT.001" in fired(kit("А3", None))
+    assert "B1.FORMAT.001" in fired(kit("А2", "A3"))
+    starred = [product(formatted(part_row(), "А4*"))], [sized(drawing("d1", PART, "Вал"), "A4", "A3")]
+    assert "B1.FORMAT.001" not in fired(starred)
+
+
+def test_first_use_in_a_specification_without_rows_read_or_read_by_ocr_is_not_reported():
+    """A specification whose rows were not read tells nothing, nor does one read by OCR, which may miss a row."""
+    empty = spec("s1", UNIT, "Узел", [])
+    shaft = first_used(drawing("d1", PART, "Вал"), UNIT)
+    assert "B1.FIRSTUSE.001" not in fired(([product(part_row(), unit_row()), empty], [shaft]))
+    scanned = spec("s1", UNIT, "Узел", [read_row(row(1, "Детали", AXLE, "Ось"), "1", "ocr")])
+    assert "B1.FIRSTUSE.001" not in fired(([product(part_row(), unit_row()), scanned], [shaft]))
+
+
+def test_the_assembly_drawing_names_the_product_its_assembly_goes_into_as_first_use():
+    """The specification and the assembly drawing of an assembly name the product it goes into; a drawing that names
+    its own assembly, which lists it, is taken too."""
+    unit = spec("s1", UNIT, "Узел", [row(1, "Документация", f"{UNIT} СБ", "Сборочный чертёж", None)])
+    for where in (TOP, UNIT):
+        sb = first_used(drawing("d2", f"{UNIT} СБ", "Узел"), where)
+        assert "B1.FIRSTUSE.001" not in fired(([product(unit_row()), unit], [sb]))
+
+
+def test_positions_read_by_ocr_and_variants_sharing_one_are_not_anomalies():
+    shaft, axle = read_row(part_row(), "1", "ocr"), read_row(row(2, "Детали", f"{PART[:-1]}2", "Ось"), "1", "ocr")
+    assert "B1.POS.001" not in fired(([product(shaft, axle)], []))
+    base, other = (
+        read_row(variable_row(i, "Детали", f"{PART[:-1]}{i}", "Ось", v), "3") for i, v in ((2, "–"), (3, "01"))
+    )
+    assert "B1.POS.001" not in fired(([product(read_row(part_row(), "1"), base, other)], []))
+    by_b = [read_row(group_row(i, "Детали", f"{PART[:-1]}{i}", "Ось", {v: 1}), "3") for i, v in ((2, "–"), (3, "01"))]
+    assert "B1.POS.001" not in fired(([product(*by_b)], []))
+    assert "B1.POS.001" in fired(
+        ([product(*by_b, read_row(group_row(4, "Детали", f"{PART[:-1]}4", "Ось", {"01": 2}), "3"))], [])
+    )
+
+
+def test_a_gap_in_the_positions_is_no_anomaly():
+    """GOST 2.106 lets a specification reserve position numbers."""
+    rows = [read_row(part_row(), "1"), read_row(row(2, "Детали", f"{PART[:-1]}2", "Ось"), "5")]
+    assert not {"B1.POS.001", "B1.POS.002"} & fired(([product(*rows)], []))
+
+
+def test_an_assembly_drawing_without_a_specification_in_a_kit_without_any():
+    """A kit without specifications: GOST 2.102 makes the specification the main document of an assembly."""
+    result = check([], [drawing("d2", f"{UNIT} СБ", "Узел"), drawing("d1", PART, "Вал")])
+    assert found(result) == {("B1.SPEC.001", UNIT)}
+
+
+def test_a_missing_drawing_is_preliminary_while_a_file_is_not_read():
+    scan = DocumentInfo(id="u1", file_name="скан.jpg", path="скан.jpg", status="unreadable")
+    [missing] = check([product(part_row())], [], unread=[scan]).discrepancies
+    assert (missing.rule_id, missing.preliminary) == ("B1.MISSING.001", True)
+    assert "u1" in missing.document_ids and "скан.jpg" in missing.message
+    [sure] = check([product(part_row())], []).discrepancies
+    assert not sure.preliminary
+
+
+def test_a_drawing_in_no_specification_is_preliminary_while_one_has_no_rows_read():
+    kit = [product(part_row()), spec("s9", "АБВГ.200000.000", "Другое изделие", [])]
+    drawings = [drawing("d1", PART, "Вал"), drawing("d9", "АБВГ.200000.001", "Ось")]
+    [orphan] = [d for d in check(kit, drawings).discrepancies if d.rule_id == "B1.ORPHAN.001"]
+    assert orphan.preliminary and "s9" in orphan.document_ids
 
 
 def test_rule_ids_are_unique_and_cover_every_discrepancy_type():

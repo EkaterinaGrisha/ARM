@@ -13,6 +13,10 @@ own is drawn on the group drawing of its base, which writes «См. табл.» 
 By variant A the same group specification holds the constant data, common to every variant, and the variable data
 of each variant under its designation (ADR-0026): a variant takes the constant rows and its own. The rows of the
 other variants stay listed in a specification, so their documents are not ones that no specification names.
+
+A row stands for what its documents are, not for its section (ADR-0027): an assembly written in «Детали» is
+expanded through its specification, and a part written in «Сборочные единицы», which has a part drawing and neither a
+specification nor an assembly drawing, is a part; the section stays in the node, and the rules report the mismatch.
 """
 
 from __future__ import annotations
@@ -65,6 +69,7 @@ class ProductTree:
     rows: dict[str, SpecRow] = field(default_factory=dict)  # node id → the specification row of the node
     parents: dict[str, TreeNode] = field(default_factory=dict)  # node id → the assembly that lists the node
     documents: list[SheetSet] = field(default_factory=list)  # the documents of the kit with their sheets
+    unread: list[DocumentInfo] = field(default_factory=list)  # documents whose designation is not read
 
     def nodes(self) -> Iterator[TreeNode]:
         """Every node, depth first, each before its children."""
@@ -212,9 +217,11 @@ class _Builder:
         total = parent_total * qty if qty is not None else parent_total
         if des:
             self.tree.referenced.add(des)
+        if kind == "assembly" and des and self._part_only(des):
+            kind = "part"  # a part written in «Сборочные единицы»
+        elif kind in ("part", "unknown") and des and (des in self.spec_by_des or des in self.variants):
+            kind = "assembly"  # an assembly written in «Детали», or under a section not read
         if kind == "assembly" and des:
-            return self._assembly_node(des, row, qty, row.section, total, path)
-        if kind == "unknown" and des and (des in self.spec_by_des or des in self.variants):
             return self._assembly_node(des, row, qty, row.section, total, path)
         node = TreeNode(
             id=self._next_node(),
@@ -240,6 +247,15 @@ class _Builder:
         else:
             node.status = "not_required"
         return node
+
+    def _part_only(self, des: str) -> bool:
+        """Whether the kit has a part drawing of ``des`` and neither a specification nor an assembly drawing of it."""
+        if des in self.spec_by_des or des in self.variants:
+            return False
+        group = split_variant(des)[0]
+        if self.drawings_by_des.get(f"{des} {self.sb}") or self.drawings_by_des.get(f"{group} {self.sb}"):
+            return False
+        return any(d.doc.kind == "part_drawing" for d in self.drawings_by_des.get(des, []))
 
     def _no_drawing(self, row: SpecRow) -> bool:
         """Whether the row marks a part made without a drawing: «БЧ» in the format column, as GOST 2.106 writes it,
@@ -272,8 +288,11 @@ def build_tree(
     drawings: list[DrawingRef],
     eskd: Designations,
     documents: list[SheetSet] | None = None,
+    unread: list[DocumentInfo] | None = None,
 ) -> ProductTree:
-    """The tree of the specifications and drawings of the kit, one of each per document of its sheets."""
+    """The tree of the specifications and drawings of the kit, one of each per document of its sheets; ``unread`` are
+    the documents of the kit whose designation is not read, any of which may be one the tree misses."""
     tree = _Builder(specs, drawings, eskd).build()
     tree.documents = documents or []
+    tree.unread = unread or []
     return tree
