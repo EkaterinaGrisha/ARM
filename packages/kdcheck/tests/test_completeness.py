@@ -232,6 +232,56 @@ def test_a_row_under_two_variants_is_one_missing_drawing():
     assert missing.designation == "АБВГ.100000.101" and len(missing.tree_node_ids) == 2
 
 
+def variable_row(i: int, section: str, des: str, name: str, variant: str, qty: float = 1) -> SpecRow:
+    """A row of the variable data of a group specification by variant A of GOST 2.113, under its variant."""
+    found = row(i, section, des, name, qty)
+    found.variant = variant
+    return found
+
+
+def test_a_variant_takes_the_constant_data_and_its_own_by_variant_a():
+    """By variant A the constant rows go to every variant and the variable ones to theirs (ADR-0026). The document of
+    a variant no specification names is still listed, so it is in a specification."""
+    info, group = spec(
+        "s1",
+        "АБВГ.100000.100",
+        "Узел",
+        [
+            row(1, "Детали", "АБВГ.100000.101", "Ось", 2),
+            variable_row(2, "Детали", "АБВГ.100000.102", "Втулка", "–"),
+            variable_row(3, "Детали", "АБВГ.100000.103", "Втулка", "01", 3),
+            variable_row(4, "Детали", "АБВГ.100000.104", "Кольцо", "02"),
+        ],
+    )
+    group.variants = ["–", "01", "02"]
+    product = spec(
+        "s0",
+        "АБВГ.100000.000",
+        "Изделие",
+        [
+            row(1, "Сборочные единицы", "АБВГ.100000.100", "Узел"),
+            row(2, "Сборочные единицы", "АБВГ.100000.100-01", "Узел"),
+        ],
+    )
+    drawings = [
+        drawing(f"d{n}", f"АБВГ.100000.10{n}", name) for n, name in ((1, "Ось"), (2, "Втулка"), (3, "Втулка"))
+    ] + [drawing("d4", "АБВГ.100000.104", "Кольцо")]
+    result = check([product, (info, group)], drawings)
+    base, variant = result.tree[0].children
+    assert [(c.designation, c.quantity) for c in base.children] == [("АБВГ.100000.101", 2), ("АБВГ.100000.102", 1)]
+    assert [(c.designation, c.quantity) for c in variant.children] == [("АБВГ.100000.101", 2), ("АБВГ.100000.103", 3)]
+    assert found(result) == set()  # variant 02 is named by no one, and its ring is listed all the same
+
+
+@pytest.mark.parametrize(("fmt", "note", "missing"), [("БЧ", "", False), ("Б Ч", "", False), ("А4", "", True)])
+def test_a_part_without_a_drawing_is_marked_in_the_format_column(fmt, note, missing):
+    """GOST 2.106 writes «БЧ» in the format column of a part made without a drawing; a format names its drawing."""
+    part = row(1, "Детали", PART, "Вал", note=note)
+    part.format = Extracted(value=fmt)
+    result = check([product(part)], [])
+    assert (("B1.MISSING.001", PART) in found(result)) is missing
+
+
 @pytest.mark.parametrize(("mass", "missing"), [("См. табл.", False), ("1.2", True)])
 def test_a_variant_of_a_part_is_drawn_on_the_group_drawing_of_its_base(mass, missing):
     """A row «-01» below the base part names its variant: the group drawing of the base covers it, a drawing that is

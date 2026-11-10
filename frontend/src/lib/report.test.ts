@@ -95,4 +95,9 @@ describe("количество строки спецификации", () => {
     expect(rowQuantity(group)).toBe("–: 2; 01: ×");
     expect(rowQuantity({ id: "r2", quantities: {}, quantity: { value: 3 } })).toBe("3");
   });
+
+  it("у переменных данных по варианту А — с номером исполнения", () => {
+    expect(rowQuantity({ id: "r3", quantities: {}, variant: "01", quantity: { value: 2 } })).toBe("01: 2");
+    expect(rowQuantity({ id: "r4", quantities: {}, variant: "01" })).toBe("");
+  });
 });

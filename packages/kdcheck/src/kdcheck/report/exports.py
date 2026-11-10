@@ -21,10 +21,12 @@ def _v(ex: Extracted | None) -> str | float | int | None:
 
 
 def _quantity(row: SpecRow) -> str | float | int | None:
-    """The quantity of a row; of a group specification by variant B, by variant: «–: 2; 01: 1»."""
+    """The quantity of a row; of a group specification, with the number of the variant: by variant B «–: 2; 01: 1»,
+    of the variable data by variant A «01: 2»."""
     if row.quantities:
         return "; ".join(f"{number}: {_text(ex.value)}" for number, ex in row.quantities.items())
-    return _v(row.quantity)
+    value = _v(row.quantity)
+    return f"{row.variant}: {_text(value)}" if row.variant and value not in (None, "") else value
 
 
 def _text(value: str | float | int | None) -> str:

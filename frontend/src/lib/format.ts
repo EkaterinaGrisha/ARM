@@ -42,10 +42,13 @@ export function extractedText(ex: Extracted | null | undefined): string {
   return typeof ex.value === "number" ? formatNumber(ex.value) : String(ex.value);
 }
 
-/** Количество строки спецификации; у групповой по варианту Б ГОСТ 2.113 — по исполнениям: «–: 2; 01: 1». */
+/** Количество строки спецификации; у групповой ГОСТ 2.113 — с номером исполнения: по варианту Б «–: 2; 01: 1»,
+ * у переменных данных по варианту А «01: 2». */
 export function rowQuantity(row: SpecRow): string {
   const byVariant = Object.entries(row.quantities ?? {}).map(([number, ex]) => `${number}: ${extractedText(ex)}`);
-  return byVariant.length ? byVariant.join("; ") : extractedText(row.quantity);
+  if (byVariant.length) return byVariant.join("; ");
+  const quantity = extractedText(row.quantity);
+  return row.variant && quantity ? `${row.variant}: ${quantity}` : quantity;
 }
 
 /** Значение параметра в человекочитаемом виде: «58…62 HRC», «0,8 мкм», «IT6». */

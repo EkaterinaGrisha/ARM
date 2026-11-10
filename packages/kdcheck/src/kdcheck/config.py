@@ -398,6 +398,8 @@ class Dictionaries(Section):
     spec_sections: dict[str, NodeKind]
     needs_drawing: tuple[NodeKind, ...]
     no_drawing_mark: str
+    no_drawing_misreads: dict[str, str]
+    variable_data: str
     assembly_drawing_code: str
     assembly_drawing_name: str
     document_codes: tuple[str, ...]

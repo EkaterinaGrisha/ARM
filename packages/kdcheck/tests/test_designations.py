@@ -63,6 +63,34 @@ def test_a_code_of_file_names_hints_and_stays_out_of_the_designation():
     assert ESKD.normalize_designation("А1Б23-1234567СБ - Рама", file_name=True) == "А1Б23-1234567 СБ"
 
 
+@pytest.mark.parametrize(
+    ("cell", "misread", "mark"),
+    [
+        ("БЧ", False, True),
+        ("бч", False, True),
+        ("Б4", False, False),
+        ("Б4", True, True),
+        ("64", True, True),
+        ("54", True, True),
+        ("А4", True, False),
+        ("44", True, False),
+        ("Б", True, False),
+        ("", True, False),
+    ],
+)
+def test_the_no_drawing_mark_in_the_format_column(cell, misread, mark):
+    """«БЧ» of GOST 2.106; on a cell read by OCR its letters may come as digits, while a format starts with «А»."""
+    assert ESKD.no_drawing(cell, misread=misread) is mark
+
+
+def test_a_file_name_joined_by_underscores_gives_its_designation():
+    """«обозначение_наименование»: in a file name «_» separates as a space does; in a document text it does not."""
+    stem = "АБВГ.123456.001_Вал_ведущий"
+    assert ESKD.normalize_designation(stem, file_name=True) == "АБВГ.123456.001"
+    assert ESKD.normalize_designation("АБВГ.123456.001-01_СБ_Узел", file_name=True) == "АБВГ.123456.001-01 СБ"
+    assert ESKD.normalize_designation(stem) is None
+
+
 def test_the_look_of_unknown_designations_is_named():
     stems = ["ЖЖ-12-345 Рама", "ЖЖ-12-346 Ось", "ЖЖ-12-347 Вал(2)", "АБВГ.02.115 Плита", "IMG_2041"]
     assert ESKD.unknown_shape(stems, 0.5) == ("АА-99-999", 3)

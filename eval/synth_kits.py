@@ -35,7 +35,7 @@ import shutil
 import subprocess
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 
 import scoring
@@ -66,7 +66,7 @@ def _cause(key: Key, truth: KitTruth, *, missed: bool, use_ocr: bool) -> str:
     base = designation.removesuffix(" СБ")
     rows = [r for doc in truth.documents.values() if doc.kind == "specification" for r in doc.rows]
     if not missed and rule == "B1.MISSING.001" and any(r.designation == designation and r.fmt == "БЧ" for r in rows):
-        return "«БЧ» в графе «Формат»: ядро ищет её только в примечании"
+        return "«БЧ» в графе «Формат» прочитана иначе, чем её путает OCR"
     if group := _group_cause(rule, base, truth, missed=missed):
         return group
     if missed and all(d.origin != "vector" for d in truth.documents.values() if isinstance(d, SpecTruth)):
@@ -88,8 +88,6 @@ def _cause(key: Key, truth: KitTruth, *, missed: bool, use_ocr: bool) -> str:
         what += " спецификации" if doc.kind == "specification" else ""
         if use_ocr:
             return f"{what}: OCR прочитал с ошибкой"
-        if own and PurePosixPath(own[0]).stem.startswith(f"{base}_"):
-            return f"{what} без OCR, имя файла «обозначение_наименование»: ядро не берёт из него обозначение"
         return f"{what} без OCR: обозначение — из имени файла, остальных полей нет"
     known = {doc.designation for doc in truth.documents.values()} | {r.designation for r in rows}
     if not missed and designation not in known and base not in known:
@@ -118,21 +116,21 @@ def _swapped(a: str, b: str) -> bool:
 def _group_cause(rule: str, designation: str, truth: KitTruth, *, missed: bool) -> str | None:
     """Why the core misses or adds a discrepancy around a group document of GOST 2.113, or none. A variant is covered
     by the group document of its base designation: the core expands it through a group specification by variant B
-    (ADR-0025), not yet through one by variant A or a group drawing; in variant A the heading of each variant stands
-    right below the last row of the data before it."""
+    (ADR-0025) or A (ADR-0026), and covers a variant of a part by the group drawing of its base when it reads «См.
+    табл.» in its mass. In variant A a heading of a variant that is not told joins the name of the row above."""
     specs = [d for d in truth.documents.values() if isinstance(d, SpecTruth) and d.group]
     if missed:
         return None
     drawn = {v.designation for d in truth.documents.values() if isinstance(d, DrawingTruth) for v in d.variants[1:]}
     if rule == "B1.SPEC.001" and any(designation in d.variants[1:] for d in specs if d.group == "A"):
         return (
-            "исполнение групповой сборочной единицы по варианту А (ГОСТ 2.113): ядро ищет спецификацию с обозначением "
-            "исполнения"
+            "исполнение групповой сборочной единицы по варианту А (ГОСТ 2.113): заголовок исполнения не опознан, "
+            "ядро ищет спецификацию с обозначением исполнения"
         )
     if rule.startswith("B1.MISSING.") and designation in drawn:
-        return "исполнение на групповом чертеже (ГОСТ 2.113): ядро ищет документ с обозначением исполнения"
+        return "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано"
     if rule == "B1.NAME.001" and any(designation in {r.designation for r in d.rows if r.variant} for d in specs):
-        return "переменные данные по варианту А (ГОСТ 2.113): заголовок исполнения ниже ядро добавляет к наименованию"
+        return "переменные данные по варианту А (ГОСТ 2.113): заголовок исполнения не опознан и дописан к наименованию"
     return None
 
 

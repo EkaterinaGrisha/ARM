@@ -11,7 +11,11 @@ spec_sections:                   # specification sections, GOST 2.106, and the p
   Материалы: material
   Комплекты: other_item
 needs_drawing: [part, document]  # node kinds that need their own document in the kit
-no_drawing_mark: БЧ              # «без чертежа» in the note column
+no_drawing_mark: БЧ              # «без чертежа»: the whole format column (GOST 2.106) or a word of the note
+no_drawing_misreads: {Б: "56", Ч: "4"}  # the digits OCR reads the letters of the mark as in the narrow format
+                                 # column: «Б4», «64», «54»; no format of GOST 2.301 is written so, all start with «А»
+variable_data: Переменные данные для исполнений  # GOST 2.113, 5.5.1: the heading of the variable data
+                                 # of a group specification by variant A; the designation of each variant heads its rows
 assembly_drawing_code: СБ
 assembly_drawing_name: сборочный чертеж  # in the name of an assembly drawing; ё is compared as е
 

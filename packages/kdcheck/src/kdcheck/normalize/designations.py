@@ -82,7 +82,11 @@ class Designations:
         return [(value, start, end) for value, _, start, end in self._found(text, file_name)]
 
     def _found(self, text: str, file_name: bool) -> list[tuple[str, int, int, int]]:
-        """Designations of a string with the grammar of each: (normalized, grammar index, start, end)."""
+        """Designations of a string with the grammar of each: (normalized, grammar index, start, end).
+
+        A file name may join its words by «_», «обозначение_наименование»: there it separates as a space does."""
+        if file_name:
+            text = text.replace("_", " ")
         cased = text.translate(self._lat_to_cyr)
         upper = text.upper().translate(self._lat_to_cyr)
         found: list[tuple[int, int, int, str]] = []
@@ -128,6 +132,19 @@ class Designations:
     def cyrillic(self, text: str) -> str:
         """``text`` with the Latin letters that look like Cyrillic ones made Cyrillic."""
         return text.translate(self._lat_to_cyr)
+
+    def no_drawing(self, text: str | None, *, misread: bool = False) -> bool:
+        """Whether the format column of a row holds «БЧ», a part made without a drawing (GOST 2.106). ``misread``:
+        the cell was read by OCR, which reads the letters of the mark as digits; a format never reads so, as each
+        one starts with «А»."""
+        mark = self.words.no_drawing_mark
+        cell = self.cyrillic((text or "").upper()).replace(" ", "")
+        if cell == mark:
+            return True
+        if not misread or len(cell) != len(mark):
+            return False
+        misreads = self.words.no_drawing_misreads
+        return all(c == m or c in misreads.get(m, "") for c, m in zip(cell, mark, strict=True))
 
     def normalize_name(self, name: str | None) -> str:
         """Name for comparison: ignores case, ё/е, punctuation and spaces."""
