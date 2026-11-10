@@ -5,13 +5,17 @@ recognizer misses the column labels; the table of a specification is placed by t
 columns and rows by GOST 2.106. Each cell of the block and each cell of a row is cut from the straightened image inside
 its ruled lines, the lines that still cross it are wiped, and an empty one is not read. The rest is brought to the text
 height the recognizer reads best and recognized in the languages of the cells. Text goes to the page in page units,
-where the title block and the specification parsers take it from (:mod:`kdcheck.extract`).
+where the title block and the specification parsers take it from (:mod:`kdcheck.extract`). The cells are read by the
+PP-OCRv5 recognizer when it is installed (:mod:`kdcheck.ocr.ppocr`, ADR-0024), else by Tesseract.
 """
 
 from __future__ import annotations
 
+import functools
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from PIL import Image, ImageDraw, ImageOps
 
@@ -20,6 +24,10 @@ from kdcheck.ingest.text import Line, Word
 from kdcheck.layout import raster
 from kdcheck.ocr import tesseract
 
+if TYPE_CHECKING:
+    from kdcheck.ocr.ppocr import Recognizer
+
+log = logging.getLogger(__name__)
 Place = Callable[[float, float], tuple[float, float]]  # a pixel of the straightened image → a page point
 Row = dict[str, list[Word]]  # the words of a specification row by column
 
@@ -120,20 +128,53 @@ def read_cell(
     heights = [h for h in _bands(raster.profile(ink, vertical=False)) if low * s <= h <= high * s]
     f = cells.text_height / max(heights) if heights else cells.pixels_per_mm / s
     image = image.resize((max(1, round(image.width * f)), max(1, round(image.height * f))), Image.Resampling.LANCZOS)
-    image = raster.ink_mask(image, raster.otsu(image.histogram())).point(lambda v: raster.WHITE - v)
+    mask = raster.ink_mask(image, raster.otsu(image.histogram()))
     pad = round(cells.pixels_per_mm)  # a millimetre of paper around the text
 
     def to_page(x: float, y: float) -> tuple[float, float]:
         return place((x - pad) / f + x0, (y - pad) / f + y0)
 
+    if (reader := ppocr_reader(settings)) is not None:  # reads the grey image, cut to the lines of the mask (ADR-0024)
+        from kdcheck.ocr import ppocr
+
+        return ppocr.read(
+            reader,
+            ImageOps.expand(image, border=pad, fill=raster.WHITE),
+            ImageOps.expand(mask, border=pad, fill=0),
+            to_page,
+            settings.models.ocr.ppocr,
+            low=low * s * f,
+            min_ink=cells.min_ink * (s * f) ** 2,
+            min_confidence=cells.min_word_confidence,
+            characters=cells.characters.get(field),
+            lookalikes=settings.dictionaries.latin_lookalikes,
+        )
     return tesseract.words(
-        ImageOps.expand(image, border=pad, fill=raster.WHITE),
+        ImageOps.expand(mask.point(lambda v: raster.WHITE - v), border=pad, fill=raster.WHITE),
         cells.languages,
         cells.page_segmentation,
         cells.min_word_confidence,
         to_page,
         cells.characters.get(field),
     )
+
+
+def ppocr_reader(settings: Settings) -> Recognizer | None:
+    """The PP-OCRv5 recognizer when the cells are to be read by it and it is installed (ADR-0024); else Tesseract
+    reads them."""
+    if settings.models.ocr.cells.engine != "ppocr":
+        return None
+    try:
+        from kdcheck.ocr import ppocr
+    except ImportError:  # numpy is missing: kdcheck without the ppocr extra
+        _no_ppocr()
+        return None
+    return ppocr.recognizer(settings.models.ocr.ppocr)
+
+
+@functools.cache
+def _no_ppocr() -> None:
+    log.warning("Нет numpy и onnxruntime (kdcheck[ppocr]): ячейки читает Tesseract")
 
 
 def _bands(rows: list[float]) -> list[int]:

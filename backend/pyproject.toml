@@ -23,6 +23,7 @@ kdcheck = { workspace = true }
 
 [project.optional-dependencies]
 ocr = ["kdcheck[ocr]"]
+ppocr = ["kdcheck[ppocr]"]
 
 [tool.setuptools.packages.find]
 include = ["arm_web*"]

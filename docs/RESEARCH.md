@@ -32,7 +32,7 @@
 | Задача | Кандидаты | Лицензия | Комментарий |
 | --- | --- | --- | --- |
 | Текст и линии векторного PDF | pdfplumber, pypdfium2; PyMuPDF | MIT; Apache-2.0 или BSD; AGPL-3.0 | pdfplumber отдаёт символы и линии с координатами — сетка спецификации без OCR |
-| OCR печатного текста | Tesseract 5 (rus), PP-OCR (PaddleOCR), EasyOCR | Apache-2.0 | Быстро, на CPU; шрифт ГОСТ может потребовать дообучения |
+| OCR печатного текста | Tesseract 5 (rus), PP-OCR (PaddleOCR), EasyOCR | Apache-2.0 | Быстро, на CPU; шрифт ГОСТ может потребовать дообучения. Ячейки сканов читает PP-OCRv5 `eslav` через onnxruntime, 4 мс на ячейку: [ADR-0024](adr/0024-ppocr-cells.md) |
 | Документные VLM-OCR | PaddleOCR-VL-1.6, Qianfan-OCR, dots.mocr и другие — [полный список](#документные-ocr-модели) | Apache-2.0, MIT; у части — ограничения | PaddleOCR-VL: 109 языков, включая русский; № 1 в [обзоре Roboflow](https://roboflow.com/blog/best-open-source-ocr-models) — 96,34 % на OmniDocBench v1.6 |
 | VLM общего назначения | Qwen3.5–3.8, Gemma 4, MiniCPM-V 4.7 и другие — [полный список](#мультимодальные-модели-с-открытыми-весами) | Apache-2.0 | Спорные ячейки, нестандартные бланки, поле чертежа; дообучение LoRA |
 | Специализированные для чертежей | eDOCr2, Florence-2, Donut | MIT | Размеры, допуски, GD&T |

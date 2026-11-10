@@ -37,7 +37,7 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
-module = ["pytesseract", "pymupdf", "pymupdf.*", "pypdfium2", "pypdfium2.*"]
+module = ["pytesseract", "pymupdf", "pymupdf.*", "pypdfium2", "pypdfium2.*", "onnxruntime", "onnxruntime.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -24,6 +24,9 @@ kdcheck = "kdcheck.cli:main"
 # AGPL-3.0: only behind kdcheck.ingest.pdf.PdfBackend, for a rollback with ARM_PDF_BACKEND=pymupdf (ADR-0007)
 pymupdf = ["pymupdf>=1.24"]
 ocr = ["pytesseract>=0.3.10"]
+# The PP-OCRv5 recognizer of cells on the CPU (ADR-0024): onnxruntime MIT, numpy BSD-3-Clause. The model files come
+# from scripts/fetch_ppocr.sh
+ppocr = ["numpy>=1.26", "onnxruntime>=1.20"]
 
 [tool.setuptools.package-data]
 kdcheck = ["py.typed"]

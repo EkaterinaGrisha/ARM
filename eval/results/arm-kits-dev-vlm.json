@@ -1,6 +1,6 @@
 {
   "model": "qwen3.6-35b-a3b-mlx",
-  "date": "2026-11-09",
+  "date": "2026-11-10",
   "machine": "Darwin arm64, Python 3.11.15",
   "role": "dev",
   "ocr": true,
@@ -8,6 +8,7 @@
     "pdfium": "156.0.8076.0",
     "pypdfium2": "5.14.0",
     "tesseract": "5.5.2",
+    "eslav_PP-OCRv5_mobile_rec": "onnx sha256:984c0413f06b, onnxruntime 1.31.0",
     "qwen3.6-35b-a3b-mlx": "spec_row_cell.v1 sha256:255b3bc469e3; tech_requirements.v1 sha256:95a734131986; title_block_cell.v1 sha256:6052401c9576",
     "pillow": "13.0.0"
   },
@@ -77,8 +78,8 @@
         "info": 1,
         "warning": 1
       },
-      "seconds": 604.1,
-      "seconds_per_page": 11.4,
+      "seconds": 688.2,
+      "seconds_per_page": 12.99,
       "images": {
         "count": 53,
         "dpi": {

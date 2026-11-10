@@ -10,6 +10,9 @@ ocr:
   page_segmentation: 11          # Tesseract --psm: sparse text in any order
   min_word_confidence: 30        # 0–100: words recognized with less are dropped
   cells:                         # cells of a title block and a specification table found by their ruled lines
+    engine: ppocr                # ppocr — the PP-OCRv5 recognizer below (ADR-0024); tesseract — Tesseract with the
+                                 # settings below. Without the files of ppocr or onnxruntime the cells are read by
+                                 # Tesseract, and the run log says so
     languages: rus               # Cyrillic, digits and signs; with eng the GOST lettering of «ПМЛС» reads «HMAC»
     page_segmentation: 6         # Tesseract --psm: a block of text, one or two lines
     text_height: 40              # px: the tallest line of text in a cell is resized to this before recognition
@@ -19,10 +22,28 @@ ocr:
     min_ink: 0.5                 # mm² of ink below which a cell is empty and not read: less than one digit
     min_word_confidence: 0       # 0–100: all words of a cell with ink are kept, their confidence goes to the report
     characters:                  # what a cell may hold: Tesseract reads only these characters there, so the С of the
-                                 # GOST lettering is not read «(» and its 1 is not read «/»; elsewhere it costs more
+                                 # GOST lettering is not read «(» and its 1 is not read «/»; elsewhere it costs more.
+                                 # PP-OCRv5 reads only these too, a Latin lookalike counting for its Cyrillic letter
       designation: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789.-  # GOST 2.201
       changes: "0123456789"
       material: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя0123456789.,-/
+  ppocr:                         # the PP-OCRv5 text line recognizer for East Slavic languages (ADR-0024), Apache-2.0:
+                                 # 8 MB, about 4 ms a cell on the CPU through onnxruntime. scripts/fetch_ppocr.sh takes
+                                 # the files of the revision from Hugging Face, checks them and makes models/ppocr
+    model: eslav_PP-OCRv5_mobile_rec
+    repository: PaddlePaddle/eslav_PP-OCRv5_mobile_rec
+    revision: 7553801264d3379d8d2e854971989e5e26c22e03
+    sha256:
+      inference.json: 3fb6e2e658f5139ff16e35260de8f0577f106a9505c902e1dfc1f4f1d03cc9cb
+      inference.pdiparams: f11057b05d8517868bca505271278973d706600d9dcc184cbcf5c4512091c32b
+      inference.yml: 025039bac23eb4a308efcefa4d58eab3af440767815c6ba6938468bf6353ee5a
+    height: 48                   # px: the recognizer reads a line this high
+    valley: 0.15                 # of the ink of the median row with ink: the rows between two lines of a cell
+                                 # hold less, though a descender of one touches the other
+    speck_gap: 1.5               # line heights: ink this far from the rest of its line and lighter than min_ink is a
+                                 # speck, not a character
+    margin: 0.2                  # of the line height: paper kept around a line cut to its ink. With all the paper of
+                                 # the cell the recognizer drops characters even of a clean print: «МАШН.7.002»
 
 vlm:                             # a vision-language model reads title block cells (ADR-0014); off by default
   enabled: false                 # ARM_VLM=1 or kdcheck run --vlm turn it on

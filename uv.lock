@@ -78,19 +78,23 @@ dependencies = [
 ocr = [
     { name = "kdcheck", extra = ["ocr"] },
 ]
+ppocr = [
+    { name = "kdcheck", extra = ["ppocr"] },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.110" },
     { name = "kdcheck", editable = "packages/kdcheck" },
     { name = "kdcheck", extras = ["ocr"], marker = "extra == 'ocr'", editable = "packages/kdcheck" },
+    { name = "kdcheck", extras = ["ppocr"], marker = "extra == 'ppocr'", editable = "packages/kdcheck" },
     { name = "pillow", specifier = ">=10.0" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.29" },
 ]
-provides-extras = ["ocr"]
+provides-extras = ["ocr", "ppocr"]
 
 [[package]]
 name = "ast-serialize"
@@ -907,12 +911,19 @@ dependencies = [
 ocr = [
     { name = "pytesseract" },
 ]
+ppocr = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "onnxruntime" },
+]
 pymupdf = [
     { name = "pymupdf" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "numpy", marker = "extra == 'ppocr'", specifier = ">=1.26" },
+    { name = "onnxruntime", marker = "extra == 'ppocr'", specifier = ">=1.20" },
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "pillow", specifier = ">=10.0" },
     { name = "pydantic", specifier = ">=2.6" },
@@ -921,7 +932,7 @@ requires-dist = [
     { name = "pytesseract", marker = "extra == 'ocr'", specifier = ">=0.3.10" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
-provides-extras = ["pymupdf", "ocr"]
+provides-extras = ["pymupdf", "ocr", "ppocr"]
 
 [[package]]
 name = "kiwisolver"
