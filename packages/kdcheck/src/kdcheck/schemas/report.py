@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.6"
+SCHEMA_VERSION = "1.7"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
@@ -199,6 +199,14 @@ class SpecRow(Model):
             "«×». Исполнения без количества в строке нет. С версии 1.6"
         ),
     )
+    variant: str | None = Field(
+        None,
+        description=(
+            "Исполнение, к переменным данным которого относится строка групповой спецификации по варианту А "
+            "ГОСТ 2.113: номер из заголовка с обозначением исполнения над строкой («–» — базовое, «01», «02»…). "
+            "Пусто у постоянных данных и у единичной спецификации. С версии 1.7"
+        ),
+    )
     note: Extracted | None = None
     source: SourceRef | None = None
 
@@ -213,8 +221,9 @@ class Specification(Model):
     variants: list[str] = Field(
         [],
         description=(
-            "Номера исполнений групповой спецификации по варианту Б ГОСТ 2.113 в порядке граф: «–» — базовое, затем "
-            "«01», «02»…; обозначение исполнения — обозначение спецификации с «-01». Пусто у единичной. С версии 1.6"
+            "Номера исполнений групповой спецификации ГОСТ 2.113: по варианту Б — в порядке граф, по варианту А — "
+            "в порядке заголовков переменных данных; «–» — базовое, затем «01», «02»…; обозначение исполнения — "
+            "обозначение спецификации с «-01». Пусто у единичной. С версии 1.6, вариант А — с версии 1.7"
         ),
     )
     rows: list[SpecRow] = []

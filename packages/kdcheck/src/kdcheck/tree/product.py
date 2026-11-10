@@ -9,6 +9,10 @@ designation by variant B of GOST 2.113 (ADR-0025): its positions are the rows wi
 the quantity is that one. The base variant is the column «–». A row of a group specification without any quantity
 read belongs to every variant: a missed cell must not hide a position. A variant of a part without a drawing of its
 own is drawn on the group drawing of its base, which writes «См. табл.» for the mass (GOST 2.113, 4.1.10).
+
+By variant A the same group specification holds the constant data, common to every variant, and the variable data
+of each variant under its designation (ADR-0026): a variant takes the constant rows and its own. The rows of the
+other variants stay listed in a specification, so their documents are not ones that no specification names.
 """
 
 from __future__ import annotations
@@ -191,7 +195,10 @@ class _Builder:
         if node.name is None:
             node.name = text(spec.name)
         for r in spec.rows:
-            if number is not None and r.quantities and number not in r.quantities:
+            other = number is not None and bool(r.quantities) and number not in r.quantities  # by variant B
+            if other or (r.variant is not None and r.variant != (number or BASE_VARIANT)):  # by variant A
+                if listed := self.eskd.normalize_designation(text(r.designation)):
+                    self.tree.referenced.add(listed)
                 continue  # a position of other variants of the group specification
             child = self._row_node(r, number, total, path + (des,))
             self.tree.parents[child.id] = node
@@ -222,11 +229,8 @@ class _Builder:
         self.tree.rows[node.id] = row
         if des:
             self.node_index[des].append(node)
-        note = (text(row.note) or "").upper()
         if kind in self.needs_drawing or (kind == "unknown" and des):
-            if not des:
-                node.status = "not_required"
-            elif self.eskd.words.no_drawing_mark in note.replace(" ", ""):
+            if not des or self._no_drawing(row):
                 node.status = "not_required"
             else:
                 found = self.drawings_by_des.get(des, []) or self._group_drawings(des)
@@ -236,6 +240,12 @@ class _Builder:
         else:
             node.status = "not_required"
         return node
+
+    def _no_drawing(self, row: SpecRow) -> bool:
+        """Whether the row marks a part made without a drawing: «БЧ» in the format column, as GOST 2.106 writes it,
+        or in the note, as some makers do."""
+        note = self.eskd.cyrillic((text(row.note) or "").upper()).replace(" ", "")
+        return self.eskd.no_drawing(text(row.format)) or self.eskd.words.no_drawing_mark in note
 
     def _group_drawings(self, des: str) -> list[DrawingRef]:
         """The group drawing of the base of the variant ``des``: the drawing of the base that writes «См. табл.» for

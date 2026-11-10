@@ -1,4 +1,4 @@
-"""Specification parsing (GOST 2.106, form 1; group ones of GOST 2.113 by variant B, ADR-0025).
+"""Specification parsing (GOST 2.106, form 1; group ones of GOST 2.113 by variants A and B, ADR-0025, ADR-0026).
 
 Table columns are restored from the positions of the «Обозначение» and «Наименование» headers and the column widths
 of ``forms.yaml``. Rows are grouped by the vertical coordinate; wrapped names join the previous position, and section
@@ -10,6 +10,11 @@ A group specification by variant B has a column of quantities for each variant i
 variant at its top. On a text layer its form is told by these numbers in the header; on a page image, by its lines.
 The quantities of a row go to ``quantities`` by the number of the variant. A row that writes «-03» below the full
 designation of the same item names its variant 03 (GOST 2.113, 5.3).
+
+A group specification by variant A takes form 1: the constant data first, then the heading «Переменные данные для
+исполнений» and, under the designation of each variant, the rows of that variant with sections of their own (GOST
+2.113, 5.5.1). These headings are told by their text, wherever the columns cut them, and each row below the
+designation of a variant gets the number of that variant in ``variant``.
 """
 
 from __future__ import annotations
@@ -35,6 +40,16 @@ from kdcheck.schemas import Extracted, Specification, SpecRow
 
 Column = tuple[str, float, float]  # field, left and right edge, mm from the left edge of the table
 NO_QUANTITY = "×"  # a document of a group specification by variant B in the columns of the variants it serves
+
+
+@dataclass
+class _Rows:
+    """Where the rows read so far stand: the section, and in a group specification by variant A the variable data."""
+
+    section: str | None = None
+    variable: bool = False  # below the heading «Переменные данные для исполнений»
+    variant: str | None = None  # the number of the variant whose heading is above the rows
+    headings: list[str] = dataclasses.field(default_factory=list)  # the numbers of the variants by their headings
 
 
 @dataclass
@@ -170,7 +185,7 @@ def variant_numbers(subheads: list[str]) -> tuple[list[str], set[str]]:
 def parse(doc: LoadedDocument, forms: Forms, eskd: Designations) -> Specification:
     spec = Specification(document_id=doc.id)
     rows: list[SpecRow] = []
-    section: str | None = None
+    state = _Rows()
     table: Table | None = None
     variants: dict[str, bool] = {}  # the numbers of the variants of the tables in order: read at the top of a column
     sections = {re.sub(r"[^а-я]", "", s.lower()): s for s in eskd.words.spec_sections}
@@ -193,13 +208,13 @@ def parse(doc: LoadedDocument, forms: Forms, eskd: Designations) -> Specificatio
             similarity = forms.specification.section_similarity
             numbers, read = variant_numbers([" ".join(w.text for w in words) for words in ruled.variants])
             _note_variants(variants, numbers, read)
-            section = _parse_rows(doc, page, ruled.rows, rows, section, sections, eskd, similarity, numbers)
+            _parse_rows(doc, page, ruled.rows, rows, state, sections, eskd, similarity, numbers)
             continue
         table = _table(page, find_header(page, forms.specification), table, forms)
         if table is None:
             continue
         _note_variants(variants, table.variants, table.read)
-        section = _parse_page(doc, page, table, rows, section, forms, sections, eskd)
+        _parse_page(doc, page, table, rows, state, forms, sections, eskd)
     if spec.designation is None:  # a later sheet kept in a file of its own names its document in form 2a
         first = next((p for p in doc.pages if p.lines), None)
         later = title_block.later_sheet(doc, first, forms, eskd) if first is not None else None
@@ -209,6 +224,7 @@ def parse(doc: LoadedDocument, forms: Forms, eskd: Designations) -> Specificatio
     spec.rows = rows
     held = {number for row in rows for number in row.quantities}
     spec.variants = [number for number, read in variants.items() if read or number in held]
+    spec.variants += [number for number in state.headings if number not in spec.variants]
     return spec
 
 
@@ -247,11 +263,11 @@ def _parse_page(
     page: Page,
     table: Table,
     rows: list[SpecRow],
-    section: str | None,
+    state: _Rows,
     forms: Forms,
     sections: dict[str, str],
     eskd: Designations,
-) -> str | None:
+) -> None:
     template = forms.specification
     wider = table.width - forms.title_block.width if table.width else 0.0  # a group form wider than form 1
     left, right = table.x0 + template.word_range[0] * table.s, table.x0 + (template.word_range[1] + wider) * table.s
@@ -271,7 +287,7 @@ def _parse_page(
                 cells.setdefault(col, []).append(w)
         clusters.append(cells)
     similarity = template.section_similarity
-    return _parse_rows(doc, page, clusters, rows, section, sections, eskd, similarity, table.variants)
+    _parse_rows(doc, page, clusters, rows, state, sections, eskd, similarity, table.variants)
 
 
 def _parse_rows(
@@ -279,24 +295,35 @@ def _parse_rows(
     page: Page,
     clusters: list[dict[str, list[Word]]],
     rows: list[SpecRow],
-    section: str | None,
+    state: _Rows,
     sections: dict[str, str],
     eskd: Designations,
     similarity: float,
     variants: list[str],
-) -> str | None:
-    """Positions of the rows of a page, each row as its words by column; a section header sets the section below.
-    ``variants`` are the numbers of the variants of the columns «q0», «q1»… of a group specification."""
+) -> None:
+    """Positions of the rows of a page, each row as its words by column; a section header sets the section below,
+    the heading of a variant by variant A the variant. ``variants`` are the numbers of the variants of the columns
+    «q0», «q1»… of a group specification by variant B."""
+    # OCR misreads a header; a text layer does not, and its «деталь» is the second line of a name
+    close = similarity if page.method == "ocr" else 1.0
     for cells in clusters:
         if not cells:
             continue
         text = {k: " ".join(w.text for w in v) for k, v in cells.items()}
+        line = " ".join(text.values())
+        if _same_letters(line, eskd.words.variable_data, close):
+            state.variable, state.section = True, None
+            continue
+        if (number := _variant_heading(text, line, state, eskd)) is not None:
+            state.variant, state.section = number, None
+            if number not in state.headings:
+                state.headings.append(number)
+            continue
         only_name = set(cells) == {"name"}
         key = re.sub(r"[^а-я]", "", text.get("name", "").lower())
-        # OCR misreads a header; a text layer does not, and its «деталь» is the second line of a name
-        header = _section(key, sections, similarity if page.method == "ocr" else 1.0) if only_name else None
+        header = _section(key, sections, close) if only_name else None
         if header is not None:
-            section = header
+            state.section = header
             continue
         has_identity = any(text.get(k) for k in ("designation", "position", "quantity", "format")) or any(
             _variant_column(k) is not None for k in text
@@ -304,10 +331,38 @@ def _parse_rows(
         if not has_identity and rows and rows[-1].source and rows[-1].source.page == page.number:
             _append_continuation(doc, page, rows[-1], cells)
             continue
-        row = _make_row(doc, page, len(rows) + 1, section, cells, eskd, variants)
+        row = _make_row(doc, page, len(rows) + 1, state.section, cells, eskd, variants)
+        row.variant = state.variant
         _expand_shortened(row, rows, eskd)
         rows.append(row)
-    return section
+
+
+def _same_letters(text: str, wanted: str, similarity: float) -> bool:
+    """Whether a line is the heading ``wanted``: the same Cyrillic letters, or as close as ``similarity`` on a line
+    read by OCR."""
+    key, target = (re.sub(r"[^а-я]", "", t.lower().replace("ё", "е")) for t in (text, wanted))
+    if key == target:
+        return True
+    return similarity < 1 and bool(key) and difflib.SequenceMatcher(None, key, target).ratio() >= similarity
+
+
+def _variant_heading(text: dict[str, str], line: str, state: _Rows, eskd: Designations) -> str | None:
+    """The number of the variant whose designation heads the variable data below, by variant A of GOST 2.113; None
+    for a line of any other kind.
+
+    The heading is a designation of an item alone on its line, with no position. Below «Переменные данные для
+    исполнений» it may stand in any column; before it, never in the column «Обозначение», where a row writes a
+    designation whose name was not read."""
+    if text.get("position") or (not state.variable and text.get("designation")):
+        return None
+    found = eskd.find_designations(line)
+    if len(found) != 1:
+        return None
+    designation, start, end = found[0]
+    rest = line[:start] + line[end:]
+    if re.search(r"[\wА-Яа-яЁё]", rest) or " " in designation:  # more text, or the code of a document
+        return None
+    return split_variant(designation)[1]
 
 
 def _variant_column(name: str) -> int | None:
@@ -382,6 +437,8 @@ def _make_row(
             value = eskd.normalize_designation(raw) or raw
         elif field == "quantity":
             value = _quantity(raw, eskd)
+        elif field == "format" and eskd.no_drawing(raw, misread=page.method != "text_layer"):
+            value = eskd.words.no_drawing_mark  # what OCR read stays in ``raw``
         elif field == "position":
             m = re.search(r"\d+", raw)
             value = m.group(0) if m else raw

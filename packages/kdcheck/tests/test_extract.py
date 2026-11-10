@@ -205,3 +205,60 @@ def test_a_group_specification_of_form_5_on_a_text_layer(settings, eskd):
     assert {k: v.value for k, v in first.quantities.items()} == {"–": 2.0, "01": 2.0}
     assert second.designation.value == "АБВГ.715211.001-02"
     assert {k: v.value for k, v in second.quantities.items()} == {"02": 1.0}
+
+
+def test_a_group_specification_by_variant_a_on_a_text_layer(settings, eskd):
+    """Form 1 with the variable data (GOST 2.113, 5.5.1): the headings set the variant of the rows below and never
+    join the name of the row above, wherever the columns cut them (ADR-0026)."""
+    x = 20
+    doc = _page_of_words(
+        ("Обозначение", x + 55, 12),
+        ("Наименование", x + 121.5, 12),
+        ("Детали", x + 121.5, 26),
+        ("1", x + 16, 34),
+        ("АБВГ.715211.001", x + 40, 34),
+        ("Вал", x + 100, 34),
+        ("2", x + 158, 34),
+        ("Переменные", x + 108, 42),
+        ("данные", x + 128, 42),
+        ("для", x + 142, 42),
+        ("исполнений:", x + 160, 42),
+        ("АБВГ.300000.001", x + 121.5, 50),
+        ("Детали", x + 121.5, 58),
+        ("2", x + 16, 66),
+        ("АБВГ.715211.002", x + 40, 66),
+        ("Втулка", x + 100, 66),
+        ("1", x + 158, 66),
+        ("АБВГ.300000.001-01", x + 125, 74),
+        ("Детали", x + 121.5, 82),
+        ("2", x + 16, 90),
+        ("АБВГ.715211.003", x + 40, 90),
+        ("Втулка", x + 100, 90),
+        ("3", x + 158, 90),
+    )
+    spec = specification.parse(doc, settings.forms, eskd)
+    assert spec.variants == ["–", "01"]
+    got = [(r.section, r.designation.value, r.name.value, r.quantity.value, r.variant) for r in spec.rows]
+    assert got == [
+        ("Детали", "АБВГ.715211.001", "Вал", 2.0, None),
+        ("Детали", "АБВГ.715211.002", "Втулка", 1.0, "–"),
+        ("Детали", "АБВГ.715211.003", "Втулка", 3.0, "01"),
+    ]
+
+
+def test_a_designation_alone_in_its_column_is_a_row_and_not_a_heading(settings, eskd):
+    """Before the variable data a row whose name was not read writes its designation in its own column: no heading."""
+    x = 20
+    doc = _page_of_words(
+        ("Обозначение", x + 55, 12),
+        ("Наименование", x + 121.5, 12),
+        ("Документация", x + 121.5, 26),
+        ("АБВГ.300000.001 СБ", x + 45, 34),
+        ("АБВГ.300000.002", x + 45, 42),
+    )
+    spec = specification.parse(doc, settings.forms, eskd)
+    assert spec.variants == []
+    assert [(r.designation.value, r.variant) for r in spec.rows] == [
+        ("АБВГ.300000.001 СБ", None),
+        ("АБВГ.300000.002", None),
+    ]
