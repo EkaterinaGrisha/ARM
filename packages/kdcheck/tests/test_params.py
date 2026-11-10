@@ -135,10 +135,32 @@ def test_the_depth_of_a_layer_as_ocr_reads_it(text, method, depth):
         ("М48×1,5-6H", [("dimension_tolerance", "М48×1,5-6H", 48.0, None, None, None)]),
         ("Ø50±0,1", [("dimension_tolerance", "Ø50±0,1", 50.0, 49.9, 50.1, None)]),
         ("120", []),
+        ("Ø12js6", [("dimension_tolerance", "Ø12js6", 12.0, None, None, 6)]),
+        ("5×45°", []),  # a chamfer
+        ("6x45", []),  # a chamfer read by OCR without its degree
+        ("5x4", []),
+        ("Ø40h45", []),  # no grade 45
     ],
 )
 def test_annotation_parameters(text, expected):
     assert summary(annotation(text)) == expected
+
+
+def test_a_size_with_a_tolerance_field_gets_its_limit_deviations():
+    """Ø40H7 → 0/+0,025 by GOST 25346; a size with «±» gets its own; a thread gets none."""
+    parser = parameters.Parser(SETTINGS.dictionaries, SETTINGS.tolerances)
+    line = Line(text="Ø40H7  Ø40k6  Ø50±0,1  М20-6g", bbox=(100, 100, 200, 110), size=10)
+    found = {p.name: p for p in parser.annotation(DOC, PAGE, line, _next_id(), general_zone=False)}
+    hole, shaft, free = found["Ø40H7"], found["Ø40k6"], found["Ø50±0,1"]
+    assert (hole.lower_deviation, hole.upper_deviation, hole.value_min, hole.value_max) == (0.0, 0.025, 40.0, 40.025)
+    assert (shaft.lower_deviation, shaft.upper_deviation, shaft.value_min, shaft.value_max) == (
+        0.002,
+        0.018,
+        40.002,
+        40.018,
+    )
+    assert (free.lower_deviation, free.upper_deviation) == (-0.1, 0.1)
+    assert found["М20-6g"].upper_deviation is None
 
 
 def _part(*texts: str) -> PartRecord:
@@ -161,3 +183,23 @@ def test_criticality_thresholds_come_from_the_settings():
     looser = rules.model_copy(update={"tight_fit": rules.tight_fit.model_copy(update={"max_it_grade": 12})})
     selected = critical.select([_part("Ø40h12")], looser)
     assert [(c.rule, c.text, c.score) for c in selected] == [("tight_fit", "Ø40h12", rules.tight_fit.score)]
+
+
+def test_the_tight_end_of_the_kit_is_marked_when_no_threshold_is_crossed():
+    """Nine parts at Ra 6,3 and one at Ra 1,6: no part crosses Ra 0,8, yet one is finer than the rest of the kit."""
+    parts = [_part("Ra 6,3") for _ in range(9)] + [_part("Ra 1,6")]
+    [tail] = critical.select(parts, SETTINGS.criticality)
+    assert (tail.rule, tail.text, tail.score) == ("kit_tail", "Ra 1,6", SETTINGS.criticality.kit_tail.score)
+    assert "медиана Ra 6,3" in tail.reason and "жёстче 90%" in tail.reason
+
+
+def test_no_tail_in_a_small_kit_or_in_a_kit_of_one_value():
+    assert critical.select([_part("Ra 6,3") for _ in range(8)] + [_part("Ra 1,6")], SETTINGS.criticality) == []
+    assert critical.select([_part("Ra 3,2") for _ in range(12)], SETTINGS.criticality) == []
+
+
+def test_the_tail_of_hardness_is_its_high_end():
+    texts = ["Закалить до 28...32 HRC."] * 9 + ["Закалить до 40...44 HRC."]
+    parts = [PartRecord(document_id=f"d{i}", parameters=requirement(t)) for i, t in enumerate(texts)]
+    [tail] = critical.select(parts, SETTINGS.criticality)
+    assert (tail.rule, tail.document_id) == ("kit_tail", "d9")

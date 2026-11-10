@@ -15,7 +15,11 @@ CORE = ROOT / "packages" / "kdcheck" / "src" / "kdcheck"
 # Any other number tunes the results and belongs in configs/*.yaml.
 KEPT: dict[str, dict[float, str]] = {
     "cli.py": {12: "length of a random kit id", 70: "width of the progress line in the terminal"},
-    "config.py": {4: "depth of this file below the repository root", 100: "top of the Tesseract confidence scale"},
+    "config.py": {
+        4: "depth of this file below the repository root",
+        100: "top of the Tesseract confidence scale",
+        0.5: "a tail of the kit is less than its half",
+    },
     "ingest/document.py": {
         72: "points per inch",
         25.4: "millimetres per inch",
@@ -42,6 +46,13 @@ KEPT: dict[str, dict[float, str]] = {
     },
     "layout/raster.py": {255: "white of an 8-bit grey image, ink of a mask"},
     "params/parameters.py": {80: "length of a coating name in the report"},
+    "params/tolerances.py": {
+        1000: "micrometres in a millimetre",
+        5: "decimal places of a deviation in mm: tenths of a micrometre",
+        7: "js7 is the first js whose odd IT is rounded, and P takes Δ up to IT7 (GOST 25346)",
+        11: "js11 is the last js whose odd IT is rounded (GOST 25346)",
+        8: "K, M and N take Δ up to IT8 (GOST 25346)",
+    },
     "pipeline.py": {
         0.6: "share of the progress bar",
         0.25: "share of the progress bar",

@@ -14,7 +14,7 @@ import shutil
 from pathlib import Path
 
 from kdcheck.render import RenderError, render_page
-from kdcheck.report import to_html, to_xlsx
+from kdcheck.report import to_csv, to_html, to_xlsx
 from kdcheck.run import BaselinePipeline, load_settings, ocr_available
 
 from .evaluate import evaluate
@@ -71,6 +71,7 @@ def build(samples: Path, public_demo: Path) -> None:
     (public_demo / "report.json").write_text(report.model_dump_json(exclude_none=True), encoding="utf-8")
     (public_demo / "report.xlsx").write_bytes(to_xlsx(report))
     (public_demo / "report.html").write_text(to_html(report), encoding="utf-8")
+    (public_demo / "report.csv").write_text(to_csv(report), encoding="utf-8", newline="")
     s = report.summary
     print(
         f"Демо-отчёт: {public_demo} — документов {s.documents_total}, расхождений {s.discrepancies_total}, "

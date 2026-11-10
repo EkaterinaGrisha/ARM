@@ -55,7 +55,7 @@ def cmd_process(args) -> int:
         f"Документов: {s.documents_total}, расхождений: {s.discrepancies_total}, "
         f"критичных параметров: {s.critical_parameters}"
     )
-    print(f"Отчёт: {out / 'report.json'} (+ report.xlsx, report.html)")
+    print(f"Отчёт: {out / 'report.json'} (+ report.xlsx, report.html, report.csv)")
     return 0
 
 

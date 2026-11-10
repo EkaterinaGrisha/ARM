@@ -51,9 +51,19 @@ export function rowQuantity(row: SpecRow): string {
   return row.variant && quantity ? `${row.variant}: ${quantity}` : quantity;
 }
 
-/** Значение параметра в человекочитаемом виде: «58…62 HRC», «0,8 мкм», «IT6». */
+/** Предельное отклонение со знаком: «+0,025», «−0,016», «0». */
+function deviation(v: number): string {
+  if (v === 0) return "0";
+  return `${v > 0 ? "+" : "−"}${formatNumber(Math.abs(v))}`;
+}
+
+/** Значение параметра в человекочитаемом виде: «58…62 HRC», «0,8 мкм», размер с отклонениями «40 +0,025/0 мм». */
 export function parameterValue(p: Parameter): string {
   const unit = p.unit ? ` ${p.unit}` : "";
+  const { lower_deviation: low, upper_deviation: up } = p;
+  if (p.value !== null && p.value !== undefined && low !== null && low !== undefined && up !== null && up !== undefined) {
+    return `${formatNumber(p.value)} ${deviation(up)}/${deviation(low)}${unit}`;
+  }
   if (p.value_min !== null && p.value_min !== undefined && p.value_max !== null && p.value_max !== undefined) {
     return `${formatNumber(p.value_min)}…${formatNumber(p.value_max)}${unit}`;
   }

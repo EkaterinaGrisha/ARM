@@ -86,7 +86,7 @@ docker run -p 127.0.0.1:8000:8000 -v arm-data:/data -v "$PWD/мои_настро
 ## Командная строка
 
 ```bash
-uv run kdcheck run samples/demo_kit -o out                      # out/report.json, report.xlsx, report.html
+uv run kdcheck run samples/demo_kit -o out                      # out/report.json, report.xlsx, report.html, report.csv
 uv run kdcheck run ПАПКА --no-ocr                               # без распознавания сканов
 uv run kdcheck run ПАПКА --vlm                                  # + мультимодальная модель читает надписи, строки и ТТ растров
 uv run kdcheck run ПАПКА --max-pages 50                         # не больше 50 страниц на файл (по умолчанию из ingest.yaml)

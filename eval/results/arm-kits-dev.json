@@ -60,7 +60,7 @@
       "requirements_by_model": 0,
       "parameters": {
         "roughness": 25,
-        "dimension_tolerance": 12
+        "dimension_tolerance": 3
       },
       "tree_items": 122,
       "root": true,
@@ -73,8 +73,8 @@
       "log": {
         "info": 2
       },
-      "seconds": 91.8,
-      "seconds_per_page": 1.73,
+      "seconds": 88.4,
+      "seconds_per_page": 1.67,
       "images": {
         "count": 53,
         "dpi": {

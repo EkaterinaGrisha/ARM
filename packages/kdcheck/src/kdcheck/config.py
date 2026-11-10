@@ -517,6 +517,12 @@ class RareInKit(Section):
     score: Share
 
 
+class KitTail(Section):
+    share: float = Field(gt=0, lt=0.5)
+    min_values: int = Field(ge=2)
+    score: Share
+
+
 class Criticality(Section):
     tight_fit: TightFit
     fine_roughness: FineRoughness
@@ -524,6 +530,7 @@ class Criticality(Section):
     chemical_heat_treatment: ChemicalHeatTreatment
     tight_geometric: TightGeometric
     rare_in_kit: RareInKit
+    kit_tail: KitTail
 
 
 # ---------------------------------------------------------------- models.yaml
@@ -630,6 +637,29 @@ class Engines(Section):
 # ---------------------------------------------------------------- all files
 
 
+# ---------------------------------------------------------------- tolerances.yaml
+
+
+class Tolerances(Section):
+    """Standard tolerances and fundamental deviations of GOST 25346, µm, by the size ranges of ``sizes``."""
+
+    sizes: tuple[float, ...] = Field(min_length=1)
+    grades: dict[int, tuple[float, ...]]
+    upper: dict[str, tuple[float, ...]]
+    lower: dict[str, tuple[float, ...]]
+    k_grades: tuple[int, int]
+
+    @model_validator(mode="after")
+    def _ranges(self) -> Tolerances:
+        if list(self.sizes) != sorted(set(self.sizes)):
+            raise ValueError("sizes: границы диапазонов размеров должны возрастать")
+        tables = {**{f"grades: {k}": v for k, v in self.grades.items()}, **self.upper, **self.lower}
+        short = [name for name, values in tables.items() if len(values) != len(self.sizes)]
+        if short:
+            raise ValueError(f"значений не столько, сколько диапазонов размеров: {', '.join(map(str, short))}")
+        return self
+
+
 class Settings(Section):
     forms: Forms
     ingest: Ingest
@@ -637,6 +667,7 @@ class Settings(Section):
     checks: Checks
     criticality: Criticality
     models: Engines
+    tolerances: Tolerances
 
     @model_validator(mode="after")
     def _files_agree(self) -> Settings:

@@ -23,7 +23,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from kdcheck.render import RenderError, render_page
-from kdcheck.report import to_html, to_xlsx
+from kdcheck.report import to_csv, to_html, to_xlsx
 from kdcheck.run import Settings, load_settings, ocr_available
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
@@ -196,6 +196,15 @@ def download_report_xlsx(job_id: str) -> Response:
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers=_attachment(f"Отчёт {job.name}.xlsx"),
     )
+
+
+@app.get("/api/jobs/{job_id}/report.csv")
+def download_report_csv(job_id: str) -> Response:
+    """The parameters of the parts, «part × parameter», for accounting systems."""
+    job = _job_or_404(job_id)
+    _report_path_or_404(job_id)
+    data = to_csv(store.load_report(job_id)).encode("utf-8")
+    return Response(data, media_type="text/csv; charset=utf-8", headers=_attachment(f"Параметры {job.name}.csv"))
 
 
 @app.get("/api/jobs/{job_id}/report.html")
