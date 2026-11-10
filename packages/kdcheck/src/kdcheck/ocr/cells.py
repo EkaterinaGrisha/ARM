@@ -2,7 +2,8 @@
 
 The title block of a raster or a scan is placed by the lines of its form, so its cells are known even when the
 recognizer misses the column labels; the table of a specification is placed by the frame and the block under it, its
-columns and rows by GOST 2.106. Each cell of the block and each cell of a row is cut from the straightened image inside
+columns and rows by GOST 2.106, or by a group form of GOST 2.113 with a column of quantities for each variant
+(ADR-0025). Each cell of the block and each cell of a row is cut from the straightened image inside
 its ruled lines, the lines that still cross it are wiped, and an empty one is not read. The rest is brought to the text
 height the recognizer reads best and recognized in the languages of the cells. Text goes to the page in page units,
 where the title block and the specification parsers take it from (:mod:`kdcheck.extract`). The cells are read by the
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 Place = Callable[[float, float], tuple[float, float]]  # a pixel of the straightened image → a page point
-Row = dict[str, list[Word]]  # the words of a specification row by column
+Row = dict[str, list[Word]]  # the words of a specification row by column; «q0», «q1»… the quantities of the variants
 
 
 @dataclass(frozen=True)
@@ -42,10 +43,11 @@ class FoundBlock:
 
 @dataclass
 class FoundTable:
-    """The table of a specification found on a page image: its rows read, none for a table of another form."""
+    """The table of a specification found on a page image: its rows read, and in a group one of GOST 2.113 by variant
+    B the words at the top of each column of quantities, the number of its variant (ADR-0025)."""
 
     rows: list[Row] = field(default_factory=list)
-    other_form: bool = False
+    variants: list[list[Word]] = field(default_factory=list)
 
 
 @dataclass
@@ -81,12 +83,21 @@ def find(
         found.cells[name] = read_cell(gray, corner, box, settings, place, name)
     table = raster.find_table(gray, corner, forms, settings.ingest.regions)
     if table is not None:
-        found.table = FoundTable(other_form=table.other_form)
-        if not table.other_form:
-            found.table.rows = [
-                row for row in (_read_row(gray, corner, table, r, settings, place) for r in table.rows) if row
+        found.table = FoundTable()
+        if table.subheads is not None:
+            top, bottom = table.subheads
+            found.table.variants = [
+                [w for line in read_cell(gray, corner, box, settings, place, "variant") for w in line.words]
+                for box in _boxes(table, table.variants, top, bottom)
             ]
+        found.table.rows = [
+            row for row in (_read_row(gray, corner, table, r, settings, place) for r in table.rows) if row
+        ]
     return found
+
+
+def _boxes(table: raster.Table, spans: list[tuple[float, float]], top: float, bottom: float) -> list[raster.Box]:
+    return [(table.left + left * table.s, top, table.left + right * table.s, bottom) for left, right in spans]
 
 
 def _read_row(
@@ -97,12 +108,15 @@ def _read_row(
     settings: Settings,
     place: Place,
 ) -> Row:
-    """The words of a specification row, column by column; none for an empty row."""
+    """The words of a specification row, column by column; none for an empty row. The quantity of each variant of a
+    group specification is the column «q0», «q1»… in the order of the variants."""
     top, bottom = row
+    names = [*table.columns, *(f"q{k}" for k in range(len(table.variants)))]
+    spans = [*table.columns.values(), *table.variants]
     words: Row = {}
-    for name, (left, right) in table.columns.items():
-        box = (table.left + left * table.s, top, table.left + right * table.s, bottom)
-        if found := [w for line in read_cell(gray, corner, box, settings, place, name) for w in line.words]:
+    for name, box in zip(names, _boxes(table, spans, top, bottom), strict=True):
+        field = "quantity" if name.startswith("q") and name[1:].isdigit() else name
+        if found := [w for line in read_cell(gray, corner, box, settings, place, field) for w in line.words]:
             words[name] = found
     return words
 

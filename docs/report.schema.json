@@ -1355,6 +1355,15 @@
           ],
           "default": null
         },
+        "quantities": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Extracted"
+          },
+          "default": {},
+          "description": "Количество по исполнениям групповой спецификации по варианту Б ГОСТ 2.113, вместо `quantity`: номер исполнения из подзаголовка графы «Кол. на исполн.» («–» — базовое, «01», «02»…) → количество, у документа «×». Исполнения без количества в строке нет. С версии 1.6",
+          "title": "Quantities",
+          "type": "object"
+        },
         "note": {
           "anyOf": [
             {
@@ -1446,6 +1455,15 @@
           ],
           "default": null,
           "description": "«Листов» основной надписи первого листа. С версии 1.4"
+        },
+        "variants": {
+          "default": [],
+          "description": "Номера исполнений групповой спецификации по варианту Б ГОСТ 2.113 в порядке граф: «–» — базовое, затем «01», «02»…; обозначение исполнения — обозначение спецификации с «-01». Пусто у единичной. С версии 1.6",
+          "items": {
+            "type": "string"
+          },
+          "title": "Variants",
+          "type": "array"
         },
         "rows": {
           "default": [],
@@ -1841,7 +1859,7 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "default": "1.5",
+      "default": "1.6",
       "title": "Schema Version",
       "type": "string"
     },

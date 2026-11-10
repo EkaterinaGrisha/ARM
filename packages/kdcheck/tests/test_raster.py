@@ -25,9 +25,23 @@ PX = DPI / 25.4  # pixels per mm
 KIT = Path(__file__).resolve().parents[3] / "samples" / "demo_kit"
 
 
-def _sheet(settings, form: int | None, size=(420, 297), *, columns=(), angle=0.0, shift=(0.0, 0.0)) -> Image.Image:
+def _sheet(
+    settings,
+    form: int | None,
+    size=(420, 297),
+    *,
+    columns=(),
+    angle=0.0,
+    shift=(0.0, 0.0),
+    table=185.0,
+    frame=(20.0, 5.0),
+    short=(),
+    end=0.0,
+) -> Image.Image:
     """A sheet with its frame and the main lines of a title block form (None: form 2a); with ``columns`` also the top
-    of a specification table and its column lines. Then turned ``angle`` degrees and shifted ``shift`` mm."""
+    of a specification table ``table`` mm wide that ends at the right edge of the block, and its column lines, mm from
+    its left line. The lines ``short`` end ``end`` mm above the block. The frame is ``frame`` mm from the left and the
+    top edge. Then turned ``angle`` degrees and shifted ``shift`` mm."""
     w, h = size
     image = Image.new("L", (round(w * PX), round(h * PX)), 255)
     draw = ImageDraw.Draw(image)
@@ -35,7 +49,13 @@ def _sheet(settings, form: int | None, size=(420, 297), *, columns=(), angle=0.0
     def line(x0: float, y0: float, x1: float, y1: float) -> None:
         draw.line([(x0 * PX, y0 * PX), (x1 * PX, y1 * PX)], fill=0, width=round(0.7 * PX))
 
-    for x0, y0, x1, y1 in ((20, 5, w - 5, 5), (20, h - 5, w - 5, h - 5), (20, 5, 20, h - 5), (w - 5, 5, w - 5, h - 5)):
+    fx, fy = frame
+    for x0, y0, x1, y1 in (
+        (fx, fy, w - 5, fy),
+        (fx, h - 5, w - 5, h - 5),
+        (fx, fy, fx, h - 5),
+        (w - 5, fy, w - 5, h - 5),
+    ):
         line(x0, y0, x1, y1)
     template = settings.forms.title_block
     shape = template.forms[form] if form is not None else template.continuation
@@ -43,10 +63,11 @@ def _sheet(settings, form: int | None, size=(420, 297), *, columns=(), angle=0.0
     for u0, v0, u1, v1 in shape.lines:
         line(x + u0, y + v0, x + u1, y + v1)
     if columns:
-        header = 5 + settings.forms.specification.header_height
-        line(x, header, x + template.width, header)
+        left = x + template.width - table
+        header = fy + settings.forms.specification.header_height
+        line(left, header, x + template.width, header)
         for edge in columns:
-            line(x + edge, 5, x + edge, y)
+            line(left + edge, fy, left + edge, y - (end if edge in short else 0.0))
     if angle or shift != (0.0, 0.0):
         image = image.rotate(angle, translate=(shift[0] * PX, shift[1] * PX), fillcolor=255)
     return image
@@ -102,17 +123,52 @@ def test_specification_table_by_its_column_lines(settings):
     image = _sheet(settings, 2, (210, 297), columns=edges)
     found = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
     table = raster.find_table(image, found, settings.forms, settings.ingest.regions)
-    assert table is not None and not table.other_form
+    assert table is not None and not table.variants and table.subheads is None
     top, bottom = 5 + spec.header_height, 297 - 5 - 40
     assert len(table.rows) == round((bottom - top) / spec.row_height)
     assert table.rows[0][0] / PX == pytest.approx(top, abs=0.5)
-    other = raster.find_table(
-        _sheet(settings, 2, (210, 297), columns=[*edges, *spec.other_columns]),
-        found,
-        settings.forms,
-        settings.ingest.regions,
-    )
-    assert other is not None and other.other_form  # form 5 of GOST 2.113: its rows are not read as form 1
+
+
+def _group_edges(form) -> list[float]:
+    spans = [*form.columns.model_dump().values()]
+    v = form.variants
+    spans += [(v.left + k * v.width, v.left + (k + 1) * v.width) for k in range(v.count)]
+    return sorted({edge for pair in spans for edge in pair} - {0.0, form.width})
+
+
+def test_a_group_specification_of_form_5_has_a_column_of_quantities_for_each_variant(settings):
+    """Form 5 of GOST 2.113 has every line of form 1 of GOST 2.106 and two more: the one with more lines wins."""
+    spec, form = settings.forms.specification, settings.forms.specification.groups["form_5"]
+    image = _sheet(settings, 2, (210, 297), columns=_group_edges(form))
+    found = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
+    table = raster.find_table(image, found, settings.forms, settings.ingest.regions)
+    assert table is not None and table.columns["name"] == (90, 133) and "quantity" not in table.columns
+    assert table.variants == [(133, 143), (143, 153), (153, 163)]
+    header = 5 + spec.header_height
+    assert table.subheads is not None
+    assert [v / PX for v in table.subheads] == pytest.approx([header - spec.subhead_height, header], abs=0.5)
+
+
+def test_a_group_specification_of_form_1_lies_across_a_landscape_sheet(settings):
+    """Form 1 of GOST 2.113 is 287 mm wide over a block of 185 on A4 landscape, its frame 20 mm under the top edge.
+    On its first sheet the lines of the columns left of the quantities end above the letters and codes of the
+    variants, and so do its rows."""
+    spec, form = settings.forms.specification, settings.forms.specification.groups["form_1"]
+    edges = _group_edges(form)
+    short = [edge for edge in edges if edge < form.variants.left]
+    image = _sheet(settings, 2, (297, 210), columns=edges, table=287, frame=(5, 20), short=short, end=45)
+    found = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
+    table = raster.find_table(image, found, settings.forms, settings.ingest.regions)
+    assert table is not None and len(table.variants) == form.variants.count
+    assert table.left / PX == pytest.approx(5, abs=0.3)
+    assert (table.left + table.variants[0][0] * table.s) / PX == pytest.approx(5 + 153, abs=0.3)
+    top, bottom = 20 + spec.header_height, 210 - 5 - 40 - 45
+    assert len(table.rows) == round((bottom - top) / spec.row_height)
+    later = _sheet(settings, None, (297, 210), columns=edges, table=287, frame=(5, 20))
+    found = raster.find_corner(later, PX, settings.forms, settings.ingest.regions)
+    table = raster.find_table(later, found, settings.forms, settings.ingest.regions)
+    assert table is not None and len(table.variants) == form.variants.count
+    assert len(table.rows) == round((210 - 5 - 15 - top) / spec.row_height)
 
 
 def test_a_table_drawn_larger_than_its_block_keeps_its_proportions(settings):
@@ -123,7 +179,7 @@ def test_a_table_drawn_larger_than_its_block_keeps_its_proportions(settings):
     image = _sheet(settings, 2, (212.3, 297), columns=[left + e * ratio for e in edges])
     found = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
     table = raster.find_table(image, found, settings.forms, settings.ingest.regions)
-    assert table is not None and not table.other_form
+    assert table is not None and not table.variants
     x0 = 212.3 - 5 - 185  # the block, mm on the sheet
     assert table.left / PX == pytest.approx(x0 + left, abs=0.3)
     assert table.s / PX == pytest.approx(ratio, abs=0.003)
@@ -166,7 +222,7 @@ def test_a_later_sheet_of_a_specification_places_form_2a_at_the_frame(settings):
     assert _corner(found) == pytest.approx((x, y), abs=0.5)
     assert found.block.s == pytest.approx(PX, rel=0.01)
     table = raster.find_table(image, found, settings.forms, settings.ingest.regions)
-    assert table is not None and not table.other_form
+    assert table is not None and not table.variants
 
 
 def test_form_2a_over_the_top_of_form_1_is_not_a_later_sheet(settings):
@@ -376,12 +432,32 @@ def test_rows_read_by_column_make_positions_by_the_same_rules(settings, eskd):
     )
 
 
-def test_a_table_of_another_form_is_a_specification_without_rows(settings, eskd):
-    doc = _page_of_regions(
-        cells.Regions(cells.FoundBlock(2, raster.Placement(0.0, 700.0, 2.8)), table=cells.FoundTable(other_form=True))
-    )
-    assert specification.is_specification(doc.pages[0], settings.forms)
-    assert specification.parse(doc, settings.forms, eskd).rows == []
+def test_a_group_specification_keeps_the_quantity_of_each_variant(settings, eskd):
+    """The columns of quantities go by the numbers at their tops; an unread one gets the number after the one before
+    it. A row that writes «-01» below the full designation names that variant of the same item."""
+    rows: list[cells.Row] = [
+        {"name": _words("Детали")},
+        {
+            "position": _words("1"),
+            "designation": _words("АБВГ.715211.001"),
+            "name": _words("Вал"),
+            "q0": _words("2"),
+            "q1": _words("2"),
+        },
+        {"position": _words("2"), "designation": _words("-01"), "name": _words("Вал"), "q2": _words("1")},
+        {"designation": _words("АБВГ.715211.002 СБ"), "name": _words("Чертёж"), "q0": _words("х")},
+    ]
+    variants = [_words("–"), [], _words("02")]
+    block = cells.FoundBlock(2, raster.Placement(0.0, 700.0, 2.8))
+    doc = _page_of_regions(cells.Regions(block, table=cells.FoundTable(rows=rows, variants=variants)))
+    spec = specification.parse(doc, settings.forms, eskd)
+    assert spec.variants == ["–", "01", "02"]
+    first, second, drawing = spec.rows
+    assert first.quantity is None
+    assert {k: v.value for k, v in first.quantities.items()} == {"–": 2.0, "01": 2.0}
+    assert second.designation.value == "АБВГ.715211.001-01" and second.designation.raw == "-01"
+    assert {k: v.value for k, v in second.quantities.items()} == {"02": 1.0}
+    assert drawing.quantities["–"].value == "×"
 
 
 OCR = load_settings(use_ocr=True)

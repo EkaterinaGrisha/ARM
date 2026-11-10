@@ -151,6 +151,104 @@ def test_tree_recursion_and_quantities():
     assert bolt.status == "not_required"
 
 
+def group_row(i: int, section: str, des: str, name: str, quantities: dict[str, float | str]) -> SpecRow:
+    """A row of a group specification by variant B of GOST 2.113: a quantity for each variant, «×» for a document."""
+    found = {number: Extracted(value=value) for number, value in quantities.items()}
+    return SpecRow(
+        id=f"r{i}", section=section, designation=Extracted(value=des), name=Extracted(value=name), quantities=found
+    )
+
+
+def test_a_variant_is_expanded_through_the_group_specification_of_its_base():
+    """The product lists the base unit and its variant 01; one group specification covers both (ADR-0025). Each gets
+    the rows with a quantity in its column, with that quantity; a row with no quantity read goes to both."""
+    info, group = spec(
+        "s1",
+        "АБВГ.100000.100",
+        "Узел",
+        [
+            group_row(1, "Документация", "АБВГ.100000.100 СБ", "Сборочный чертёж", {"–": "×", "01": "×"}),
+            group_row(2, "Детали", "АБВГ.100000.101", "Ось", {"–": 2, "01": 1}),
+            group_row(3, "Детали", "АБВГ.100000.102", "Втулка", {"01": 4}),
+            group_row(4, "Детали", "АБВГ.100000.103", "Шайба", {}),
+        ],
+    )
+    group.variants = ["–", "01"]
+    product = spec(
+        "s0",
+        "АБВГ.100000.000",
+        "Изделие",
+        [
+            row(1, "Сборочные единицы", "АБВГ.100000.100", "Узел", 2),
+            row(2, "Сборочные единицы", "АБВГ.100000.100-01", "Узел", 1),
+        ],
+    )
+    drawings = [
+        drawing("d1", "АБВГ.100000.100 СБ", "Узел"),
+        drawing("d2", "АБВГ.100000.101", "Ось"),
+        drawing("d3", "АБВГ.100000.102", "Втулка"),
+        drawing("d4", "АБВГ.100000.103", "Шайба"),
+    ]
+    result = check([product, (info, group)], drawings)
+    [root] = result.tree
+    assert root.designation == "АБВГ.100000.000"
+    base, variant = root.children
+    assert (base.spec_document_id, variant.spec_document_id) == ("s1", "s1")
+    assert variant.drawing_document_ids == ["d1"]  # the group assembly drawing
+    by_child = {node.designation: [(c.designation, c.quantity) for c in node.children[1:]] for node in (base, variant)}
+    assert by_child == {
+        "АБВГ.100000.100": [("АБВГ.100000.101", 2.0), ("АБВГ.100000.103", None)],
+        "АБВГ.100000.100-01": [("АБВГ.100000.101", 1.0), ("АБВГ.100000.102", 4.0), ("АБВГ.100000.103", None)],
+    }
+    assert variant.children[2].total_quantity == 4.0
+    assert found(result) == set()
+
+
+def test_a_group_specification_named_only_by_a_variant_is_not_a_second_product():
+    info, group = spec("s1", "АБВГ.100000.100", "Узел", [group_row(1, "Детали", "АБВГ.100000.101", "Ось", {"01": 1})])
+    group.variants = ["–", "01"]
+    product = spec("s0", "АБВГ.100000.000", "Изделие", [row(1, "Сборочные единицы", "АБВГ.100000.100-01", "Узел")])
+    result = check([product, (info, group)], [drawing("d2", "АБВГ.100000.101", "Ось")])
+    [root] = result.tree
+    assert root.designation == "АБВГ.100000.000" and root.children[0].children[0].designation == "АБВГ.100000.101"
+
+
+def test_a_row_under_two_variants_is_one_missing_drawing():
+    info, group = spec(
+        "s1", "АБВГ.100000.100", "Узел", [group_row(1, "Детали", "АБВГ.100000.101", "Ось", {"–": 1, "01": 1})]
+    )
+    group.variants = ["–", "01"]
+    product = spec(
+        "s0",
+        "АБВГ.100000.000",
+        "Изделие",
+        [
+            row(1, "Сборочные единицы", "АБВГ.100000.100", "Узел"),
+            row(2, "Сборочные единицы", "АБВГ.100000.100-01", "Узел"),
+        ],
+    )
+    result = check([product, (info, group)], [])
+    [missing] = [d for d in result.discrepancies if d.rule_id == "B1.MISSING.001"]
+    assert missing.designation == "АБВГ.100000.101" and len(missing.tree_node_ids) == 2
+
+
+@pytest.mark.parametrize(("mass", "missing"), [("См. табл.", False), ("1.2", True)])
+def test_a_variant_of_a_part_is_drawn_on_the_group_drawing_of_its_base(mass, missing):
+    """A row «-01» below the base part names its variant: the group drawing of the base covers it, a drawing that is
+    not a group one does not (GOST 2.113, 4.1.10)."""
+    product = spec(
+        "s0",
+        "АБВГ.100000.000",
+        "Изделие",
+        [row(1, "Детали", "АБВГ.100000.001", "Ось"), row(2, "Детали", "АБВГ.100000.001-01", "Ось")],
+    )
+    base = drawing("d1", "АБВГ.100000.001", "Ось")
+    base.part.title_block.mass = Extracted(value=mass)
+    result = check([product], [base])
+    assert (("B1.MISSING.001", "АБВГ.100000.001-01") in found(result)) is missing
+    assert result.tree[0].children[1].drawing_document_ids == ([] if missing else ["d1"])
+
+
 def test_all_discrepancy_types():
     specs = [
         spec(

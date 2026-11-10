@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { Parameter, Report, TreeNode } from "../api/types";
-import { formatBytes, parameterValue, plural } from "./format";
+import type { Parameter, Report, SpecRow, TreeNode } from "../api/types";
+import { formatBytes, parameterValue, plural, rowQuantity } from "./format";
 import { branchIds, buildIndex, filterTree, matchesQuery, sameBox, sheetFormats } from "./report";
 
 const demo = JSON.parse(readFileSync(new URL("../../public/demo/report.json", import.meta.url), "utf-8")) as Report;
@@ -86,5 +86,13 @@ describe("форматы листов", () => {
   it("перечисляет форматы страниц по одному разу", () => {
     expect(sheetFormats(doc)).toBe("A3, A4");
     expect(sheetFormats({ ...doc, pages: [page(1)] })).toBe("");
+  });
+});
+
+describe("количество строки спецификации", () => {
+  it("у групповой по варианту Б — по исполнениям, у единичной — одно", () => {
+    const group: SpecRow = { id: "r1", quantities: { "–": { value: 2 }, "01": { value: "×" } } };
+    expect(rowQuantity(group)).toBe("–: 2; 01: ×");
+    expect(rowQuantity({ id: "r2", quantities: {}, quantity: { value: 3 } })).toBe("3");
   });
 });

@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.5"
+SCHEMA_VERSION = "1.6"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
@@ -191,6 +191,14 @@ class SpecRow(Model):
     designation: Extracted | None = None
     name: Extracted | None = None
     quantity: Extracted | None = None
+    quantities: dict[str, Extracted] = Field(
+        {},
+        description=(
+            "Количество по исполнениям групповой спецификации по варианту Б ГОСТ 2.113, вместо `quantity`: номер "
+            "исполнения из подзаголовка графы «Кол. на исполн.» («–» — базовое, «01», «02»…) → количество, у документа "
+            "«×». Исполнения без количества в строке нет. С версии 1.6"
+        ),
+    )
     note: Extracted | None = None
     source: SourceRef | None = None
 
@@ -202,6 +210,13 @@ class Specification(Model):
     litera: Extracted | None = None
     revision: Extracted | None = None
     sheets: Extracted | None = Field(None, description="«Листов» основной надписи первого листа. С версии 1.4")
+    variants: list[str] = Field(
+        [],
+        description=(
+            "Номера исполнений групповой спецификации по варианту Б ГОСТ 2.113 в порядке граф: «–» — базовое, затем "
+            "«01», «02»…; обозначение исполнения — обозначение спецификации с «-01». Пусто у единичной. С версии 1.6"
+        ),
+    )
     rows: list[SpecRow] = []
 
 

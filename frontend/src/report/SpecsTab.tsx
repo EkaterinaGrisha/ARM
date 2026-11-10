@@ -2,7 +2,7 @@ import { CircleCheck, CircleX } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import type { SpecRow } from "../api/types";
 import { DocLink, Empty, SourceButton, ValueCell } from "../components/common";
-import { extractedText } from "../lib/format";
+import { extractedText, rowQuantity } from "../lib/format";
 import { useReport } from "./ReportContext";
 
 const NEEDS_DOC = new Set(["Документация", "Сборочные единицы", "Детали", "Комплексы"]);
@@ -101,7 +101,7 @@ export function SpecsTab() {
                         <td className="num">{extractedText(row.position)}</td>
                         <td className="mono nowrap">{extractedText(row.designation)}</td>
                         <td>{extractedText(row.name)}</td>
-                        <td className="num">{extractedText(row.quantity)}</td>
+                        <td className="num">{rowQuantity(row)}</td>
                         <td>{extractedText(row.note)}</td>
                         <td>
                           {p === null ? (

@@ -150,7 +150,7 @@ specification:                   # GOST 2.106, form 1
     note: [163, 185]
   header_words:                  # beginnings of the column headers that place the table
     designation: обозначен
-    name: наименован
+    name: наимен                 # form 5 of GOST 2.113 breaks it: «Наимено-вание»
   header_pages: 2                # the header is looked for on this many first pages with text
   header_zone: 0.3               # the header lies above this share of the sheet height
   header_row_tolerance: 4        # the two headers differ in height by less than this
@@ -168,7 +168,36 @@ specification:                   # GOST 2.106, form 1
   frame_reach: 3                 # the outer column lines are looked for this far from the edges of the title block: a
                                  # table drawn 1.2 % larger than its block has them at −0.5 and 186.8 mm, and its
                                  # columns and rows in the same proportion
-  other_columns: [133, 143]      # column lines of form 5 of GOST 2.113 (variant B): its rows are not read as form 1
+  groups:                        # group specifications of GOST 2.113 by variant B (ADR-0025): instead of «Кол.» a column
+                                 # of quantities for each variant under «Кол. на исполн.», the number of the variant at
+                                 # its top, «–» for the base one. A table with the column lines of one is read by them
+    form_1:                      # forms 1 and 1a: A4 landscape, at most ten variants a sheet
+      width: 287
+      columns:
+        format: [0, 6]
+        zone: [6, 12]
+        position: [12, 20]
+        designation: [20, 90]
+        name: [90, 153]
+        note: [253, 287]
+      variants:
+        left: 153
+        width: 10
+        count: 10
+    form_5:                      # at most three variants, A4 portrait
+      width: 185
+      columns:
+        format: [0, 6]
+        zone: [6, 12]
+        position: [12, 20]
+        designation: [20, 90]
+        name: [90, 133]
+        note: [163, 185]
+      variants:
+        left: 133
+        width: 10
+        count: 3
+  subhead_height: 7              # the numbers of the variants stand this high above the header line
   section_similarity: 0.65       # a row that is only a name this similar to a section name is its header: OCR misreads
 
 tech_requirements:               # the text block right above the title block; distances from its top left corner

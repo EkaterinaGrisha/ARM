@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from kdcheck.config import Settings
+from kdcheck.extract import specification
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.layout import raster
 from kdcheck.normalize.designations import Designations
@@ -42,7 +43,7 @@ def read_rows(
     forms, regions = settings.forms, settings.ingest.regions
     corner = raster.find_corner(gray, page.mm / scale, forms, regions)
     table = raster.find_table(gray, corner, forms, regions) if corner is not None else None
-    if corner is None or table is None or table.other_form:
+    if corner is None or table is None:
         return []
     turn = corner.turn
 
@@ -73,6 +74,8 @@ def read_rows(
             if not text:
                 continue
             value = (eskd.normalize_designation(text) or text) if field == "designation" else text
+            if field == "designation":  # «-03» below the full designation names that variant (GOST 2.113, 5.3)
+                value = specification.full_designation(text, rows[: rows.index(row)], eskd) or value
             current: Extracted | None = getattr(row, field)
             if current is not None and _same(field, current.value, value, eskd):
                 continue

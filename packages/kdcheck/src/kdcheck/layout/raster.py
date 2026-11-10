@@ -5,8 +5,9 @@ words a recognizer may miss. A title block is the placement of a form of GOST 2.
 the form puts them, and whose blank places, where another form has a line, have none. The placement comes from the
 lines found: a long line is the top or the bottom of the block, a vertical one of its verticals, and two verticals one
 block width apart give the scale; else the resolution of the image does. The table of a specification hangs from the
-top line of the frame, as wide as the block under it, with its columns where GOST 2.106 puts them and its rows one row
-height apart. A sheet turned on the scanner is measured on the lines of the corner of the block and read straightened.
+top line of the frame and ends at the right edge of the block under it, with its columns where GOST 2.106 puts them,
+or a group form of GOST 2.113 (ADR-0025), and its rows one row height apart. A sheet turned on the scanner is measured
+on the lines of the corner of the block and read straightened.
 
 The lines are looked for on a copy of the ink a few pixels per millimetre fine, which is fast and enough for lines a
 millimetre apart; the cells are then cut from the image at its own pixels. Pillow only.
@@ -22,7 +23,7 @@ from dataclasses import dataclass, field
 from PIL import Image, ImageStat
 
 from kdcheck import limits
-from kdcheck.config import Forms, RegionRules, RuledForm
+from kdcheck.config import Forms, GroupForm, RegionRules, RuledForm, SpecificationTemplate
 
 Box = tuple[float, float, float, float]
 Point = tuple[float, float]
@@ -410,23 +411,62 @@ class Table:
     s: float  # pixels per mm
     columns: dict[str, tuple[float, float]]  # left and right edge, mm from the left line
     rows: list[tuple[float, float]] = field(default_factory=list)  # straightened pixels: top and bottom of each row
-    other_form: bool = False  # with the column lines of another form, which are not read as form 1
+    variants: list[tuple[float, float]] = field(default_factory=list)  # mm from the left line: a column of quantities
+    # for each variant of a group specification of GOST 2.113 by variant B (ADR-0025); none for form 1 of GOST 2.106
+    subheads: tuple[float, float] | None = None  # straightened pixels: top and bottom of the numbers of the variants
+
+
+@dataclass(frozen=True)
+class _Layout:
+    """A form of a specification table: its width and columns, mm from its left line."""
+
+    width: float
+    columns: dict[str, tuple[float, float]]
+    variants: tuple[tuple[float, float], ...] = ()
+
+    @classmethod
+    def group(cls, form: GroupForm) -> _Layout:
+        v = form.variants
+        spans = tuple((v.left + i * v.width, v.left + (i + 1) * v.width) for i in range(v.count))
+        return cls(form.width, form.columns.model_dump(), spans)
 
 
 def find_table(gray: Image.Image, found: Corner, forms: Forms, rules: RegionRules) -> Table | None:
-    """The table of form 1 of GOST 2.106 above a title block of form 2 or 2a; None without its column lines.
+    """The table of a specification above a title block of form 2 or 2a: of form 1 of GOST 2.106, or a group one of
+    GOST 2.113 by variant B (ADR-0025); None without the column lines of any.
 
-    The table ends at the block. Its header is one header height under the top line of the frame, and its rows one
-    row height each. Its outer column lines are looked for within ``frame_reach`` of the edges of the block: a table
-    drawn at a scale a little other than its block's has its columns and rows in the same proportion between them.
+    The table ends at the right edge of the block and at its top. Its header is one header height under the top line
+    of the frame, and its rows one row height each. Its outer column lines are looked for within ``frame_reach`` of
+    where the form puts them: a table drawn at a scale a little other than its block's has its columns and rows in the
+    same proportion between them. Of the forms whose column lines are there, all but one, the one with most of them
+    wins: form 5 of GOST 2.113 has every line of form 1 of GOST 2.106 and two more.
     """
     block, template = found.block, forms.specification
     if block.form not in (2, None):
         return None
+    layouts = [_Layout(block.width, template.columns.model_dump()), *map(_Layout.group, template.groups.values())]
+    best: tuple[int, Table] | None = None
+    for layout in layouts:
+        fit = _fit(gray, found, layout, template, rules)
+        if fit is not None and (best is None or fit[0] > best[0]):
+            best = fit
+    return best[1] if best is not None else None
+
+
+def _fit(
+    gray: Image.Image, found: Corner, layout: _Layout, template: SpecificationTemplate, rules: RegionRules
+) -> tuple[int, Table] | None:
+    """The table of ``layout`` above the block and how many of its inner column lines are there; None without them.
+
+    The rows of a group form end where the lines of its columns left of the quantities end: on the first sheet of
+    form 1 the quantity columns go on below them with the letter and the code of each variant.
+    """
+    block = found.block
     k = rules.sample / block.s  # mask pixels per image pixel
     s, widest = rules.sample, rules.max_line_width * rules.sample  # in mask pixels
-    margin = widest + template.frame_reach * s  # left and right of the block
-    window: Box = (block.x0 - margin / k, 0, block.x1 + margin / k, block.y0)
+    margin = widest + template.frame_reach * s  # left and right of the table
+    x0 = block.x0 + (block.width - layout.width) * block.s
+    window: Box = (x0 - margin / k, 0, block.x1 + margin / k, block.y0)
     mask = straight_ink(gray, found.turn, window, found.level, k, rules)
     inner = crop(mask, (margin, 0, mask.width - margin, mask.height), fill=0)
     lines = runs(profile(inner, vertical=False), rules.line_ink, widest)
@@ -437,25 +477,29 @@ def find_table(gray: Image.Image, found: Corner, forms: Forms, rules: RegionRule
     pairs = (y for y in lines if any(abs(y - top - height) <= band * 2 for top in lines))
     header = next(pairs, lines[0] + height)
     body = crop(mask, (0, header + widest, mask.width, mask.height - widest), fill=0)
-    width = forms.title_block.width
-    left, right = _outer_lines(body, width, margin, template.frame_reach, rules)
-    ratio = (right - left) / width  # of the table to its block
+    left, right = _outer_lines(body, layout.width, margin, template.frame_reach, rules)
+    ratio = (right - left) / layout.width  # of the table to its form
 
-    def present(edge: float) -> bool:
+    def present(edge: float, part: Image.Image = body) -> bool:
         x = margin + (left + edge * ratio) * s
-        return coverage(body, (x, 0, x, body.height), band) >= rules.line_ink
+        return coverage(part, (x, 0, x, part.height), band) >= rules.line_ink
 
-    columns: dict[str, tuple[float, float]] = template.columns.model_dump()
-    edges = sorted({edge for pair in columns.values() for edge in pair} - {0.0, width})
-    if sum(map(present, edges)) < len(edges) - 1:
+    spans = [*layout.columns.values(), *layout.variants]
+    edges = sorted({edge for pair in spans for edge in pair} - {0.0, layout.width})
+    hits = sum(map(present, edges))
+    if hits < len(edges) - 1:
         return None
-    other = any(map(present, template.other_columns))
-    table = Table(block.x0 + left * block.s, block.s * ratio, columns, other_form=other)
+    table = Table(x0 + left * block.s, block.s * ratio, layout.columns, variants=list(layout.variants))
     step, y = template.row_height * s * ratio, header
+    if layout.variants:
+        table.subheads = (window[1] + (header - template.subhead_height * s * ratio) / k, window[1] + header / k)
+    inside = [edge for edge in edges if layout.variants and edge < layout.variants[0][0]]
     while y + step / 2 <= mask.height:
+        if inside and not any(present(edge, crop(mask, (0, y, mask.width, y + step), fill=0)) for edge in inside):
+            break
         table.rows.append((window[1] + y / k, window[1] + (y + step) / k))
         y += step
-    return table
+    return hits, table
 
 
 def _outer_lines(
