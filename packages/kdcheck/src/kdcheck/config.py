@@ -184,6 +184,8 @@ class TechRequirementsTemplate(Section):
     first_gap: float
     line_gap: float
     min_line_gap: float
+    row_indent: float  # without the item numbers, a row starting this far right of the rows below is the field's
+    row_overlap: float = Field(gt=0, le=1)  # pieces of one row share this part of the height of the lower one
 
 
 class Forms(Section):
@@ -511,6 +513,16 @@ class VlmRows(Section):
     fields: dict[Literal["designation", "name"], str]  # the columns of GOST 2.106, as the prompt names them
 
 
+class VlmRequirements(Section):
+    """The technical requirements block of rasters and scans the model reads (ADR-0023)."""
+
+    prompt: str
+    max_tokens: int = Field(gt=0)  # a block of several items is longer than a cell
+    target_dpi: int = Field(gt=0)  # a coarser image is enlarged to this before the model reads it
+    pad_mm: float = Field(ge=0)  # around the lines OCR found
+    line_match: float = Field(ge=0, le=1)  # a line of the answer this alike to a row of OCR takes its place
+
+
 class VlmEngine(Section):
     """A vision-language model on an OpenAI-compatible server that reads title block cells (ADR-0014)."""
 
@@ -524,6 +536,7 @@ class VlmEngine(Section):
     conflict: Literal["ocr", "model"]  # whose reading a cell keeps when the two differ (ADR-0019)
     fields: dict[TitleBlockField, str]
     rows: VlmRows
+    requirements: VlmRequirements
     timeout_sec: float = Field(gt=0)
     max_tokens: int = Field(gt=0)
     seed: int

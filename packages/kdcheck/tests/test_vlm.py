@@ -4,6 +4,7 @@ The model runs on an OpenAI-compatible server; here a stub on this machine plays
 """
 
 import base64
+import io
 import json
 import socket
 import socketserver
@@ -18,7 +19,7 @@ from kdcheck.ingest.document import load_document, page_raster
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.vlm import title_block as vlm_title_block
-from kdcheck.vlm.client import Prompt, VlmClient, VlmError
+from kdcheck.vlm.client import Prompt, VlmClient, VlmError, load_prompt
 
 KIT = Path(__file__).resolve().parents[3] / "samples" / "demo_kit"
 DRAWING = "Чертежи/АРМ.303411.201 Вал ведомый.pdf"
@@ -33,7 +34,8 @@ class _Server(ThreadingHTTPServer):
 
 
 class StubServer:
-    """``/models`` lists ``MODEL``; ``/chat/completions`` answers ``answers[label]`` and keeps the requests.
+    """``/models`` lists ``MODEL``; ``/chat/completions`` answers ``answers[label]`` and keeps the requests; a key
+    found in a prompt without a label answers it too.
 
     With ``in_reasoning`` the answer comes under ``reasoning_content`` and the content is empty, as LM Studio files
     the answer of Qwen3.6 when a JSON schema bounds it.
@@ -61,6 +63,7 @@ class StubServer:
                 stub.requests.append(body)
                 prompt = body["messages"][0]["content"][0]["text"]
                 label = next((k for k in stub.answers if f"«{k}»" in prompt), None)
+                label = label or next((k for k in stub.answers if k in prompt), None)  # a prompt with no «{label}»
                 content = stub.answers.get(label, json.dumps({"text": ""}))
                 message = {"role": "assistant", "content": content}
                 if stub.in_reasoning:
@@ -389,3 +392,92 @@ def test_a_page_without_a_table_placed_by_its_lines_asks_nothing(settings, eskd,
     image = (Image.new("L", (200, 140), 255), (0.0, 0.0), page.width / 200)
     assert spec_rows.read_rows(doc, page, [], client=client, image=image, settings=on, eskd=eskd) == []
     assert client.calls == 0 and server.requests == []
+
+
+BLOCK = "блок технических требований"  # words of prompts/tech_requirements.v1.txt
+READ_BLOCK = """Технические требования
+1. 250...280 HB.
+2. Поверхности Б закалить ТВЧ h 1,5...2,0 мм,
+48...53 HRC.
+3. Покрытие Хим.Окс.прм."""
+
+
+def _block_lines(settings: Settings, eskd):
+    """The demo drawing and the lines above its title block, taken as OCR would take them."""
+    from kdcheck.extract import tech_requirements
+
+    doc, page, geom, _ = _drawing(settings, eskd)
+    return doc, page, tech_requirements.requirement_lines(page, geom, settings.forms.tech_requirements, numbered=False)
+
+
+def test_the_model_reads_the_technical_requirements_block_into_items(settings, eskd, server):
+    from kdcheck.vlm import tech_requirements as vlm_tech_requirements
+    from PIL import Image
+
+    server.say(BLOCK, READ_BLOCK)
+    on = _settings(settings, server.url)
+    doc, page, lines = _block_lines(on, eskd)
+    scale = 0.5
+    image = Image.new("L", (int(page.width / scale), int(page.height / scale)), 255)
+    client = VlmClient(on.models.vlm, load_prompt(on.models.vlm.requirements.prompt))
+    items = vlm_tech_requirements.read_block(
+        doc, page, lines, client=client, raster=(image, (0.0, 0.0), scale), settings=on
+    )
+    assert [i.value for i in items] == [
+        "250...280 HB.",
+        "Поверхности Б закалить ТВЧ h 1,5...2,0 мм, 48...53 HRC.",
+        "Покрытие Хим.Окс.прм.",
+    ]
+    pad = on.models.vlm.requirements.pad_mm * page.mm
+    block = (
+        min(ln.bbox[0] for ln in lines) - pad,
+        min(ln.bbox[1] for ln in lines) - pad,
+        max(ln.bbox[2] for ln in lines) + pad,
+        max(ln.bbox[3] for ln in lines) + pad,
+    )
+    source = items[1].source
+    assert source.method == "vlm" and source.engine == MODEL
+    assert (items[1].raw, source.text) == ("2. Поверхности Б закалить ТВЧ h 1,5...2,0 мм, 48...53 HRC.",) * 2
+    # an item has the rows of OCR its lines read; «3. Покрытие …» is like no row, so its item has the block
+    assert [i.source.bbox for i in items] == [
+        page.norm_bbox(lines[0].bbox),
+        page.norm_bbox(lines[1].bbox),
+        page.norm_bbox(block),
+    ]
+    # 144 dpi at 0.5 page units per pixel: the crop is enlarged to the 300 dpi of the settings
+    crop = server.requests[0]["messages"][0]["content"][1]["image_url"]["url"]
+    width = Image.open(io.BytesIO(base64.b64decode(crop.split(",", 1)[1]))).width
+    block_width = (max(ln.bbox[2] for ln in lines) - min(ln.bbox[0] for ln in lines) + 2 * pad) / scale
+    assert width == pytest.approx(block_width * 300 / 144, abs=2)
+
+
+def test_pipeline_takes_the_items_the_model_read_from_the_block(settings, server, tmp_path):
+    (tmp_path / "Чертежи").mkdir()
+    (tmp_path / DRAWING).write_bytes((KIT / DRAWING).read_bytes())
+    server.say(BLOCK, READ_BLOCK)
+    on = _settings(settings, server.url, methods=("text_layer",))
+    report = BaselinePipeline(on).run(tmp_path, kit_id="t", kit_name="t")
+    part = report.parts[0]
+    assert len(part.requirements) == 3 and {i.source.method for i in part.requirements} == {"vlm"}
+    hardness = [p for p in part.parameters if p.category == "hardness" and p.unit == "HB"]
+    assert [(p.value_min, p.value_max) for p in hardness] == [(250.0, 280.0)]  # the model's reading, not the layer's
+    assert any(e.version.startswith(on.models.vlm.requirements.prompt) for e in report.kit.engines)
+
+
+def test_a_block_the_model_did_not_read_keeps_the_items_of_ocr(settings, server, tmp_path):
+    (tmp_path / "Чертежи").mkdir()
+    (tmp_path / DRAWING).write_bytes((KIT / DRAWING).read_bytes())
+    server.answers[BLOCK] = "не JSON"
+    on = _settings(settings, server.url, methods=("text_layer",))
+    report = BaselinePipeline(on).run(tmp_path, kit_id="t", kit_name="t")
+    part = report.parts[0]
+    assert len(part.requirements) == 4 and {i.source.method for i in part.requirements} == {"text_layer"}
+    assert any(n.startswith("Модель не прочитала технические требования") for n in report.documents[0].notes)
+
+
+def test_an_empty_answer_keeps_the_items_of_ocr(settings, server, tmp_path):
+    (tmp_path / "Чертежи").mkdir()
+    (tmp_path / DRAWING).write_bytes((KIT / DRAWING).read_bytes())
+    on = _settings(settings, server.url, methods=("text_layer",))
+    report = BaselinePipeline(on).run(tmp_path, kit_id="t", kit_name="t")
+    assert [i.source.method for i in report.parts[0].requirements] == ["text_layer"] * 4

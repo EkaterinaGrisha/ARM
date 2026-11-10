@@ -47,6 +47,13 @@ vlm:                             # a vision-language model reads title block cel
     fields:
       designation: Обозначение
       name: Наименование
+  requirements:                  # the technical requirements block of rasters and scans the model reads too (ADR-0023)
+    prompt: tech_requirements.v1
+    max_tokens: 2048             # several items, line by line; the cells take less
+    target_dpi: 300              # a coarser image is enlarged to this, as the bench cut its blocks
+    pad_mm: 2                    # around the lines OCR found above the title block
+    line_match: 0.4              # a line of the answer this alike to a row of OCR gets its place on the sheet, so an item
+                                 # has the rows of its lines as evidence; an item none of whose lines is alike, the block
   timeout_sec: 120               # one cell; a model on a laptop may take a while to load and answer
   max_tokens: 512                # the answer is JSON {"text": …}; a reasoning model may spend tokens before it
   seed: 7                        # repeatable answers from the same server and model
