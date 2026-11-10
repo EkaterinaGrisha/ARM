@@ -40,9 +40,9 @@
       "documents_with_designation": 53,
       "specifications": 11,
       "specifications_with_designation": 11,
-      "spec_rows": 82,
-      "rows_with_designation": 64,
-      "rows_designation_parsed": 49,
+      "spec_rows": 85,
+      "rows_with_designation": 67,
+      "rows_designation_parsed": 52,
       "rows_by_kit": 0,
       "drawings": 37,
       "title_block": {
@@ -65,11 +65,11 @@
         "roughness": 25,
         "hardness": 3
       },
-      "tree_items": 89,
+      "tree_items": 92,
       "root": false,
       "discrepancies": {
         "B1.MISSING.001": 1,
-        "B1.ORPHAN.001": 6,
+        "B1.ORPHAN.001": 4,
         "B1.DUP.002": 1,
         "B1.NAME.001": 2,
         "B1.NAME.002": 1
@@ -78,8 +78,8 @@
         "info": 1,
         "warning": 1
       },
-      "seconds": 688.2,
-      "seconds_per_page": 12.99,
+      "seconds": 617.5,
+      "seconds_per_page": 11.65,
       "images": {
         "count": 53,
         "dpi": {

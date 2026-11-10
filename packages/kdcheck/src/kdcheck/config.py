@@ -173,6 +173,7 @@ class SpecificationTemplate(Section):
     designation_zone: Share
     header_height: float  # the header row under the top line of the frame
     row_height: float
+    frame_reach: float = Field(ge=0)  # mm: the outer column lines of a table on a page image, from the block's edges
     other_columns: tuple[float, ...]  # column lines of other forms: a table with one of them is not read by rows
     section_similarity: Share  # a row that is only a name this similar to a section name is its header
 
