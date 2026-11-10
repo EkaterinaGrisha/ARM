@@ -6,9 +6,10 @@ from pathlib import Path
 import pytest
 from kdcheck.config import Review
 from kdcheck.extract import review, specification, tech_requirements, title_block
-from kdcheck.ingest.document import load_document
+from kdcheck.ingest.document import LoadedDocument, Page, load_document
+from kdcheck.ingest.text import Line, Word
 from kdcheck.normalize.designations import Designations
-from kdcheck.schemas import Extracted, PartRecord, SourceRef, TitleBlock
+from kdcheck.schemas import DocumentInfo, Extracted, PartRecord, SourceRef, TitleBlock
 
 KIT = Path(__file__).resolve().parents[3] / "samples" / "demo_kit"
 TRUTH = json.loads((KIT.parent / "demo_kit_truth.json").read_text(encoding="utf-8"))["documents"]
@@ -162,3 +163,45 @@ def test_without_item_numbers_the_block_ends_at_a_row_of_the_field(settings, esk
     assert tech_requirements.requirement_lines(page, geom, block) == []  # no item number read
     taken = tech_requirements.requirement_lines(page, geom, block, numbered=False)
     assert [ln.text for ln in taken] == [pieces[1].text, pieces[2].text, pieces[0].text]
+
+
+def _page_of_words(*words: tuple[str, float, float]) -> LoadedDocument:
+    """A page of a text layer with each word centred at (x, y) mm."""
+    mm = 72 / 25.4
+    lines = []
+    for text, x, y in words:
+        half = len(text) * 0.9
+        box = ((x - half) * mm, (y - 1.5) * mm, (x + half) * mm, (y + 1.5) * mm)
+        lines.append(Line(text, box, 3.5 * mm, words=[Word(text, box)]))
+    page = Page(number=1, width=595.0, height=842.0, lines=lines)
+    page.read_by("text_layer", "pdfium", "1", 1.0)
+    return LoadedDocument(DocumentInfo(id="d", file_name="a.pdf", path="a.pdf"), Path("a.pdf"), pages=[page])
+
+
+def test_a_group_specification_of_form_5_on_a_text_layer(settings, eskd):
+    """The numbers of the variants in the header tell form 5 of GOST 2.113 and place its columns of quantities."""
+    x = 20  # the left line of the table, mm
+    doc = _page_of_words(
+        ("Обозначение", x + 55, 12),
+        ("Наимено-", x + 111.5, 10),
+        ("вание", x + 111.5, 14),
+        ("–", x + 138, 17.5),
+        ("01", x + 148, 17.5),
+        ("02", x + 158, 17.5),
+        ("Детали", x + 111.5, 26),
+        ("1", x + 16, 34),
+        ("АБВГ.715211.001", x + 40, 34),
+        ("Вал", x + 100, 34),
+        ("2", x + 138, 34),
+        ("2", x + 148, 34),
+        ("-02", x + 58, 42),
+        ("Вал", x + 100, 42),
+        ("1", x + 158, 42),
+    )
+    spec = specification.parse(doc, settings.forms, eskd)
+    assert spec.variants == ["–", "01", "02"]
+    first, second = spec.rows
+    assert (first.section, first.quantity) == ("Детали", None)
+    assert {k: v.value for k, v in first.quantities.items()} == {"–": 2.0, "01": 2.0}
+    assert second.designation.value == "АБВГ.715211.001-02"
+    assert {k: v.value for k, v in second.quantities.items()} == {"02": 1.0}

@@ -94,23 +94,41 @@ def _cause(key: Key, truth: KitTruth, *, missed: bool, use_ocr: bool) -> str:
     known = {doc.designation for doc in truth.documents.values()} | {r.designation for r in rows}
     if not missed and designation not in known and base not in known:
         return "такого обозначения в комплекте нет: OCR исказил его на скане"
+    swapped = [
+        doc
+        for doc in truth.documents.values()
+        if doc.kind == "specification"
+        and doc.origin != "vector"
+        and any(_swapped(r.designation, base) for r in doc.rows)
+    ]
+    if not missed and use_ocr and swapped:
+        what = "растр" if swapped[0].origin == "raster" else "скан"
+        return f"{what} спецификации: OCR заменил цифру, вышло обозначение другой позиции комплекта"
     if not rule.startswith("B1."):
         return "у ядра нет правила для этого типа"
     return "—"
 
 
+def _swapped(a: str, b: str) -> bool:
+    """Whether two designations differ in one digit only: a digit OCR read as another one."""
+    differ = [(x, y) for x, y in zip(a, b, strict=False) if x != y]
+    return len(a) == len(b) and len(differ) == 1 and all(ch.isdigit() for ch in differ[0])
+
+
 def _group_cause(rule: str, designation: str, truth: KitTruth, *, missed: bool) -> str | None:
     """Why the core misses or adds a discrepancy around a group document of GOST 2.113, or none. A variant is covered
-    by the group document of its base designation; the rows of form 5 hold the positions of variant B; in variant A
-    the heading of each variant stands right below the last row of the data before it."""
+    by the group document of its base designation: the core expands it through a group specification by variant B
+    (ADR-0025), not yet through one by variant A or a group drawing; in variant A the heading of each variant stands
+    right below the last row of the data before it."""
     specs = [d for d in truth.documents.values() if isinstance(d, SpecTruth) and d.group]
-    if any(d.group == "B" and designation in {r.designation for r in d.rows} for d in specs):
-        return "позиция групповой спецификации по варианту Б (форма 5 ГОСТ 2.113): строк этой формы ядро не читает"
     if missed:
         return None
     drawn = {v.designation for d in truth.documents.values() if isinstance(d, DrawingTruth) for v in d.variants[1:]}
-    if rule == "B1.SPEC.001" and any(designation in d.variants[1:] for d in specs):
-        return "исполнение групповой сборочной единицы (ГОСТ 2.113): ядро ищет спецификацию с обозначением исполнения"
+    if rule == "B1.SPEC.001" and any(designation in d.variants[1:] for d in specs if d.group == "A"):
+        return (
+            "исполнение групповой сборочной единицы по варианту А (ГОСТ 2.113): ядро ищет спецификацию с обозначением "
+            "исполнения"
+        )
     if rule.startswith("B1.MISSING.") and designation in drawn:
         return "исполнение на групповом чертеже (ГОСТ 2.113): ядро ищет документ с обозначением исполнения"
     if rule == "B1.NAME.001" and any(designation in {r.designation for r in d.rows if r.variant} for d in specs):

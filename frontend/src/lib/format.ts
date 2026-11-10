@@ -1,4 +1,4 @@
-import type { Extracted, Parameter } from "../api/types";
+import type { Extracted, Parameter, SpecRow } from "../api/types";
 
 const num = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 });
 const pct = new Intl.NumberFormat("ru-RU", { style: "percent", maximumFractionDigits: 0 });
@@ -40,6 +40,12 @@ export function formatDuration(sec: number | null | undefined): string {
 export function extractedText(ex: Extracted | null | undefined): string {
   if (!ex || ex.value === null || ex.value === undefined || ex.value === "") return "";
   return typeof ex.value === "number" ? formatNumber(ex.value) : String(ex.value);
+}
+
+/** Количество строки спецификации; у групповой по варианту Б ГОСТ 2.113 — по исполнениям: «–: 2; 01: 1». */
+export function rowQuantity(row: SpecRow): string {
+  const byVariant = Object.entries(row.quantities ?? {}).map(([number, ex]) => `${number}: ${extractedText(ex)}`);
+  return byVariant.length ? byVariant.join("; ") : extractedText(row.quantity);
 }
 
 /** Значение параметра в человекочитаемом виде: «58…62 HRC», «0,8 мкм», «IT6». */

@@ -156,6 +156,29 @@ class SpecHeaderWords(Section):
     name: str
 
 
+class GroupColumns(Section):
+    format: Span
+    zone: Span
+    position: Span
+    designation: Span
+    name: Span
+    note: Span
+
+
+class VariantColumns(Section):
+    left: float  # mm from the left line of the table: the first column of quantities, the base variant's
+    width: float = Field(gt=0)
+    count: int = Field(ge=1)
+
+
+class GroupForm(Section):
+    """A form of a group specification of GOST 2.113 by variant B: a column of quantities for each variant."""
+
+    width: float = Field(gt=0)  # mm: the table ends at the right edge of the title block
+    columns: GroupColumns
+    variants: VariantColumns
+
+
 class SpecificationTemplate(Section):
     columns: SpecColumns
     header_words: SpecHeaderWords
@@ -174,7 +197,8 @@ class SpecificationTemplate(Section):
     header_height: float  # the header row under the top line of the frame
     row_height: float
     frame_reach: float = Field(ge=0)  # mm: the outer column lines of a table on a page image, from the block's edges
-    other_columns: tuple[float, ...]  # column lines of other forms: a table with one of them is not read by rows
+    groups: dict[str, GroupForm]  # group specifications of GOST 2.113 by variant B (ADR-0025)
+    subhead_height: float = Field(gt=0)  # mm: the numbers of the variants above the header line of a group one
     section_similarity: Share  # a row that is only a name this similar to a section name is its header
 
 

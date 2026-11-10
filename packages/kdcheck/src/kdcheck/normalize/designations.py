@@ -165,6 +165,41 @@ def _compile(grammar: Grammar, digit: str, codes: tuple[str, ...]) -> re.Pattern
     return re.compile(_BEFORE + "(?:" + grammar.pattern.replace(DIGIT, digit) + ")" + tail + _AFTER)
 
 
+BASE_VARIANT = "–"  # the number of the base variant in the columns of a group specification of GOST 2.113
+_VARIANT_NUMBER = re.compile(r"^[-–—]?\s*(\d{1,3})$")
+_SHORTENED = re.compile(r"^[-–—]\s*(\d{2,3})\s*([А-ЯЁ]{1,4}\d?)?$")
+_VARIANT_SUFFIX = re.compile(r"^(.+\S)-(\d{2,3})$")
+
+
+def variant_number(text: str) -> str | None:
+    """The number of a variant at the top of a column of quantities: «–» for the base one, «01», «02»…; None for any
+    other text."""
+    text = text.strip()
+    if text and all(ch in "-–—" for ch in text):
+        return BASE_VARIANT
+    m = _VARIANT_NUMBER.match(text)
+    return m.group(1).zfill(2) if m else None
+
+
+def shortened(text: str) -> tuple[str, str | None] | None:
+    """The number of a variant and the code of a document a row writes in place of the full designation below a row
+    with it (GOST 2.113, 5.3): «-03» → («03», None), «-01 СБ» → («01», «СБ»); None for any other text."""
+    m = _SHORTENED.match(text.strip())
+    return (m.group(1), m.group(2)) if m else None
+
+
+def split_variant(designation: str) -> tuple[str, str]:
+    """The base designation of an item and the number of its variant, «–» for the base one:
+    «АБВГ.545648.519-02» → («АБВГ.545648.519», «02»)."""
+    m = _VARIANT_SUFFIX.match(base_designation(designation))
+    return (m.group(1), m.group(2)) if m else (base_designation(designation), BASE_VARIANT)
+
+
+def variant_designation(base: str, number: str) -> str:
+    """The designation of the variant ``number`` of the item ``base``."""
+    return base if number == BASE_VARIANT else f"{base}-{number}"
+
+
 def base_designation(designation: str) -> str:
     """Item designation without the document code: ``АРМ.303411.000 СБ`` → ``АРМ.303411.000``."""
     return designation.split(" ")[0]

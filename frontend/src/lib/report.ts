@@ -10,7 +10,7 @@ import type {
   TitleField,
   TreeNode,
 } from "../api/types";
-import { extractedText } from "./format";
+import { extractedText, rowQuantity } from "./format";
 import { DISCREPANCY_TYPES, PARAMETER_CATEGORY, TITLE_FIELD_LABELS } from "./labels";
 
 /** Значение отчёта, привязанное к области страницы, — для просмотрщика документов. */
@@ -66,7 +66,7 @@ export function buildIndex(report: Report): ReportIndex {
     pushExtracted("Основная надпись", "Изм.", spec.revision);
     for (const row of spec.rows) {
       const label = row.position?.value ? `Поз. ${row.position.value}` : (row.section ?? "Строка");
-      const value = [extractedText(row.designation), extractedText(row.name), extractedText(row.quantity) && `× ${extractedText(row.quantity)}`]
+      const value = [extractedText(row.designation), extractedText(row.name), rowQuantity(row) && `× ${rowQuantity(row)}`]
         .filter(Boolean)
         .join(" ");
       push("Спецификация", label, value, row.source);

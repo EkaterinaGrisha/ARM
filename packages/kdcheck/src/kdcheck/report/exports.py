@@ -13,11 +13,22 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from kdcheck.report import labels as L
-from kdcheck.schemas import DocumentInfo, Extracted, Report, SourceRef, TreeNode
+from kdcheck.schemas import DocumentInfo, Extracted, Report, SourceRef, SpecRow, TreeNode
 
 
 def _v(ex: Extracted | None) -> str | float | int | None:
     return None if ex is None else ex.value
+
+
+def _quantity(row: SpecRow) -> str | float | int | None:
+    """The quantity of a row; of a group specification by variant B, by variant: «–: 2; 01: 1»."""
+    if row.quantities:
+        return "; ".join(f"{number}: {_text(ex.value)}" for number, ex in row.quantities.items())
+    return _v(row.quantity)
+
+
+def _text(value: str | float | int | None) -> str:
+    return f"{value:g}" if isinstance(value, float) else str(value)
 
 
 def _walk(nodes: list[TreeNode], level: int = 0) -> Iterator[tuple[int, TreeNode]]:
@@ -268,7 +279,7 @@ def to_xlsx(report: Report) -> bytes:
                     _v(r.position),
                     _v(r.designation),
                     _v(r.name),
-                    _v(r.quantity),
+                    _quantity(r),
                     _v(r.note),
                 ]
             )

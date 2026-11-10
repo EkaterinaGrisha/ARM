@@ -94,10 +94,16 @@ class Checker:
         return difflib.SequenceMatcher(None, first, second).ratio() >= self.names.min_similarity
 
     def _check_missing(self) -> None:
-        """Positions whose document is not in the kit, in the order of the tree."""
+        """Positions whose document is not in the kit, in the order of the tree: one discrepancy a row, with every
+        node of it. A row of a group specification stands under each variant it serves, and a row of an assembly used
+        twice under each use."""
+        by_row: dict[int, list[TreeNode]] = {}
         for node in self.tree.nodes():
-            if node.status != "missing":
-                continue
+            if node.status == "missing":
+                row = self.tree.rows.get(node.id)
+                by_row.setdefault(id(row) if row is not None else id(node), []).append(node)
+        for nodes in by_row.values():
+            node = nodes[0]
             row = self.tree.rows.get(node.id)
             if node.kind == "assembly":
                 self.add(
@@ -111,7 +117,7 @@ class Checker:
                         else "; сборочного чертежа также нет"
                     ),
                     docs=node.drawing_document_ids,
-                    nodes=[node],
+                    nodes=nodes,
                     sources=[row.source if row else None],
                 )
                 continue
@@ -125,7 +131,7 @@ class Checker:
                 "но в комплекте не найден",
                 expected=node.designation,
                 docs=[parent.spec_document_id] if parent.spec_document_id else [],
-                nodes=[node],
+                nodes=nodes,
                 sources=[row.source if row else None],
             )
 

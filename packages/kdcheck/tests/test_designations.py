@@ -1,6 +1,12 @@
 import pytest
 from kdcheck.config import load_settings
-from kdcheck.normalize.designations import Designations
+from kdcheck.normalize.designations import (
+    Designations,
+    shortened,
+    split_variant,
+    variant_designation,
+    variant_number,
+)
 
 ESKD = Designations(load_settings().dictionaries)
 GRAMMARS = ESKD.words.designations
@@ -95,3 +101,26 @@ def test_a_kit_reads_designations_by_the_grammars_its_file_names_show():
         "АРМ.303411.000",
     ]
     assert ESKD.for_kit(["Плита", "IMG_2041"]) is ESKD  # no designation in the names: every grammar stays on
+
+
+@pytest.mark.parametrize(
+    ("text", "number"),
+    [("–", "–"), ("-", "–"), ("01", "01"), ("1", "01"), ("-03", "03"), ("Кол.", None), ("", None), ("x", None)],
+)
+def test_the_number_of_a_variant_at_the_top_of_its_column(text, number):
+    assert variant_number(text) == number
+
+
+@pytest.mark.parametrize(
+    ("text", "short"),
+    [("-03", ("03", None)), ("– 01", ("01", None)), ("-01СБ", ("01", "СБ")), ("-01 СБ", ("01", "СБ")), ("-1", None)],
+)
+def test_a_shortened_designation_names_a_variant(text, short):
+    assert shortened(text) == short
+
+
+def test_a_variant_splits_into_its_base_and_number():
+    assert split_variant("АБВГ.545648.519-02 СБ") == ("АБВГ.545648.519", "02")
+    assert split_variant("АБВГ.545648.519") == ("АБВГ.545648.519", "–")
+    assert variant_designation("АБВГ.545648.519", "02") == "АБВГ.545648.519-02"
+    assert variant_designation("АБВГ.545648.519", "–") == "АБВГ.545648.519"

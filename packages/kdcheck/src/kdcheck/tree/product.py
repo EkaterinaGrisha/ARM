@@ -3,6 +3,12 @@
 Input: parsed specifications and drawings. Output: the product tree, with assemblies expanded recursively through
 their own specifications and each position matched with the documents of the kit by designation. A position whose
 document is not in the kit gets the ``missing`` status; the rules of :mod:`kdcheck.checks` report it.
+
+A variant «…-01» without a specification of its own is expanded through the group specification of its base
+designation by variant B of GOST 2.113 (ADR-0025): its positions are the rows with a quantity in its column, and
+the quantity is that one. The base variant is the column «–». A row of a group specification without any quantity
+read belongs to every variant: a missed cell must not hide a position. A variant of a part without a drawing of its
+own is drawn on the group drawing of its base, which writes «См. табл.» for the mass (GOST 2.113, 4.1.10).
 """
 
 from __future__ import annotations
@@ -11,7 +17,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 
-from kdcheck.normalize.designations import Designations
+from kdcheck.normalize.designations import BASE_VARIANT, Designations, split_variant, variant_designation
 from kdcheck.schemas import DocumentInfo, Extracted, NodeKind, PartRecord, SourceRef, Specification, SpecRow, TreeNode
 from kdcheck.tree.documents import SheetSet
 
@@ -86,6 +92,11 @@ class _Builder:
             des = eskd.normalize_designation(text(spec.designation)) or doc.designation
             if des:
                 self.spec_by_des[des].append((doc, spec))
+        self.variants: dict[str, tuple[str, str]] = {}  # a variant of a group specification → its base and number
+        for des, found in self.spec_by_des.items():
+            for number in found[0][1].variants:
+                if number != BASE_VARIANT:
+                    self.variants.setdefault(variant_designation(des, number), (des, number))
         self.drawings_by_des: defaultdict[str, list[DrawingRef]] = defaultdict(list)
         for d in drawings:
             if d.designation:
@@ -113,13 +124,14 @@ class _Builder:
             for r in spec.rows
             if r.designation is not None
         }
-        roots = [des for des in self.spec_by_des if des not in children_des]
+        named = children_des | {self.variants[d][0] for d in children_des if d in self.variants}
+        roots = [des for des in self.spec_by_des if des not in named]
         if not roots and self.spec_by_des:
             roots = [next(iter(self.spec_by_des))]
             tree.log.append(
                 "Не удалось определить изделие верхнего уровня (циклические ссылки) — выбрана первая спецификация"
             )
-        trees = [self._assembly_node(des, None, None, 1.0, path=()) for des in roots]
+        trees = [self._assembly_node(des, None, None, None, 1.0, path=()) for des in roots]
         if len(trees) == 1:
             tree.roots = trees
             tree.root_designation = trees[0].designation
@@ -130,10 +142,27 @@ class _Builder:
             tree.log.append(f"В комплекте несколько изделий верхнего уровня: {', '.join(roots)}")
         return tree
 
+    def _specs(self, des: str) -> tuple[list[tuple[DocumentInfo, Specification]], str | None, str]:
+        """The specifications of an assembly, the number of its variant in a group one (None in a single one) and the
+        designation of that group one."""
+        if des in self.spec_by_des:  # the base variant: its column «–», or every row when there is none
+            specs = self.spec_by_des[des]
+            return specs, (BASE_VARIANT if BASE_VARIANT in specs[0][1].variants else None), des
+        if des in self.variants:
+            base, number = self.variants[des]
+            return self.spec_by_des[base], number, base
+        return [], None, des
+
     def _assembly_node(
-        self, des: str, row: SpecRow | None, section: str | None, total: float, path: tuple[str, ...]
+        self,
+        des: str,
+        row: SpecRow | None,
+        quantity: float | None,
+        section: str | None,
+        total: float,
+        path: tuple[str, ...],
     ) -> TreeNode:
-        specs = self.spec_by_des.get(des, [])
+        specs, number, group = self._specs(des)
         node = TreeNode(
             id=self._next_node(),
             designation=des,
@@ -141,14 +170,16 @@ class _Builder:
             section=section,
             name=text(row.name) if row else (text(specs[0][1].name) if specs else None),
             position=text(row.position) if row else None,
-            quantity=_qty(row),
+            quantity=quantity,
             total_quantity=total if row else None,
         )
         if row is not None:
             self.tree.rows[node.id] = row
         self.node_index[des].append(node)
-        self.tree.referenced.add(des)
-        node.drawing_document_ids = [d.doc.id for d in self.drawings_by_des.get(f"{des} {self.sb}", [])]
+        self.tree.referenced.update({des, group})
+        # a variant has the group assembly drawing of its base when it has none of its own (GOST 2.113)
+        drawings = self.drawings_by_des.get(f"{des} {self.sb}") or self.drawings_by_des.get(f"{group} {self.sb}", [])
+        node.drawing_document_ids = [d.doc.id for d in drawings]
         if not specs:
             node.status = "missing"
             return node
@@ -160,22 +191,24 @@ class _Builder:
         if node.name is None:
             node.name = text(spec.name)
         for r in spec.rows:
-            child = self._row_node(r, total, path + (des,))
+            if number is not None and r.quantities and number not in r.quantities:
+                continue  # a position of other variants of the group specification
+            child = self._row_node(r, number, total, path + (des,))
             self.tree.parents[child.id] = node
             node.children.append(child)
         return node
 
-    def _row_node(self, row: SpecRow, parent_total: float, path: tuple[str, ...]) -> TreeNode:
+    def _row_node(self, row: SpecRow, variant: str | None, parent_total: float, path: tuple[str, ...]) -> TreeNode:
         kind = self.sections.get(row.section or "", "unknown")
         des = self.eskd.normalize_designation(text(row.designation))
-        qty = _qty(row)
+        qty = _qty(row, variant)
         total = parent_total * qty if qty is not None else parent_total
         if des:
             self.tree.referenced.add(des)
         if kind == "assembly" and des:
-            return self._assembly_node(des, row, row.section, total, path)
-        if kind == "unknown" and des and des in self.spec_by_des:
-            return self._assembly_node(des, row, row.section, total, path)
+            return self._assembly_node(des, row, qty, row.section, total, path)
+        if kind == "unknown" and des and (des in self.spec_by_des or des in self.variants):
+            return self._assembly_node(des, row, qty, row.section, total, path)
         node = TreeNode(
             id=self._next_node(),
             designation=des,
@@ -196,7 +229,7 @@ class _Builder:
             elif self.eskd.words.no_drawing_mark in note.replace(" ", ""):
                 node.status = "not_required"
             else:
-                found = self.drawings_by_des.get(des, [])
+                found = self.drawings_by_des.get(des, []) or self._group_drawings(des)
                 node.drawing_document_ids = [d.doc.id for d in found]
                 if not found:
                     node.status = "missing"
@@ -204,11 +237,23 @@ class _Builder:
             node.status = "not_required"
         return node
 
+    def _group_drawings(self, des: str) -> list[DrawingRef]:
+        """The group drawing of the base of the variant ``des``: the drawing of the base that writes «См. табл.» for
+        the mass; none for a base variant or without such a drawing."""
+        base, number = split_variant(des)
+        if number == BASE_VARIANT:
+            return []
+        group = self.eskd.words.see_table.name
+        found = [d for d in self.drawings_by_des.get(base, []) if d.tb_value("mass") == group]
+        if found:
+            self.tree.referenced.add(base)
+        return found
 
-def _qty(row: SpecRow | None) -> float | None:
-    if row is None or row.quantity is None:
-        return None
-    v = row.quantity.value
+
+def _qty(row: SpecRow, variant: str | None) -> float | None:
+    """The quantity of a row, of the ``variant`` in a group specification."""
+    ex = row.quantities.get(variant) if variant is not None and row.quantities else row.quantity
+    v = ex.value if ex is not None else None
     return float(v) if isinstance(v, (int, float)) else None
 
 
