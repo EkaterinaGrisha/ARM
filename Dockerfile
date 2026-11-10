@@ -11,6 +11,8 @@ RUN npm run build
 # The PP-OCRv5 recognizer of cells (ADR-0024), converted to ONNX: PaddlePaddle has Linux wheels for x86-64 only, and
 # the ONNX file is the same on any platform
 FROM --platform=linux/amd64 python:3.11-slim AS models
+# PaddlePaddle needs the OpenMP runtime, which the slim image lacks
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir paddlepaddle==3.3.1 paddle2onnx==2.1.0 packaging==26.3 setuptools==84.2.1 pyyaml==6.0.2
 COPY configs/models.yaml /app/configs/models.yaml
 COPY scripts/fetch_ppocr.py /app/scripts/fetch_ppocr.py
