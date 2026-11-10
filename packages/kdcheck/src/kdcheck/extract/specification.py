@@ -239,8 +239,10 @@ def _make_row(
         elif field == "position":
             m = re.search(r"\d+", raw)
             value = m.group(0) if m else raw
-        setattr(row, field, Extracted(value=value, raw=raw, source=doc.source(page, _bbox(words), raw)))
-    row.source = doc.source(page, _bbox(all_words), " | ".join(" ".join(w.text for w in ws) for ws in cells.values()))
+        source = doc.source(page, _bbox(words), raw, engine=words[0].engine)
+        setattr(row, field, Extracted(value=value, raw=raw, source=source))
+    text = " | ".join(" ".join(w.text for w in ws) for ws in cells.values())
+    row.source = doc.source(page, _bbox(all_words), text, engine=all_words[0].engine if all_words else None)
     return row
 
 
@@ -252,7 +254,8 @@ def _append_continuation(doc: LoadedDocument, page: Page, row: SpecRow, cells: d
         add = " ".join(w.text for w in words)
         current: Extracted | None = getattr(row, field)
         if current is None:
-            setattr(row, field, Extracted(value=add, raw=add, source=doc.source(page, _bbox(words), add)))
+            source = doc.source(page, _bbox(words), add, engine=words[0].engine)
+            setattr(row, field, Extracted(value=add, raw=add, source=source))
             continue
         current.value = f"{current.value} {add}".strip()
         current.raw = f"{current.raw} {add}".strip()

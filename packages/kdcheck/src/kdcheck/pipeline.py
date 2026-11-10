@@ -28,7 +28,7 @@ from kdcheck.ingest.pdf import get_backend
 from kdcheck.ingest.text import Line
 from kdcheck.normalize import file_designation
 from kdcheck.normalize.designations import Designations
-from kdcheck.ocr import tesseract
+from kdcheck.ocr import cells, tesseract
 from kdcheck.params import critical, parameters
 from kdcheck.schemas import (
     EngineInfo,
@@ -212,6 +212,8 @@ class BaselinePipeline:
         ocr = self.settings.models.ocr
         if ocr.enabled and tesseract.available(ocr.languages):
             found.append(EngineInfo(name=ocr.engine, version=tesseract.version()))
+            if (reader := cells.ppocr_reader(self.settings)) is not None:  # the cells of scans (ADR-0024)
+                found.append(EngineInfo(name=reader.name, version=reader.version))
         if self.vlm is not None and self.vlm_used:
             found.append(EngineInfo(name=self.vlm.engine.model, version=self.vlm.version))
         if self.vlm_rows is not None and self.vlm_rows.calls:

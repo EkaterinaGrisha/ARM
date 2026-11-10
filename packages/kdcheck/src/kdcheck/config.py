@@ -5,7 +5,8 @@ key or a wrong value stops the run with the file and the field named. The direct
 --config``, else from ``ARM_CONFIG_DIR``, else it is ``configs/`` of the repository checkout. ``ARM_OCR``,
 ``ARM_PDF_BACKEND``, ``ARM_MAX_PAGES``, ``ARM_VLM``, ``ARM_VLM_URL`` and ``ARM_VLM_MODEL`` override single values.
 The hash of the settings in effect goes into the report, so a result can be traced to the settings that gave it.
-Prompts of the models are versioned files in ``prompts/`` of the checkout, or in ``ARM_PROMPTS_DIR``.
+Prompts of the models are versioned files in ``prompts/`` of the checkout, or in ``ARM_PROMPTS_DIR``. Model files that
+are not packages, such as the PP-OCRv5 recognizer, are in ``models/`` of the checkout, or in ``ARM_MODELS_DIR``.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from kdcheck.schemas import DocumentKind, ExtractionMethod, NodeKind, Severity
 
 CONFIG_DIR_ENV = "ARM_CONFIG_DIR"
 PROMPTS_DIR_ENV = "ARM_PROMPTS_DIR"
+MODELS_DIR_ENV = "ARM_MODELS_DIR"
 # Addresses of this machine: a model server there keeps the customer's documents on it (ADR-0014).
 LOOPBACK = ("localhost", "127.0.0.1", "::1")
 
@@ -483,6 +485,7 @@ class PdfEngine(Section):
 class OcrCells(Section):
     """Cells of a title block and of a specification table found by their ruled lines on a page image."""
 
+    engine: Literal["ppocr", "tesseract"]  # ppocr falls back to Tesseract without its model files (ADR-0024)
     languages: str
     page_segmentation: int
     text_height: float = Field(gt=0)  # px
@@ -494,6 +497,20 @@ class OcrCells(Section):
     characters: dict[str, str]  # what the cells of a field or a column may hold
 
 
+class OcrPpocr(Section):
+    """The PP-OCRv5 text line recognizer that reads cells on the CPU (ADR-0024), from the files that
+    ``scripts/fetch_ppocr.sh`` puts in ``models/ppocr``."""
+
+    model: str  # the model of PaddleOCR: models/ppocr/<model>.onnx and <model>.json
+    repository: str  # on Hugging Face
+    revision: str
+    sha256: dict[str, str]  # of the files of that revision the ONNX file is made from
+    height: int = Field(gt=0)  # px: the recognizer reads a line this high
+    valley: float = Field(ge=0, le=1)  # of the median row with ink: rows with less part two lines
+    speck_gap: float = Field(ge=0)  # line heights: ink this far from the rest of a line and lighter than min_ink
+    margin: float = Field(ge=0)  # of the line height: paper kept around a line cut close to its ink
+
+
 class OcrEngine(Section):
     engine: Literal["tesseract"]
     enabled: bool
@@ -501,6 +518,7 @@ class OcrEngine(Section):
     page_segmentation: int
     min_word_confidence: float = Field(ge=0, le=100)
     cells: OcrCells
+    ppocr: OcrPpocr
 
 
 TitleBlockField = Literal["designation", "name", "material", "mass", "scale", "litera", "sheet", "sheets"]
@@ -603,6 +621,15 @@ def prompts_dir(path: Path | None = None) -> Path:
     if env := os.environ.get(PROMPTS_DIR_ENV):
         return Path(env)
     return Path(__file__).resolve().parents[4] / "prompts"
+
+
+def models_dir(path: Path | None = None) -> Path:
+    """``path``, else ``ARM_MODELS_DIR``, else ``models/`` of the checkout this package runs from."""
+    if path is not None:
+        return path
+    if env := os.environ.get(MODELS_DIR_ENV):
+        return Path(env)
+    return Path(__file__).resolve().parents[4] / "models"
 
 
 def load_settings(

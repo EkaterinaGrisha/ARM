@@ -1,6 +1,6 @@
 {
   "model": null,
-  "date": "2026-11-09",
+  "date": "2026-11-10",
   "machine": "Darwin arm64, Python 3.11.15",
   "role": "dev",
   "ocr": true,
@@ -8,6 +8,7 @@
     "pdfium": "156.0.8076.0",
     "pypdfium2": "5.14.0",
     "tesseract": "5.5.2",
+    "eslav_PP-OCRv5_mobile_rec": "onnx sha256:984c0413f06b, onnxruntime 1.31.0",
     "pillow": "13.0.0"
   },
   "kits": {
@@ -37,18 +38,18 @@
       },
       "documents_with_designation": 53,
       "specifications": 11,
-      "specifications_with_designation": 0,
+      "specifications_with_designation": 8,
       "spec_rows": 82,
       "rows_with_designation": 64,
-      "rows_designation_parsed": 19,
-      "rows_by_kit": 17,
+      "rows_designation_parsed": 49,
+      "rows_by_kit": 1,
       "drawings": 37,
       "title_block": {
         "designation": 37,
         "name": 37,
         "material": 26,
-        "mass": 33,
-        "scale": 13,
+        "mass": 35,
+        "scale": 37,
         "litera": 0,
         "revision": 31,
         "sheets": 37
@@ -61,19 +62,20 @@
         "roughness": 25,
         "dimension_tolerance": 12
       },
-      "tree_items": 91,
+      "tree_items": 89,
       "root": false,
       "discrepancies": {
-        "B1.ORPHAN.001": 17,
+        "B1.MISSING.001": 1,
+        "B1.ORPHAN.001": 6,
         "B1.DUP.002": 1,
-        "B1.NAME.001": 15
+        "B1.NAME.001": 8
       },
       "log": {
         "info": 2,
         "warning": 1
       },
-      "seconds": 119.0,
-      "seconds_per_page": 2.24,
+      "seconds": 88.6,
+      "seconds_per_page": 1.67,
       "images": {
         "count": 53,
         "dpi": {

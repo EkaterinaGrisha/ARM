@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 BBox = tuple[float, float, float, float]
+Engine = tuple[str, str]  # the name and version of what read a word or a line, when not what read its page
 
 
 def no_surrogates(text: str) -> str:
@@ -18,6 +19,7 @@ def no_surrogates(text: str) -> str:
 class Word:
     text: str
     bbox: BBox
+    engine: Engine | None = None
 
     @property
     def cx(self) -> float:
@@ -36,6 +38,7 @@ class Line:
     vertical: bool = False
     words: list[Word] = field(default_factory=list)
     confidence: float | None = None  # OCR confidence 0..1; None for the text layer
+    engine: Engine | None = None
 
     @property
     def cx(self) -> float:
@@ -72,6 +75,13 @@ def split_wide_lines(lines: list[Line], gap: float) -> list[Line]:
         for g in groups:
             bbox = (g[0].bbox[0], min(w.bbox[1] for w in g), g[-1].bbox[2], max(w.bbox[3] for w in g))
             result.append(
-                Line(text=" ".join(w.text for w in g), bbox=bbox, size=ln.size, words=g, confidence=ln.confidence)
+                Line(
+                    text=" ".join(w.text for w in g),
+                    bbox=bbox,
+                    size=ln.size,
+                    words=g,
+                    confidence=ln.confidence,
+                    engine=ln.engine,
+                )
             )
     return result

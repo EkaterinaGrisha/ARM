@@ -205,9 +205,8 @@ def _extracted(
         return None
     raw = " ".join(ln.text for ln in lines)
     confidence = confidence if confidence is not None else lines_confidence(lines)
-    return Extracted(
-        value=value, raw=raw, confidence=confidence, source=doc.source(page, _union(lines), raw, confidence)
-    )
+    source = doc.source(page, _union(lines), raw, confidence, lines[0].engine)
+    return Extracted(value=value, raw=raw, confidence=confidence, source=source)
 
 
 def _cell_text(lines: list[Line], labels: Collection[str]) -> str:
@@ -311,7 +310,9 @@ def _revision(doc: LoadedDocument, page: Page, geom: Geometry, changes: ChangesT
     if ln not in entry:  # read from the column on its own
         entry.append(ln)
     raw = " ".join(x.text for x in sorted(entry, key=lambda x: x.bbox[0]))
-    return Extracted(value=num, raw=raw, source=doc.source(page, _union(entry), raw, lines_confidence(entry)))
+    return Extracted(
+        value=num, raw=raw, source=doc.source(page, _union(entry), raw, lines_confidence(entry), ln.engine)
+    )
 
 
 def _margin_value(

@@ -34,6 +34,12 @@ jobs:
           python-version: ${{ matrix.python }}
           enable-cache: true
       - run: uv sync --locked --all-packages --all-extras
+      # The PP-OCRv5 recognizer (ADR-0024): its tests run on the real model; the other tests read cells with Tesseract
+      - uses: actions/cache@v4
+        with:
+          path: models/ppocr
+          key: ppocr-${{ hashFiles('configs/models.yaml', 'scripts/fetch_ppocr.*') }}
+      - run: test -n "$(ls models/ppocr/*.onnx 2>/dev/null)" || sh scripts/fetch_ppocr.sh
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy

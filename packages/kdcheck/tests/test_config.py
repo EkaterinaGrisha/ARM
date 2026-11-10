@@ -35,6 +35,11 @@ KEPT: dict[str, dict[float, str]] = {
     },
     "ingest/pymupdf_backend.py": {180: "angles modulo a half turn"},
     "ocr/tesseract.py": {100: "top of the Tesseract confidence scale"},
+    "ocr/ppocr.py": {
+        127.5: "half the grey range: the recognizer reads pixels scaled to −1…1",
+        100: "top of the Tesseract confidence scale of min_word_confidence",
+        12: "hex digits of a model hash in the report",
+    },
     "layout/raster.py": {255: "white of an 8-bit grey image, ink of a mask"},
     "params/parameters.py": {80: "length of a coating name in the report"},
     "pipeline.py": {

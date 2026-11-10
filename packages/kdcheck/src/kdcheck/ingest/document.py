@@ -23,7 +23,7 @@ from PIL import Image, ImageChops, ImageFilter, ImageStat
 from kdcheck import limits
 from kdcheck.config import BlankSheet, ScanQuality, Settings, Sheet
 from kdcheck.ingest.pdf import EncryptedPdfError, PdfBackend, PdfPage, get_backend
-from kdcheck.ingest.text import BBox, Line
+from kdcheck.ingest.text import BBox, Engine, Line
 from kdcheck.layout import raster
 from kdcheck.ocr import cells, tesseract
 from kdcheck.schemas import DocumentInfo, PageInfo, SourceRef
@@ -134,8 +134,16 @@ class LoadedDocument:
                 info.problem = problem
 
     def source(
-        self, page: Page, bbox: BBox | None, text: str | None = None, confidence: float | None = None
+        self,
+        page: Page,
+        bbox: BBox | None,
+        text: str | None = None,
+        confidence: float | None = None,
+        engine: Engine | None = None,
     ) -> SourceRef:
+        """Where a value is on ``page``; ``engine`` names what read it when that is not what read the page, such as the
+        recognizer of the cells of a scan."""
+        name, version = engine if engine is not None else (page.engine, page.engine_version)
         return SourceRef(
             document_id=self.id,
             page=page.number,
@@ -143,8 +151,8 @@ class LoadedDocument:
             text=text,
             method=page.method,
             confidence=page.confidence if confidence is None else confidence,
-            engine=page.engine,
-            engine_version=page.engine_version,
+            engine=name,
+            engine_version=version,
         )
 
 
