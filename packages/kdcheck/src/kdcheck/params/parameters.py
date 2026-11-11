@@ -34,9 +34,11 @@ HARDNESS = re.compile(
     rf"(?P<a>{NUM})\s?(?:\.{{2,3}}|…|-|–)\s?(?P<b>{NUM})\s?(?P<u>HRC[эЭ]?|HB|HV|НВ|НRС)"
     rf"|(?P<u2>HRC[эЭ]?|HB|HV|НВ)\s?(?P<c>{NUM})\s?(?:\.{{2,3}}|…|-|–)\s?(?P<d>{NUM})"
 )
-DEPTH = re.compile(rf"h\s?(?P<a>{NUM})\s?(?:\.{{2,3}}|…|-|–)\s?(?P<b>{NUM})\s?мм")
-GENERAL_TOL = re.compile(r"(?i)неуказанные\s+предельные\s+отклонения")
+RANGE = r"(?:\.{2,3}|…|\.\s|-|–)"  # «0,8...1,2»; OCR also reads the dots as «..» or «. »
 IT = re.compile(r"IT\s?(\d{1,2})")
+HOLE_SHAFT = re.compile(r"(?<![A-Za-z])[Hh]\s?(\d{1,2})\b")  # «H14, h14» of unspecified limit deviations
+CLASS_HALF = re.compile(r"±\s?(?P<cls>t\s?\d)\s?/\s?2")  # «±t2/2»: a class of GOST 25670 for the rest
+GENERAL_FITS = re.compile(r"\b[HhJjs]{1,2}\d{1,2}\b|±\s?(?:IT\s?\d{1,2}|t\s?\d)\s?/\s?2")
 ROUGHNESS = re.compile(rf"(?<![A-Za-zА-Яа-я])(?P<p>[RРВК][aаzг])\s?(?P<v>{NUM})")
 
 
@@ -78,6 +80,21 @@ class Parser:
 
     def __init__(self, words: Dictionaries) -> None:
         self._heat_treatments = [(re.compile(t.pattern, re.IGNORECASE), t.name) for t in words.heat_treatments]
+        marks = "".join(re.escape(m) for m in words.layer_depth_marks)
+        layer = rf"\s?(?P<a>{NUM})\s?{RANGE}\s?(?P<b>{NUM})\s?(?:мм|mm)"
+        self._depth = re.compile(rf"(?<![\wА-Яа-я])h{layer}")
+        self._depth_ocr = re.compile(rf"(?<![\wА-Яа-я])[{marks}]{layer}")
+        general = words.general_tolerances
+        self._general = re.compile("|".join(f"(?:{p})" for p in general.patterns), re.IGNORECASE)
+        self._classes = {k.lower(): v for k, v in general.classes.items()}
+        letters = "".join(k for k in self._classes if len(k) == 1)
+        self._linear_class = re.compile(rf"30893[.,]\s?1(?:\s?-\s?\d{{4}})?\s?-\s?(?P<cls>[{letters}])(?![A-Za-z])")
+        geo = words.general_geometric
+        self._geo_name, self._geo_classes = geo.name, geo.classes
+        cls = "".join(geo.classes) + "НК"  # the Cyrillic look of H and K
+        self._general_geometric = re.compile(
+            geo.pattern + rf"(?:\s?-\s?\d{{4}})?\s*[-—–]?\s*(?P<lin>[{letters}])?(?P<cls>[{cls}])(?![\wА-Яа-я])"
+        )
         self._geometric = [(re.compile(t.pattern), t.name) for t in words.geometric_tolerances]  # on lower case
         self._coating = re.compile("|".join(words.coating_hints), re.IGNORECASE)
         self._gdt_names = dict(words.gdt_symbols)
@@ -98,21 +115,26 @@ class Parser:
                 Parameter(id=next_id(), text=text, source=src, confidence=src.confidence if src else None, **kw)
             )
 
-        if GENERAL_TOL.search(text):
-            m = IT.search(text)
-            grade = int(m.group(1)) if m else None
-            fits = re.findall(r"\b[HhJjs]{1,2}\d{1,2}\b", text)
-            add(
-                category="general_tolerance",
-                name=f"IT{grade}" if grade else "Неуказанные отклонения",
-                it_grade=grade,
-                qualifier=", ".join(fits) or None,
-                general=True,
-            )
-            return params
+        geometric = self._general_geometric.search(text)
+        if self._general.search(text) or geometric:
+            grade = self._general_grade(text, geometric)
+            if grade is not None or not geometric:
+                fits = [f.replace(" ", "") for f in GENERAL_FITS.findall(text)]
+                add(
+                    category="general_tolerance",
+                    name=f"IT{grade}" if grade else "Неуказанные отклонения",
+                    it_grade=grade,
+                    qualifier=", ".join(fits) or None,
+                    general=True,
+                )
+            if geometric:
+                level = geometric["cls"].translate(str.maketrans("НК", "HK"))
+                add(category="geometric", name=self._geo_name, qualifier=level, general=True)
+        # OCR joins neighbouring items, so a general tolerance does not end the item
+        depth = self._depth_ocr if src is not None and src.method == "ocr" else self._depth
         for pattern, name in self._heat_treatments:
             if pattern.search(text):
-                d = DEPTH.search(text)
+                d = depth.search(text)
                 add(
                     category="heat_treatment",
                     name=name,
@@ -132,12 +154,27 @@ class Parser:
             add(category="coating", name=value[:80], qualifier=value)
         for pattern, name in self._geometric:
             if pattern.search(low):
-                m = re.search(rf"(?:Ø|⌀)?\s?(?P<v>{NUM})\s?мм", text)
-                add(category="geometric", name=name, value=_f(m["v"]) if m else None, unit="мм" if m else None)
+                tol = re.search(rf"(?:Ø|⌀)?\s?(?P<v>{NUM})\s?мм", text)
+                add(category="geometric", name=name, value=_f(tol["v"]) if tol else None, unit="мм" if tol else None)
                 break
         for m in ROUGHNESS.finditer(text):
             params.append(_roughness(m, text, src, next_id, general=False))
         return params
+
+    def _general_grade(self, text: str, geometric: re.Match[str] | None) -> int | None:
+        """The IT grade of the sizes without limit deviations of their own: «±IT14/2», the grade of «H14, h14», the
+        class of GOST 25670 in «±t2/2», or the class of GOST 30893.1, «ГОСТ 30893.1-m» or «ГОСТ 30893.2-mK»."""
+        if grade := IT.search(text):
+            return int(grade.group(1))
+        if grades := {int(g) for g in HOLE_SHAFT.findall(text)}:
+            return grades.pop() if len(grades) == 1 else None
+        if half := CLASS_HALF.search(text):
+            return self._classes.get(half["cls"].replace(" ", "").lower())
+        if linear := self._linear_class.search(text):
+            return self._classes.get(linear["cls"].lower())
+        if geometric is not None and geometric["lin"]:
+            return self._classes.get(geometric["lin"].lower())
+        return None
 
     def annotation(
         self, doc: LoadedDocument, page: Page, line: Line, next_id: NextId, *, general_zone: bool

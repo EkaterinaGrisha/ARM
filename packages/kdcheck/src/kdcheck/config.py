@@ -394,6 +394,17 @@ class FileDesignations(Section):
     one_digit: bool  # the digits may differ by one digit dropped or doubled, never by one read as another
 
 
+class GeneralTolerances(Section):
+    patterns: tuple[str, ...] = Field(min_length=1)
+    classes: dict[str, int]
+
+
+class GeneralGeometric(Section):
+    pattern: str
+    name: str
+    classes: tuple[str, ...] = Field(min_length=1)
+
+
 class Dictionaries(Section):
     spec_sections: dict[str, NodeKind]
     needs_drawing: tuple[NodeKind, ...]
@@ -411,6 +422,9 @@ class Dictionaries(Section):
     latin_lookalikes: dict[str, str]
     digit_lookalikes: dict[str, str]
     heat_treatments: tuple[Term, ...]
+    layer_depth_marks: tuple[str, ...]
+    general_tolerances: GeneralTolerances
+    general_geometric: GeneralGeometric
     geometric_tolerances: tuple[Term, ...]
     gdt_symbols: dict[str, str]
     coating_hints: tuple[str, ...]

@@ -8,7 +8,7 @@ from kdcheck.config import load_settings
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.ingest.text import Line
 from kdcheck.params import critical, parameters
-from kdcheck.schemas import DocumentInfo, Extracted, PartRecord
+from kdcheck.schemas import DocumentInfo, Extracted, PartRecord, SourceRef
 
 SETTINGS = load_settings(use_ocr=False)
 PARSER = parameters.Parser(SETTINGS.dictionaries)
@@ -56,6 +56,74 @@ def summary(params):
 )
 def test_requirement_parameters(text, expected):
     assert summary(requirement(text)) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "grade", "qualifier"),
+    [
+        ("Общие допуски по ГОСТ 30893.1: H14, h14, ±IT14/2.", 14, "H14, h14, ±IT14/2"),
+        ("Общие допуски по ГОСТ 30893.1-2002: H14, h14, ± IT14 / 2.", 14, "H14, h14, ±IT14/2"),
+        ("Общие допуски по ГОСТ 30893.1: H12, h12, ±t1/2.", 12, "H12, h12, ±t1/2"),
+        ("Общие допуски по ГОСТ 30893.1-2002: h14, ±", 14, "h14"),
+        ("Общие допуски по ГОСТ 30893.1-m.", 14, None),
+        ("Неуказанные предельные отклонения размеров: отверстий H12, валов h12, остальных ±IT12/2.", 12, None),
+    ],
+)
+def test_general_tolerances_of_gost_25670_and_30893_1(text, grade, qualifier):
+    """GOST 2.307-2011, table 1: the grade of «±IT14/2», of «H14, h14», of the class «t2» of GOST 25670 or «m» of GOST
+    30893.1."""
+    [param] = requirement(text)
+    assert (param.category, param.name, param.it_grade, param.general) == (
+        "general_tolerance",
+        f"IT{grade}",
+        grade,
+        True,
+    )
+    if qualifier is not None:
+        assert param.qualifier == qualifier
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Общие допуски формы и расположения — по ГОСТ 30893.2 — К.", [("geometric", "K")]),
+        ("Общие допуски по ГОСТ 30893.2-mK.", [("general_tolerance", None), ("geometric", "K")]),
+        ("Неуказанные допуски формы и расположения — по ГОСТ 30893.2-2002 — H.", [("geometric", "H")]),
+    ],
+)
+def test_general_tolerances_of_form_and_position_of_gost_30893_2(text, expected):
+    """GOST 30893.2: the class H, K or L; «mK» also names the class of the sizes, m of GOST 30893.1."""
+    params = requirement(text)
+    assert [(p.category, p.qualifier if p.category == "geometric" else None) for p in params] == expected
+    assert all(p.general for p in params)
+    assert [p.it_grade for p in params if p.category == "general_tolerance"] in ([], [14])
+
+
+def test_an_item_joined_by_ocr_keeps_the_heat_treatment_after_a_general_tolerance():
+    text = "Неуказанные предельные отклонения размеров: H14, h14, ±IT14/2. Закалить ТВЧ h 2...3 мм, 48...52 HRC."
+    assert [p.category for p in requirement(text)] == ["general_tolerance", "heat_treatment", "hardness"]
+
+
+def test_carbonitriding_is_not_carburizing():
+    [treatment, _] = requirement("Нитроцементировать h 0,3...0,5 мм, 58...62 HRC.")
+    assert (treatment.name, treatment.value_min, treatment.value_max) == ("Нитроцементация", 0.3, 0.5)
+
+
+@pytest.mark.parametrize(
+    ("text", "method", "depth"),
+    [
+        ("Зубья закалить ТВЧ В 2,0...3,0 мм, 45...50 HRC.", "ocr", (2.0, 3.0)),
+        ("Цементировать В 0,8. 1,2 мм. Закалить, отпустить: 58...62 HRC.", "ocr", (0.8, 1.2)),
+        ("Закалить ТВЧ h 1,5..2,0 mm, 48...52 HRC.", "ocr", (1.5, 2.0)),
+        ("Зубья закалить ТВЧ В 2,0...3,0 мм, 45...50 HRC.", "text_layer", (None, None)),
+    ],
+)
+def test_the_depth_of_a_layer_as_ocr_reads_it(text, method, depth):
+    """OCR reads «h» as «В» or «Н» and the dots as «..» or «. »; a text layer writes «h», so there a «В» is a
+    surface."""
+    item = Extracted(value=text, raw=text, source=SourceRef(document_id="d1", method=method))
+    treatment = next(p for p in PARSER.requirement(item, _next_id()) if p.category == "heat_treatment")
+    assert (treatment.value_min, treatment.value_max) == depth
 
 
 @pytest.mark.parametrize(

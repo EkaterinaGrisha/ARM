@@ -984,22 +984,22 @@
         },
         "vector:general_tolerance": {
           "expected": 274,
-          "found": 135,
+          "found": 274,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
           "precision": 1.0,
-          "recall": 0.493,
+          "recall": 1.0,
           "value_accuracy": null
         },
         "vector:geometric": {
           "expected": 215,
-          "found": 180,
+          "found": 215,
           "extra": 0,
           "valued": 56,
           "value_right": 56,
           "precision": 1.0,
-          "recall": 0.837,
+          "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:hardness": {
@@ -1014,12 +1014,12 @@
         },
         "vector:heat_treatment": {
           "expected": 146,
-          "found": 139,
-          "extra": 7,
-          "valued": 73,
-          "value_right": 73,
-          "precision": 0.952,
-          "recall": 0.952,
+          "found": 146,
+          "extra": 0,
+          "valued": 80,
+          "value_right": 80,
+          "precision": 1.0,
+          "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:roughness": {
@@ -1033,12 +1033,7 @@
           "value_accuracy": 1.0
         }
       },
-      "lost_requirements": {
-        "Общие допуски: Общие допуски по ГОСТ N.N: HN, hN, ±tN/N.": 70,
-        "Общие допуски: Общие допуски по ГОСТ N.N: HN, hN, ±ITN/N.": 69,
-        "Допуск формы/расположения: Общие допуски формы и расположения — по ГОСТ N.N — К.": 35,
-        "Термообработка: Нитроцементировать h N,N...N,N мм, N...N HRC.": 7
-      },
+      "lost_requirements": {},
       "wrong_values": {},
       "regions": {
         "vector:основная надпись": {
@@ -1047,8 +1042,8 @@
           "share": 1.0
         },
         "vector:параметр": {
-          "values": 1880,
-          "right": 1880,
+          "values": 2061,
+          "right": 2061,
           "share": 1.0
         },
         "vector:строка спецификации": {
@@ -1615,12 +1610,12 @@
       "parameters": {
         "captured:coating": {
           "expected": 26,
-          "found": 10,
-          "extra": 3,
+          "found": 11,
+          "extra": 4,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.769,
-          "recall": 0.385,
+          "precision": 0.733,
+          "recall": 0.423,
           "value_accuracy": null
         },
         "captured:dimension_tolerance": {
@@ -1635,23 +1630,23 @@
         },
         "captured:general_tolerance": {
           "expected": 47,
-          "found": 0,
-          "extra": 5,
+          "found": 8,
+          "extra": 1,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.0,
-          "recall": 0.0,
+          "precision": 0.889,
+          "recall": 0.17,
           "value_accuracy": null
         },
         "captured:geometric": {
           "expected": 49,
-          "found": 4,
+          "found": 12,
           "extra": 0,
-          "valued": 4,
+          "valued": 5,
           "value_right": 3,
           "precision": 1.0,
-          "recall": 0.082,
-          "value_accuracy": 0.75
+          "recall": 0.245,
+          "value_accuracy": 0.6
         },
         "captured:hardness": {
           "expected": 44,
@@ -1668,10 +1663,10 @@
           "found": 18,
           "extra": 0,
           "valued": 13,
-          "value_right": 2,
+          "value_right": 10,
           "precision": 1.0,
           "recall": 0.6,
-          "value_accuracy": 0.154
+          "value_accuracy": 0.769
         },
         "captured:roughness": {
           "expected": 126,
@@ -1705,22 +1700,22 @@
         },
         "vector:general_tolerance": {
           "expected": 274,
-          "found": 135,
+          "found": 274,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
           "precision": 1.0,
-          "recall": 0.493,
+          "recall": 1.0,
           "value_accuracy": null
         },
         "vector:geometric": {
           "expected": 215,
-          "found": 180,
+          "found": 215,
           "extra": 0,
           "valued": 56,
           "value_right": 56,
           "precision": 1.0,
-          "recall": 0.837,
+          "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:hardness": {
@@ -1735,12 +1730,12 @@
         },
         "vector:heat_treatment": {
           "expected": 146,
-          "found": 139,
-          "extra": 7,
-          "valued": 73,
-          "value_right": 73,
-          "precision": 0.952,
-          "recall": 0.952,
+          "found": 146,
+          "extra": 0,
+          "valued": 80,
+          "value_right": 80,
+          "precision": 1.0,
+          "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:roughness": {
@@ -1754,19 +1749,14 @@
           "value_accuracy": 1.0
         }
       },
-      "lost_requirements": {
-        "Общие допуски: Общие допуски по ГОСТ N.N: HN, hN, ±tN/N.": 70,
-        "Общие допуски: Общие допуски по ГОСТ N.N: HN, hN, ±ITN/N.": 69,
-        "Допуск формы/расположения: Общие допуски формы и расположения — по ГОСТ N.N — К.": 35,
-        "Термообработка: Нитроцементировать h N,N...N,N мм, N...N HRC.": 7
-      },
+      "lost_requirements": {},
       "wrong_values": {
-        "heat_treatment: от 2 до 3 мм → —": 5,
-        "heat_treatment: от 1.5 до 2 мм → —": 2,
-        "heat_treatment: от 1 до 1.4 мм → —": 2,
-        "heat_treatment: от 0.8 до 1.2 мм → —": 2,
         "hardness: от 241 до 285 HB → от 48 до 52 HB": 1,
-        "geometric: = 0.05 мм → = 3 мм": 1
+        "heat_treatment: от 1.5 до 2 мм → от 15 до 2 мм": 1,
+        "heat_treatment: от 1 до 1.4 мм → —": 1,
+        "geometric: = 0.03 мм → = 20.03 мм": 1,
+        "geometric: = 0.05 мм → = 3 мм": 1,
+        "heat_treatment: от 2 до 3 мм → от 20 до 30 мм": 1
       },
       "regions": {
         "captured:основная надпись": {
@@ -1775,9 +1765,9 @@
           "share": 1.0
         },
         "captured:параметр": {
-          "values": 102,
-          "right": 80,
-          "share": 0.784
+          "values": 119,
+          "right": 88,
+          "share": 0.739
         },
         "captured:строка спецификации": {
           "values": 116,
@@ -1790,8 +1780,8 @@
           "share": 1.0
         },
         "vector:параметр": {
-          "values": 1880,
-          "right": 1880,
+          "values": 2061,
+          "right": 2061,
           "share": 1.0
         },
         "vector:строка спецификации": {
@@ -1801,7 +1791,7 @@
         }
       },
       "wrong_regions": {
-        "параметр, растры и сканы: захватывает другое значение": 18,
+        "параметр, растры и сканы: захватывает другое значение": 27,
         "параметр, растры и сканы: другая страница": 2,
         "параметр, растры и сканы: не тот файл листа": 1,
         "параметр, растры и сканы: не там, где значение": 1
@@ -2159,23 +2149,23 @@
         },
         "captured:general_tolerance": {
           "expected": 47,
-          "found": 24,
-          "extra": 1,
+          "found": 42,
+          "extra": 0,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.96,
-          "recall": 0.511,
+          "precision": 1.0,
+          "recall": 0.894,
           "value_accuracy": null
         },
         "captured:geometric": {
           "expected": 49,
-          "found": 10,
+          "found": 19,
           "extra": 0,
-          "valued": 10,
+          "valued": 11,
           "value_right": 10,
           "precision": 1.0,
-          "recall": 0.204,
-          "value_accuracy": 1.0
+          "recall": 0.388,
+          "value_accuracy": 0.909
         },
         "captured:hardness": {
           "expected": 44,
@@ -2189,13 +2179,13 @@
         },
         "captured:heat_treatment": {
           "expected": 30,
-          "found": 29,
+          "found": 30,
           "extra": 0,
-          "valued": 17,
+          "valued": 18,
           "value_right": 17,
           "precision": 1.0,
-          "recall": 0.967,
-          "value_accuracy": 1.0
+          "recall": 1.0,
+          "value_accuracy": 0.944
         },
         "captured:roughness": {
           "expected": 126,
@@ -2229,22 +2219,22 @@
         },
         "vector:general_tolerance": {
           "expected": 274,
-          "found": 135,
+          "found": 274,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
           "precision": 1.0,
-          "recall": 0.493,
+          "recall": 1.0,
           "value_accuracy": null
         },
         "vector:geometric": {
           "expected": 215,
-          "found": 180,
+          "found": 215,
           "extra": 0,
           "valued": 56,
           "value_right": 56,
           "precision": 1.0,
-          "recall": 0.837,
+          "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:hardness": {
@@ -2259,12 +2249,12 @@
         },
         "vector:heat_treatment": {
           "expected": 146,
-          "found": 139,
-          "extra": 7,
-          "valued": 73,
-          "value_right": 73,
-          "precision": 0.952,
-          "recall": 0.952,
+          "found": 146,
+          "extra": 0,
+          "valued": 80,
+          "value_right": 80,
+          "precision": 1.0,
+          "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:roughness": {
@@ -2278,13 +2268,11 @@
           "value_accuracy": 1.0
         }
       },
-      "lost_requirements": {
-        "Общие допуски: Общие допуски по ГОСТ N.N: HN, hN, ±tN/N.": 70,
-        "Общие допуски: Общие допуски по ГОСТ N.N: HN, hN, ±ITN/N.": 69,
-        "Допуск формы/расположения: Общие допуски формы и расположения — по ГОСТ N.N — К.": 35,
-        "Термообработка: Нитроцементировать h N,N...N,N мм, N...N HRC.": 7
+      "lost_requirements": {},
+      "wrong_values": {
+        "heat_treatment: от 2 до 3 мм → —": 1,
+        "geometric: = 0.05 мм → = 3 мм": 1
       },
-      "wrong_values": {},
       "regions": {
         "captured:основная надпись": {
           "values": 583,
@@ -2292,9 +2280,9 @@
           "share": 1.0
         },
         "captured:параметр": {
-          "values": 190,
-          "right": 183,
-          "share": 0.963
+          "values": 218,
+          "right": 207,
+          "share": 0.95
         },
         "captured:строка спецификации": {
           "values": 132,
@@ -2307,8 +2295,8 @@
           "share": 1.0
         },
         "vector:параметр": {
-          "values": 1880,
-          "right": 1880,
+          "values": 2061,
+          "right": 2061,
           "share": 1.0
         },
         "vector:строка спецификации": {
@@ -2318,7 +2306,7 @@
         }
       },
       "wrong_regions": {
-        "параметр, растры и сканы: захватывает другое значение": 3,
+        "параметр, растры и сканы: захватывает другое значение": 7,
         "параметр, растры и сканы: другая страница": 2,
         "параметр, растры и сканы: не тот файл листа": 1,
         "параметр, растры и сканы: не там, где значение": 1
