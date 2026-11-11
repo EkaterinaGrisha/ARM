@@ -115,6 +115,15 @@ title_block:                     # GOST 2.104
       designation: [65, 0, 175, 15]
       sheet: [175, 7, 185, 15]   # under its label
     sheet_label: лист            # the label of the sheet cell, lower case and letters only
+  people:                        # names, signatures and dates; the core reads none of them (eval/mask_people.py)
+    columns: [17, 65]            # «№ докум.», «Подп.», «Дата» of the change record table and the name, signature
+                                 # and date of each signer, from the left edge of the block, in forms 1, 2 and 2a
+    margin_rows: [[25, 60], [110, 145]]  # columns 20 and 23 «Подп. и дата» in the binding field, mm above the
+                                 # bottom line of the frame: columns 19–23 are 25, 35, 25, 25 and 35 mm from below
+    labels: [изм, лист, листов, докум, подп, дата, разраб, пров, контр, утв, нач, отд, исп, согл, лит, масса,
+             масштаб]            # words of the form in those columns, lower case: the other capitalised words there
+                                 # are taken for surnames when masked sheets are checked
+    min_surname: 4               # letters: shorter capitalised words there are abbreviations or misread strokes
   label_zone: [0.4, 0.5]         # labels lie right of this share of the width and below this share of the height
   label_row_tolerance: 2.5       # labels of one row differ in height by less than this
   scale_range: [0.6, 1.6]        # a scale measured between labels is used within this range of the nominal one
