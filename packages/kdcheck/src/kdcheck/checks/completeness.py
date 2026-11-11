@@ -112,13 +112,34 @@ class Checker:
 
     def _same_name(self, a: str | None, b: str | None, *sources: SourceRef | None) -> bool:
         """Whether two names are one: the same after normalization or, when one of them was read by OCR or a model,
-        close enough for the difference to be misread letters."""
+        close enough for the difference to be misread letters.
+
+        A misread «сборочный чертеж» on an assembly drawing is no part of the name. Names of as many words are
+        compared word by word, so a misread letter is forgiven and another word, as «цилиндр» against
+        «гидроцилиндр», is not; names of a different number of words, as when OCR loses a space, are compared
+        whole."""
         first, second = self.eskd.normalize_name(a), self.eskd.normalize_name(b)
         if first == second:
             return True
         if not any(s is not None and s.method in self.names.methods for s in sources):
             return False
-        return difflib.SequenceMatcher(None, first, second).ratio() >= self.names.min_similarity
+        first, second = self._without_misread_document_name(first), self._without_misread_document_name(second)
+        words, others = first.split(), second.split()
+        if len(words) == len(others):
+            return all(self._close(w, o) for w, o in zip(words, others, strict=True))
+        return self._close(first, second)
+
+    def _close(self, a: str, b: str) -> bool:
+        return a == b or difflib.SequenceMatcher(None, a, b).ratio() >= self.names.min_similarity
+
+    def _without_misread_document_name(self, name: str) -> str:
+        """``name`` without a trailing «сборочный чертеж» read with misread letters, as «сдорочный чертеж»;
+        :meth:`Designations.normalize_name` removes the words read right."""
+        tail = self.eskd.words.assembly_drawing_name.split()
+        words = name.split()
+        if len(words) > len(tail) and self._close(" ".join(words[-len(tail) :]), " ".join(tail)):
+            return " ".join(words[: -len(tail)])
+        return name
 
     def _check_missing(self) -> None:
         """Positions whose document is not in the kit, in the order of the tree: one discrepancy a row, with every
