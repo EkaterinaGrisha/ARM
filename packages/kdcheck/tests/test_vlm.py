@@ -43,6 +43,7 @@ class StubServer:
 
     def __init__(self) -> None:
         self.answers: dict[str, str] = {}
+        self.turns: dict[str, list[str]] = {}
         self.requests: list[dict] = []
         self.in_reasoning = False
         self.redirect: str | None = None
@@ -65,6 +66,8 @@ class StubServer:
                 label = next((k for k in stub.answers if f"«{k}»" in prompt), None)
                 label = label or next((k for k in stub.answers if k in prompt), None)  # a prompt with no «{label}»
                 content = stub.answers.get(label, json.dumps({"text": ""}))
+                if label in stub.turns and stub.turns[label]:  # one reply a request, in turn
+                    content = json.dumps({"text": stub.turns[label].pop(0)}, ensure_ascii=False)
                 message = {"role": "assistant", "content": content}
                 if stub.in_reasoning:
                     message = {"role": "assistant", "content": "", "reasoning_content": content}
@@ -87,6 +90,10 @@ class StubServer:
 
     def say(self, label: str, text: str) -> None:
         self.answers[label] = json.dumps({"text": text}, ensure_ascii=False)
+
+    def say_in_turn(self, label: str, *texts: str) -> None:
+        self.answers.setdefault(label, json.dumps({"text": ""}))
+        self.turns[label] = list(texts)
 
 
 @pytest.fixture
@@ -317,8 +324,9 @@ def test_a_failed_reading_is_not_kept(settings, tmp_path):
     assert not list(tmp_path.rglob("*.json"))
 
 
-def _rows_on_a_table(settings, eskd, monkeypatch, server, conflict="model"):
-    """A page with a table of one row placed by its lines: the layout is given, so the test needs no raster."""
+def _rows_on_a_table(settings, eskd, monkeypatch, server, conflict="model", name_lines=0):
+    """A page with a table of one row placed by its lines: the layout is given, so the test needs no raster.
+    ``name_lines``: lines of a name OCR read in the row and the bands below it, as a name carried to the next line."""
     from kdcheck.layout import raster
     from kdcheck.schemas import Extracted, SourceRef, SpecRow
     from kdcheck.vlm import spec_rows
@@ -329,7 +337,7 @@ def _rows_on_a_table(settings, eskd, monkeypatch, server, conflict="model"):
     scale = 0.5  # page units per pixel
     image = Image.new("L", (int(page.width / scale), int(page.height / scale)), 255)
     columns = {"designation": (20.0, 90.0), "name": (90.0, 160.0)}
-    table = raster.Table(left=100.0, s=4.0, columns=columns, rows=[(400.0, 432.0)])
+    table = raster.Table(left=100.0, s=4.0, columns=columns, rows=[(400.0, 432.0), (432.0, 464.0), (464.0, 496.0)])
     corner = raster.Corner(turn=raster.Turn(pivot=(0.0, 0.0)), level=128, block=None)  # type: ignore[arg-type]
     monkeypatch.setattr(spec_rows.raster, "find_corner", lambda *a: corner)
     monkeypatch.setattr(spec_rows.raster, "find_table", lambda *a: table)
@@ -337,6 +345,11 @@ def _rows_on_a_table(settings, eskd, monkeypatch, server, conflict="model"):
     source = SourceRef(document_id=doc.id, page=page.number, bbox=band, text="?", method="ocr")
     row = SpecRow(id="r1", position=Extracted(value="3", raw="3"), source=source)
     row.designation = Extracted(value="АРМ.7584.22.002", raw="АРМ.7584.22.002", source=source)
+    if name_lines:
+        lines = ["Тяга рулевая с", "наконечниками"][:name_lines]
+        words = page.norm_bbox((280 * scale, 405 * scale, 400 * scale, (405 + 32 * (name_lines - 1) + 22) * scale))
+        name = SourceRef(document_id=doc.id, page=page.number, bbox=words, text=" ".join(lines), method="ocr")
+        row.name = Extracted(value=" ".join(lines), raw=" ".join(lines), source=name)
     client = VlmClient(on.models.vlm, Prompt("rows.v1", "Графа «{label}»"))
     notes = spec_rows.read_rows(
         doc, page, [row], client=client, image=(image, (0.0, 0.0), scale), settings=on, eskd=eskd
@@ -369,6 +382,23 @@ def test_the_model_reads_the_cells_of_a_specification_row(settings, eskd, monkey
         "Графа «Обозначение»",
         "Графа «Наименование»",
     ]
+
+
+def test_the_model_reads_each_line_of_a_name_carried_to_the_next_line(settings, eskd, monkeypatch, server):
+    """OCR joined two lines of a name into the row; the model reads both cells, not the first one alone."""
+    server.say("Обозначение", "АРМ.7584.22.002")
+    server.say_in_turn("Наименование", "Тяга рулевая с", "наконечниками")
+    row, notes, client, page = _rows_on_a_table(settings, eskd, monkeypatch, server, name_lines=2)
+    assert (row.name.value, row.name.source.method, notes) == ("Тяга рулевая с наконечниками", "ocr", [])
+    assert client.calls == 3  # the designation, then the name in the row and in the band below it, not the third
+
+
+def test_a_name_of_one_line_is_read_in_its_band_alone(settings, eskd, monkeypatch, server):
+    server.say("Обозначение", "АРМ.7584.22.002")
+    server.say_in_turn("Наименование", "Тяга рулевая", "наконечниками")
+    row, notes, client, _ = _rows_on_a_table(settings, eskd, monkeypatch, server, name_lines=1)
+    assert (row.name.value, row.name.status, row.name.source.method) == ("Тяга рулевая", "conflict", "vlm")
+    assert client.calls == 2
 
 
 def test_a_row_conflict_may_keep_the_reading_of_ocr(settings, eskd, monkeypatch, server):

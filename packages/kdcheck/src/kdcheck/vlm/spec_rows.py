@@ -55,22 +55,31 @@ def read_rows(
     vlm = settings.models.vlm
     margin = settings.models.ocr.cells.margin * table.s
     notes: list[str] = []
-    for top, bottom in table.rows:
-        band = page.norm_bbox(_rect(place, (table.left, top, table.left + 1, bottom)))
-        row = next((r for r in on_page if r.source and r.source.bbox and _within(r.source.bbox, band)), None)
+    bands = [
+        (top, bottom, page.norm_bbox(_rect(place, (table.left, top, table.left + 1, bottom))))
+        for top, bottom in table.rows
+    ]
+    for i, (top, bottom, band) in enumerate(bands):
+        row = _row_in(band, on_page)
         if row is None:
             continue
         for field, label in vlm.rows.fields.items():
             left, right = table.columns[field]
-            box = (table.left + left * table.s, top, table.left + right * table.s, bottom)
-            crop = turn.crop(gray, (box[0] + margin, box[1] + margin, box[2] - margin, box[3] - margin))
+            # GOST 2.106 carries a long name to the next lines: the model reads each of them, as OCR joined them
+            spans = [(top, bottom), *_continued(getattr(row, field), bands[i + 1 :], on_page, page.number)]
+            texts: list[str] = []
             try:
-                text = client.read(crop, label)
+                for span_top, span_bottom in spans:
+                    cell = (table.left + left * table.s, span_top, table.left + right * table.s, span_bottom)
+                    crop = turn.crop(gray, (cell[0] + margin, cell[1] + margin, cell[2] - margin, cell[3] - margin))
+                    texts.append(client.read(crop, label))
             except VlmError as exc:
                 if exc.fatal:
                     raise
                 notes.append(f"Ячейку «{label}» строки {_position(row)} модель не прочитала: {exc}")
                 continue
+            text = " ".join(t for t in texts if t)
+            box = (table.left + left * table.s, top, table.left + right * table.s, spans[-1][1])
             if not text:
                 continue
             value = (eskd.normalize_designation(text) or text) if field == "designation" else text
@@ -121,6 +130,26 @@ def _within(bbox: BBox, band: BBox) -> bool:
     """Whether the middle of ``bbox`` lies in the height of ``band``: the row OCR read in that band."""
     middle = (bbox[1] + bbox[3]) / 2
     return band[1] <= middle <= band[3]
+
+
+def _row_in(band: BBox, rows: list[SpecRow]) -> SpecRow | None:
+    return next((r for r in rows if r.source and r.source.bbox and _within(r.source.bbox, band)), None)
+
+
+def _continued(
+    value: Extracted | None, below: list[tuple[float, float, BBox]], rows: list[SpecRow], page: int
+) -> list[tuple[float, float]]:
+    """The bands below a row that OCR joined into ``value``: those whose middle the box of the value spans, up to
+    the band of the next row (:func:`kdcheck.extract.specification._append_continuation` widens the box)."""
+    if value is None or value.source is None or not value.source.bbox or value.source.page != page:
+        return []
+    y0, y1 = value.source.bbox[1], value.source.bbox[3]
+    spans: list[tuple[float, float]] = []
+    for top, bottom, band in below:
+        if _row_in(band, rows) is not None or not y0 <= (band[1] + band[3]) / 2 <= y1:
+            break
+        spans.append((top, bottom))
+    return spans
 
 
 def _position(row: SpecRow) -> str:

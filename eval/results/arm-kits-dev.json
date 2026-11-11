@@ -1,6 +1,6 @@
 {
   "model": null,
-  "date": "2026-11-10",
+  "date": "2026-11-11",
   "machine": "Darwin arm64, Python 3.11.15",
   "role": "dev",
   "ocr": true,
@@ -67,14 +67,15 @@
       "discrepancies": {
         "B1.MISSING.001": 3,
         "B1.DUP.002": 1,
-        "B1.NAME.001": 7,
+        "B1.NAME.001": 4,
+        "B1.NAME.002": 1,
         "B1.FORMAT.001": 3
       },
       "log": {
         "info": 2
       },
-      "seconds": 88.4,
-      "seconds_per_page": 1.67,
+      "seconds": 90.1,
+      "seconds_per_page": 1.7,
       "images": {
         "count": 53,
         "dpi": {

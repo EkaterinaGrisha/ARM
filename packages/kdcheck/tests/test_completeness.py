@@ -571,6 +571,21 @@ def test_the_text_layer_gets_no_margin():
     assert "B1.NAME.001" in fired(_kit_with_name("Шацба специольная", "text_layer"))
 
 
+def test_a_misread_assembly_drawing_after_an_ocr_name_is_not_a_mismatch():
+    assert "B1.NAME.001" not in fired(_kit_with_name("Шайба специальная. Сдорочный чертеж", "ocr"))
+
+
+def test_a_word_more_in_an_ocr_name_is_a_mismatch():
+    """«Цилиндр» against «Гидроцилиндр» is close as a whole name, but it is another word, not misread letters."""
+    ref = drawing("d1", PART, "Гидроцилиндр с наконечниками")
+    _read_by(ref.part.title_block.name, "ocr")
+    assert "B1.NAME.001" in fired(([product(part_row("Цилиндр с наконечниками"))], [ref]))
+
+
+def test_an_ocr_name_with_a_lost_space_is_compared_whole():
+    assert "B1.NAME.001" not in fired(_kit_with_name("Шайбаспециальная", "ocr"))
+
+
 def test_positions_with_two_readings_of_one_name_are_not_a_duplicate():
     one, other = part_row("Шайба специальная"), part_row("Шацба специольная")
     _read_by(other.name, "ocr")
