@@ -85,7 +85,7 @@ export function documentFileUrl(jobId: string, docId: string): string | null {
   return `/api/jobs/${jobId}/documents/${docId}/file`;
 }
 
-export type ExportFormat = "json" | "xlsx" | "html";
+export type ExportFormat = "json" | "xlsx" | "html" | "csv";
 
 export function exportUrl(jobId: string, format: ExportFormat): string | null {
   if (jobId === LOCAL_ID) return null;

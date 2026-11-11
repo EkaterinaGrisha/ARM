@@ -77,7 +77,7 @@ class BaselinePipeline:
         self.designations = Designations(settings.dictionaries)  # every grammar; a run narrows them to its kit
         self.eskd = self.designations
         self.rules = rules.configured(settings.checks)
-        self.parameters = parameters.Parser(settings.dictionaries)
+        self.parameters = parameters.Parser(settings.dictionaries, settings.tolerances)
         vlm = settings.models.vlm
         self.vlm = VlmClient(vlm, load_prompt(vlm.prompt)) if vlm.enabled else None
         # the cells of specification rows, with a prompt of their own (ADR-0021)

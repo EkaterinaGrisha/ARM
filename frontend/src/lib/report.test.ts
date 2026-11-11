@@ -58,6 +58,9 @@ describe("форматирование", () => {
     expect(parameterValue({ ...base, value_min: 58, value_max: 62, unit: "HRC" })).toBe("58…62 HRC");
     expect(parameterValue({ ...base, value: 0.8, unit: "мкм" })).toBe("0,8 мкм");
     expect(parameterValue(base)).toBe("—");
+    const fit = { ...base, category: "dimension_tolerance", value: 40, value_min: 40, value_max: 40.025, unit: "мм" } as Parameter;
+    expect(parameterValue({ ...fit, lower_deviation: 0, upper_deviation: 0.025 })).toBe("40 +0,025/0 мм");
+    expect(parameterValue({ ...fit, lower_deviation: -0.016, upper_deviation: 0 })).toBe("40 0/−0,016 мм");
   });
 
   it("склонение и размеры", () => {

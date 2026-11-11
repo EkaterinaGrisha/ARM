@@ -900,6 +900,32 @@
           "default": null,
           "title": "It Grade"
         },
+        "lower_deviation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Нижнее предельное отклонение размера, мм: из поля допуска по ГОСТ 25346 (Ø40H7 → 0) или из записи «±»; `value_min` — наименьший предельный размер. С версии 1.9",
+          "title": "Lower Deviation"
+        },
+        "upper_deviation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Верхнее предельное отклонение размера, мм (Ø40H7 → +0,025); `value_max` — наибольший предельный размер. С версии 1.9",
+          "title": "Upper Deviation"
+        },
         "general": {
           "default": false,
           "description": "Общее требование (неуказанные отклонения, шероховатость остального)",
@@ -1894,7 +1920,7 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "default": "1.8",
+      "default": "1.9",
       "title": "Schema Version",
       "type": "string"
     },

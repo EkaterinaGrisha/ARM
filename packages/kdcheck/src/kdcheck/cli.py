@@ -57,7 +57,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         f"Документов: {s.documents_total}, расхождений: {s.discrepancies_total}, "
         f"критичных параметров: {s.critical_parameters}"
     )
-    print(f"Отчёт: {out / 'report.json'} (+ report.xlsx, report.html)")
+    print(f"Отчёт: {out / 'report.json'} (+ report.xlsx, report.html, report.csv)")
     if args.cache or read_cache.folder_from_env():
         print(f"Кэш прочтений — {read_cache.summary() or 'обращений к OCR и модели не было'}", file=sys.stderr)
     return 0

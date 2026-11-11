@@ -56,6 +56,7 @@ export function ReportView({ jobId, report }: { jobId: string; report: Report })
   ];
   const current = tabs.find((t) => t.id === tab) ?? tabs[0];
   const xlsx = exportUrl(jobId, "xlsx");
+  const csv = exportUrl(jobId, "csv");
   const html = exportUrl(jobId, "html");
   const json = exportUrl(jobId, "json");
   const base = `/jobs/${jobId}`;
@@ -100,6 +101,11 @@ export function ReportView({ jobId, report }: { jobId: string; report: Report })
           {xlsx && (
             <a className="btn" href={xlsx} download={jobId === DEMO_ID ? "report.xlsx" : undefined} title="Таблицы для технолога">
               <FileSpreadsheet size={16} /> Excel
+            </a>
+          )}
+          {csv && (
+            <a className="btn" href={csv} download={jobId === DEMO_ID ? "report.csv" : undefined} title="Параметры «деталь × параметр» для учётных систем">
+              <FileSpreadsheet size={16} /> CSV
             </a>
           )}
           {html && (

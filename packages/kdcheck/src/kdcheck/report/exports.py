@@ -1,7 +1,9 @@
-"""Human-readable report forms: an Excel workbook and a printable HTML page."""
+"""Report forms: an Excel workbook and a printable HTML page for the technologist, and the table «part × parameter»
+in CSV for accounting systems."""
 
 from __future__ import annotations
 
+import csv
 import html
 import io
 from collections.abc import Iterator
@@ -44,6 +46,67 @@ def _src(report: Report, src: SourceRef | None) -> str:
         return ""
     paths = {d.id: d.path for d in report.documents}
     return f"{paths.get(src.document_id, src.document_id)}, стр. {src.page}"
+
+
+def _parameters(report: Report) -> tuple[list[str], list[list[Any]]]:
+    """The table «part × parameter»: a row for each parameter of each part, with its limits, deviations and source."""
+    names = {p.document_id: p.name for p in report.parts}
+    header = [
+        "Обозначение",
+        "Деталь",
+        "Категория",
+        "Параметр",
+        "Значение",
+        "Мин.",
+        "Макс.",
+        "Нижн. откл.",
+        "Верхн. откл.",
+        "Ед.",
+        "Поле допуска / шкала",
+        "IT",
+        "Общее",
+        "Критичный",
+        "Исходный текст",
+        "Источник",
+    ]
+    rows = [
+        [
+            p.designation,
+            names.get(p.document_id),
+            L.PARAMETER_CATEGORY.get(x.category, x.category),
+            x.name,
+            x.value,
+            x.value_min,
+            x.value_max,
+            x.lower_deviation,
+            x.upper_deviation,
+            x.unit,
+            x.qualifier,
+            x.it_grade,
+            "да" if x.general else "",
+            "да" if x.critical else "",
+            x.text,
+            _src(report, x.source),
+        ]
+        for p in report.parts
+        for x in p.parameters
+    ]
+    return header, rows
+
+
+_FORMULA_START = ("=", "+", "-", "@", "\t", "\r")  # a spreadsheet takes a cell that starts so for a formula
+
+
+def to_csv(report: Report) -> str:
+    """The table «part × parameter» in CSV: comma, decimal point, UTF-8 with a byte order mark, so that a spreadsheet
+    reads the Cyrillic. Numbers stay numbers; a text from a document that starts as a formula gets «'» before it."""
+    header, rows = _parameters(report)
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\r\n")
+    writer.writerow(header)
+    for row in rows:
+        writer.writerow(["'" + c if isinstance(c, str) and c.startswith(_FORMULA_START) else c for c in row])
+    return "\ufeff" + out.getvalue()
 
 
 # ------------------------------------------------------------------------ Excel
@@ -207,48 +270,8 @@ def to_xlsx(report: Report) -> bytes:
         [40, 22, 28, 30, 8, 9, 7, 6, 12, 20, 6, 7],
     )
 
-    names = {p.document_id: p.name for p in report.parts}
-    _sheet(
-        wb,
-        "Параметры",
-        [
-            "Обозначение",
-            "Деталь",
-            "Категория",
-            "Параметр",
-            "Значение",
-            "Мин.",
-            "Макс.",
-            "Ед.",
-            "Поле допуска / шкала",
-            "IT",
-            "Общее",
-            "Критичный",
-            "Исходный текст",
-            "Источник",
-        ],
-        [
-            [
-                p.designation,
-                names.get(p.document_id),
-                L.PARAMETER_CATEGORY.get(x.category, x.category),
-                x.name,
-                x.value,
-                x.value_min,
-                x.value_max,
-                x.unit,
-                x.qualifier,
-                x.it_grade,
-                "да" if x.general else "",
-                "да" if x.critical else "",
-                x.text,
-                _src(report, x.source),
-            ]
-            for p in report.parts
-            for x in p.parameters
-        ],
-        [20, 22, 22, 22, 9, 8, 8, 6, 14, 5, 7, 9, 50, 40],
-    )
+    header, rows = _parameters(report)
+    _sheet(wb, "Параметры", header, rows, [20, 22, 22, 22, 9, 8, 8, 9, 9, 6, 14, 5, 7, 9, 50, 40])
 
     _sheet(
         wb,

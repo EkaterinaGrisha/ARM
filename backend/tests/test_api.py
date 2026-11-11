@@ -64,6 +64,9 @@ def test_full_cycle(client, demo_kit):
     xlsx = client.get(f"/api/jobs/{job['id']}/report.xlsx")
     assert xlsx.status_code == 200 and xlsx.content[:2] == b"PK"
     assert "attachment" in xlsx.headers["content-disposition"]
+    csv = client.get(f"/api/jobs/{job['id']}/report.csv")
+    assert csv.status_code == 200 and csv.text.startswith("\ufeffОбозначение,Деталь,Категория")
+    assert "attachment" in csv.headers["content-disposition"]
     html = client.get(f"/api/jobs/{job['id']}/report.html")
     assert html.status_code == 200 and "Расхождения" in html.text
 

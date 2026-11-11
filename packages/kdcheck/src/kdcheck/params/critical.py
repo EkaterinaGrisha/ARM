@@ -2,17 +2,54 @@
 
 The criteria combine general engineering thresholds (tight IT grades, low roughness, high hardness, chemical heat
 treatment, tight form tolerances) with the distribution of values inside the doc set: "the tightest in the set" and
-"only one part has it" signal the technologist even when no absolute threshold is crossed. The thresholds and scores
-are in ``criticality.yaml``.
+"only one part has it" signal the technologist even when no absolute threshold is crossed. A value at the tight end of
+the kit, the share ``kit_tail.share`` of its values, is marked too, when it is tighter than the median: a kit of rough
+parts has its own tail. The thresholds and scores are in ``criticality.yaml``.
 """
 
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
+from dataclasses import dataclass
 from statistics import median
 
-from kdcheck.config import Criticality
+from kdcheck.config import Criticality, KitTail
 from kdcheck.schemas import CriticalParameter, Parameter, PartRecord
+
+
+@dataclass(frozen=True)
+class _Feature:
+    """A feature of the kit whose tail is marked: how a parameter gives it, and which end is the tight one."""
+
+    title: str
+    value: Callable[[Parameter], float | None]
+    tight_low: bool  # a lower value is tighter
+    shown: Callable[[float], str]
+
+
+def _grade(p: Parameter) -> float | None:
+    return p.it_grade if p.category == "dimension_tolerance" and not p.general else None
+
+
+def _ra(p: Parameter) -> float | None:
+    return p.value if p.category == "roughness" and p.qualifier == "Ra" and not p.general else None
+
+
+def _form(p: Parameter) -> float | None:
+    return p.value if p.category == "geometric" and not p.general else None
+
+
+def _hrc(p: Parameter) -> float | None:
+    return p.value_min if p.category == "hardness" and (p.unit or "").startswith("HRC") else None
+
+
+FEATURES = (
+    _Feature("квалитет размера", _grade, True, lambda v: f"IT{v:g}"),
+    _Feature("шероховатость", _ra, True, lambda v: f"Ra {_fmt(v)} мкм"),
+    _Feature("допуск формы и расположения", _form, True, lambda v: f"{_fmt(v)} мм"),
+    _Feature("твёрдость", _hrc, False, lambda v: f"{_fmt(v)} HRC"),
+)
 
 
 def _fmt(v: float | None) -> str:
@@ -122,7 +159,36 @@ def select(parts: list[PartRecord], rules: Criticality) -> list[CriticalParamete
                 "отдельный передел или кооперация, проверить наличие на площадке",
                 rare.score,
             )
+    _tail(parts, rules.kit_tail, add)
     result.sort(key=lambda c: -c.score)
     for i, c in enumerate(result, start=1):
         c.id = f"c{i}"
     return result
+
+
+def _tail(
+    parts: list[PartRecord], rules: KitTail, add: Callable[[PartRecord, Parameter, str, str, float], None]
+) -> None:
+    """Values at the tight end of the kit, of a feature with at least ``min_values`` values, beyond the median."""
+    for feature in FEATURES:
+        values = [(part, p, v) for part in parts for p in part.parameters if (v := feature.value(p)) is not None]
+        if len(values) < rules.min_values:
+            continue
+        ordered = sorted(v for _, _, v in values)
+        if not feature.tight_low:
+            ordered.reverse()
+        edge, middle = ordered[int(rules.share * (len(ordered) - 1))], median(ordered)
+        for part, p, v in values:
+            tight = v <= edge and v < middle if feature.tight_low else v >= edge and v > middle
+            if not tight or p.critical:
+                continue
+            beyond = sum(1 for o in ordered if (o > v if feature.tight_low else o < v)) / len(ordered)
+            add(
+                part,
+                p,
+                "kit_tail",
+                f"{feature.title.capitalize()} {feature.shown(v)} — в «хвосте» комплекта: жёстче {beyond:.0%} из "
+                f"{len(ordered)} значений (медиана {feature.shown(middle)}); порогов общих правил не переходит, но "
+                "у этой детали требование строже, чем у остальных",
+                rules.score,
+            )

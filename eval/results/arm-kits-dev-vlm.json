@@ -61,10 +61,10 @@
       "requirements_by_model": 71,
       "parameters": {
         "coating": 9,
-        "dimension_tolerance": 13,
         "general_tolerance": 25,
         "roughness": 25,
-        "hardness": 3
+        "hardness": 3,
+        "dimension_tolerance": 3
       },
       "tree_items": 122,
       "root": true,
@@ -78,8 +78,8 @@
       "log": {
         "info": 1
       },
-      "seconds": 680.2,
-      "seconds_per_page": 12.83,
+      "seconds": 578.9,
+      "seconds_per_page": 10.92,
       "images": {
         "count": 53,
         "dpi": {

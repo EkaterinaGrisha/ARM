@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.8"
+SCHEMA_VERSION = "1.9"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
@@ -168,6 +168,20 @@ class Parameter(Model):
     unit: str | None = None
     qualifier: str | None = Field(None, description="Поле допуска (H7), шкала (HRC), базы, вид ТО…")
     it_grade: int | None = None
+    lower_deviation: float | None = Field(
+        None,
+        description=(
+            "Нижнее предельное отклонение размера, мм: из поля допуска по ГОСТ 25346 (Ø40H7 → 0) или из записи «±»; "
+            "`value_min` — наименьший предельный размер. С версии 1.9"
+        ),
+    )
+    upper_deviation: float | None = Field(
+        None,
+        description=(
+            "Верхнее предельное отклонение размера, мм (Ø40H7 → +0,025); `value_max` — наибольший предельный размер. "
+            "С версии 1.9"
+        ),
+    )
     general: bool = Field(False, description="Общее требование (неуказанные отклонения, шероховатость остального)")
     critical: bool = False
     source: SourceRef | None = None

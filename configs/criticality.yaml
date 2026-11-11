@@ -27,6 +27,12 @@ tight_geometric:                 # a form or position tolerance, mm
   max_tolerance: 0.02
   score: 0.75
 
+kit_tail:                        # a value at the tight end of the kit, when no threshold above marks it: an IT grade
+                                 # of a size, Ra, a form or position tolerance, a hardness in HRC
+  share: 0.1                     # the share of the kit's values at that end
+  min_values: 10                 # a feature is checked in a kit with at least this many values of it
+  score: 0.5
+
 rare_in_kit:                     # a coating that only one part of the kit has
   min_parts: 3                   # checked in kits of at least this many parts
   score: 0.55
