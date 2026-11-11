@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-06",
+  "date": "2026-11-11",
   "kits": 6,
   "seed": 3,
   "environment": {
@@ -941,21 +941,21 @@
     }
   },
   "reading": {
-    "seconds": 222.3,
+    "seconds": 200.4,
     "by_class": {
       "raster:good": {
         "unreadable": 0,
         "drawings": 20,
         "drawing_fields": 111,
-        "drawing_right": 81,
+        "drawing_right": 103,
         "field:designation": 20,
-        "field_right:designation": 14,
+        "field_right:designation": 20,
         "field:name": 20,
-        "field_right:name": 11,
+        "field_right:name": 14,
         "field:mass": 20,
-        "field_right:mass": 14,
+        "field_right:mass": 20,
         "field:scale": 20,
-        "field_right:scale": 17,
+        "field_right:scale": 20,
         "field:litera": 20,
         "field_right:litera": 20,
         "field:revision": 13,
@@ -963,54 +963,54 @@
         "field:sheets": 20,
         "field_right:sheets": 20,
         "field:material": 11,
-        "field_right:material": 5,
+        "field_right:material": 9,
         "specs": 4,
         "spec_fields": 8,
         "spec_right": 4,
         "rows": 20,
-        "rows_found": 12
+        "rows_found": 20
       },
       "font:A:raster": {
         "unreadable": 0,
         "drawings": 17,
         "drawing_fields": 97,
-        "drawing_right": 66,
+        "drawing_right": 87,
         "specs": 2,
         "spec_fields": 4,
-        "spec_right": 2,
+        "spec_right": 3,
         "rows": 18,
-        "rows_found": 8
+        "rows_found": 17
       },
       "dpi:600": {
         "drawings": 10,
         "drawing_fields": 58,
-        "drawing_right": 44
+        "drawing_right": 51
       },
       "mode:bilevel": {
         "drawings": 49,
         "drawing_fields": 279,
-        "drawing_right": 201
+        "drawing_right": 246
       },
       "raster:poor": {
         "unreadable": 0,
         "specs": 7,
         "spec_fields": 14,
-        "spec_right": 8,
+        "spec_right": 13,
         "rows": 49,
-        "rows_found": 33,
+        "rows_found": 48,
         "drawings": 13,
         "drawing_fields": 75,
-        "drawing_right": 59,
+        "drawing_right": 63,
         "field:designation": 13,
-        "field_right:designation": 10,
+        "field_right:designation": 13,
         "field:name": 13,
-        "field_right:name": 9,
+        "field_right:name": 7,
         "field:material": 10,
-        "field_right:material": 6,
+        "field_right:material": 4,
         "field:mass": 13,
-        "field_right:mass": 10,
+        "field_right:mass": 13,
         "field:scale": 13,
-        "field_right:scale": 11,
+        "field_right:scale": 13,
         "field:litera": 13,
         "field_right:litera": 13,
         "field:revision": 5,
@@ -1021,74 +1021,74 @@
       "dpi:400": {
         "drawings": 18,
         "drawing_fields": 102,
-        "drawing_right": 79
+        "drawing_right": 93
       },
       "scan:poor": {
         "unreadable": 0,
         "drawings": 23,
         "drawing_fields": 132,
-        "drawing_right": 84,
+        "drawing_right": 106,
         "field:designation": 23,
-        "field_right:designation": 15,
+        "field_right:designation": 22,
         "field:name": 23,
-        "field_right:name": 14,
+        "field_right:name": 17,
         "field:material": 17,
-        "field_right:material": 6,
+        "field_right:material": 12,
         "field:mass": 23,
-        "field_right:mass": 17,
+        "field_right:mass": 19,
         "field:scale": 23,
         "field_right:scale": 21,
         "field:litera": 23,
-        "field_right:litera": 11,
+        "field_right:litera": 15,
         "field:revision": 9,
-        "field_right:revision": 7,
+        "field_right:revision": 9,
         "field:sheets": 23,
-        "field_right:sheets": 13,
+        "field_right:sheets": 11,
         "specs": 5,
         "spec_fields": 10,
-        "spec_right": 5,
+        "spec_right": 7,
         "rows": 27,
-        "rows_found": 20
+        "rows_found": 21
       },
       "font:A:scan": {
         "unreadable": 0,
         "drawings": 15,
         "drawing_fields": 87,
-        "drawing_right": 55,
+        "drawing_right": 70,
         "specs": 4,
         "spec_fields": 8,
-        "spec_right": 6,
+        "spec_right": 7,
         "rows": 26,
-        "rows_found": 8
+        "rows_found": 19
       },
       "dpi:200": {
         "drawings": 34,
         "drawing_fields": 198,
-        "drawing_right": 156
+        "drawing_right": 174
       },
       "mode:colour": {
         "drawings": 19,
         "drawing_fields": 111,
-        "drawing_right": 88
+        "drawing_right": 93
       },
       "dpi:150": {
         "drawings": 21,
         "drawing_fields": 120,
-        "drawing_right": 76
+        "drawing_right": 94
       },
       "raster:fair": {
         "unreadable": 0,
         "drawings": 17,
         "drawing_fields": 96,
-        "drawing_right": 76,
+        "drawing_right": 88,
         "field:designation": 17,
-        "field_right:designation": 10,
+        "field_right:designation": 16,
         "field:name": 17,
-        "field_right:name": 10,
+        "field_right:name": 14,
         "field:mass": 17,
         "field_right:mass": 17,
         "field:scale": 17,
-        "field_right:scale": 15,
+        "field_right:scale": 17,
         "field:litera": 17,
         "field_right:litera": 17,
         "field:revision": 10,
@@ -1099,7 +1099,7 @@
         "field_right:material": 7,
         "specs": 1,
         "spec_fields": 2,
-        "spec_right": 1,
+        "spec_right": 2,
         "rows": 5,
         "rows_found": 5
       },
@@ -1107,44 +1107,44 @@
         "unreadable": 0,
         "specs": 8,
         "spec_fields": 16,
-        "spec_right": 9,
+        "spec_right": 10,
         "rows": 51,
-        "rows_found": 28,
+        "rows_found": 41,
         "drawings": 17,
         "drawing_fields": 98,
-        "drawing_right": 70,
+        "drawing_right": 89,
         "field:designation": 17,
-        "field_right:designation": 10,
+        "field_right:designation": 17,
         "field:name": 17,
-        "field_right:name": 10,
+        "field_right:name": 13,
         "field:mass": 17,
-        "field_right:mass": 16,
+        "field_right:mass": 17,
         "field:scale": 17,
-        "field_right:scale": 16,
+        "field_right:scale": 17,
         "field:litera": 17,
-        "field_right:litera": 14,
+        "field_right:litera": 16,
         "field:revision": 6,
-        "field_right:revision": 4,
+        "field_right:revision": 6,
         "field:sheets": 17,
-        "field_right:sheets": 14,
+        "field_right:sheets": 15,
         "field:material": 13,
-        "field_right:material": 4
+        "field_right:material": 9
       },
       "scan:good": {
         "unreadable": 0,
         "drawings": 31,
         "drawing_fields": 182,
-        "drawing_right": 151,
+        "drawing_right": 161,
         "field:designation": 31,
-        "field_right:designation": 20,
+        "field_right:designation": 31,
         "field:name": 31,
-        "field_right:name": 24,
+        "field_right:name": 26,
         "field:material": 27,
-        "field_right:material": 18,
+        "field_right:material": 13,
         "field:mass": 31,
         "field_right:mass": 30,
         "field:scale": 31,
-        "field_right:scale": 29,
+        "field_right:scale": 31,
         "field:litera": 31,
         "field_right:litera": 30,
         "field:sheets": 31,
@@ -1153,9 +1153,9 @@
         "field_right:revision": 15,
         "specs": 4,
         "spec_fields": 8,
-        "spec_right": 5,
+        "spec_right": 6,
         "rows": 27,
-        "rows_found": 15
+        "rows_found": 23
       },
       "vector": {
         "unreadable": 0,
@@ -1163,7 +1163,7 @@
         "spec_fields": 18,
         "spec_right": 18,
         "rows": 61,
-        "rows_found": 59,
+        "rows_found": 61,
         "drawings": 45,
         "drawing_fields": 264,
         "drawing_right": 264,
@@ -1198,34 +1198,34 @@
       "dpi:300": {
         "drawings": 38,
         "drawing_fields": 216,
-        "drawing_right": 166
+        "drawing_right": 198
       },
       "mode:grey": {
         "drawings": 53,
         "drawing_fields": 304,
-        "drawing_right": 232
+        "drawing_right": 271
       },
       "font:B:raster": {
         "unreadable": 0,
         "specs": 10,
         "spec_fields": 20,
-        "spec_right": 11,
+        "spec_right": 16,
         "rows": 56,
-        "rows_found": 42,
+        "rows_found": 56,
         "drawings": 33,
         "drawing_fields": 185,
-        "drawing_right": 150
+        "drawing_right": 167
       },
       "font:B:scan": {
         "unreadable": 0,
         "specs": 13,
         "spec_fields": 26,
-        "spec_right": 13,
+        "spec_right": 16,
         "rows": 79,
-        "rows_found": 55,
+        "rows_found": 66,
         "drawings": 56,
         "drawing_fields": 325,
-        "drawing_right": 250
+        "drawing_right": 286
       },
       "font:B:vector": {
         "unreadable": 0,
@@ -1236,7 +1236,7 @@
         "spec_fields": 12,
         "spec_right": 12,
         "rows": 41,
-        "rows_found": 39
+        "rows_found": 41
       }
     },
     "unreadable_scans": {
@@ -5085,11 +5085,11 @@
         "phase": "paper",
         "sheets": 18
       },
-      "BrightnessTexturize": {
+      "NoiseTexturize": {
         "phase": "paper",
         "sheets": 16
       },
-      "NoiseTexturize": {
+      "BrightnessTexturize": {
         "phase": "paper",
         "sheets": 16
       },
@@ -5177,11 +5177,11 @@
         "phase": "post",
         "sheets": 8
       },
-      "BleedThrough": {
+      "LowInkRandomLines": {
         "phase": "ink",
         "sheets": 8
       },
-      "LowInkRandomLines": {
+      "BleedThrough": {
         "phase": "ink",
         "sheets": 8
       },
@@ -5217,12 +5217,12 @@
         "phase": "post",
         "sheets": 5
       },
-      "DelaunayTessellation": {
-        "phase": "paper",
-        "sheets": 5
-      },
       "BadPhotoCopy": {
         "phase": "post",
+        "sheets": 5
+      },
+      "DelaunayTessellation": {
+        "phase": "paper",
         "sheets": 5
       },
       "LowLightNoise": {
@@ -5344,110 +5344,110 @@
     ],
     "resized": 30,
     "reading": {
-      "seconds": 444.4,
+      "seconds": 378.2,
       "by_class": {
         "augraphy:poor": {
           "unreadable": 0,
           "drawings": 23,
           "drawing_fields": 132,
-          "drawing_right": 46,
+          "drawing_right": 54,
           "field:designation": 23,
-          "field_right:designation": 13,
+          "field_right:designation": 18,
           "field:name": 23,
-          "field_right:name": 8,
+          "field_right:name": 9,
           "field:material": 17,
-          "field_right:material": 3,
+          "field_right:material": 2,
           "field:mass": 23,
-          "field_right:mass": 7,
+          "field_right:mass": 8,
           "field:scale": 23,
-          "field_right:scale": 7,
+          "field_right:scale": 9,
           "field:litera": 23,
           "field_right:litera": 8,
           "field:revision": 9,
           "field_right:revision": 4,
           "field:sheets": 23,
-          "field_right:sheets": 9,
+          "field_right:sheets": 10,
           "specs": 5,
           "spec_fields": 10,
-          "spec_right": 1,
+          "spec_right": 3,
           "rows": 27,
-          "rows_found": 0
+          "rows_found": 3
         },
         "font:A:augraphy": {
           "unreadable": 0,
           "drawings": 15,
           "drawing_fields": 87,
-          "drawing_right": 23,
+          "drawing_right": 32,
           "specs": 4,
           "spec_fields": 8,
-          "spec_right": 2,
+          "spec_right": 3,
           "rows": 26,
-          "rows_found": 0
+          "rows_found": 2
         },
         "augraphy:fair": {
           "unreadable": 0,
           "specs": 8,
           "spec_fields": 16,
-          "spec_right": 5,
+          "spec_right": 7,
           "rows": 51,
-          "rows_found": 7,
+          "rows_found": 15,
           "drawings": 17,
           "drawing_fields": 98,
-          "drawing_right": 26,
+          "drawing_right": 34,
           "field:designation": 17,
-          "field_right:designation": 7,
+          "field_right:designation": 8,
           "field:name": 17,
-          "field_right:name": 4,
+          "field_right:name": 5,
           "field:mass": 17,
-          "field_right:mass": 4,
+          "field_right:mass": 7,
           "field:scale": 17,
-          "field_right:scale": 4,
+          "field_right:scale": 6,
           "field:litera": 17,
           "field_right:litera": 5,
           "field:revision": 6,
           "field_right:revision": 1,
           "field:sheets": 17,
-          "field_right:sheets": 5,
+          "field_right:sheets": 4,
           "field:material": 13,
-          "field_right:material": 2
+          "field_right:material": 3
         },
         "augraphy:good": {
           "unreadable": 0,
           "drawings": 31,
           "drawing_fields": 182,
-          "drawing_right": 76,
+          "drawing_right": 106,
           "field:designation": 31,
-          "field_right:designation": 14,
+          "field_right:designation": 26,
           "field:name": 31,
-          "field_right:name": 13,
+          "field_right:name": 19,
           "field:material": 27,
-          "field_right:material": 5,
+          "field_right:material": 7,
           "field:mass": 31,
-          "field_right:mass": 13,
+          "field_right:mass": 18,
           "field:scale": 31,
-          "field_right:scale": 12,
+          "field_right:scale": 16,
           "field:litera": 31,
-          "field_right:litera": 19,
+          "field_right:litera": 20,
           "field:sheets": 31,
           "field_right:sheets": 15,
           "field:revision": 15,
-          "field_right:revision": 6,
+          "field_right:revision": 9,
           "specs": 4,
           "spec_fields": 8,
-          "spec_right": 3,
+          "spec_right": 4,
           "rows": 27,
-          "rows_found": 7
+          "rows_found": 8
         },
         "font:B:augraphy": {
           "unreadable": 0,
           "specs": 13,
           "spec_fields": 26,
-          "spec_right": 7,
+          "spec_right": 11,
           "rows": 79,
-          "rows_found": 14,
+          "rows_found": 24,
           "drawings": 56,
           "drawing_fields": 325,
-          "drawing_right": 125
+          "drawing_right": 162
         }
       }
     },
@@ -5456,26 +5456,26 @@
         "poor": {
           "drawings": 23,
           "fields": 132,
-          "degrade": 84,
-          "augraphy": 46,
-          "only_degrade": 55,
-          "only_augraphy": 17
+          "degrade": 106,
+          "augraphy": 54,
+          "only_degrade": 60,
+          "only_augraphy": 8
         },
         "good": {
           "drawings": 31,
           "fields": 182,
-          "degrade": 151,
-          "augraphy": 76,
-          "only_degrade": 82,
-          "only_augraphy": 7
+          "degrade": 161,
+          "augraphy": 106,
+          "only_degrade": 57,
+          "only_augraphy": 2
         },
         "fair": {
           "drawings": 17,
           "fields": 98,
-          "degrade": 70,
-          "augraphy": 26,
-          "only_degrade": 49,
-          "only_augraphy": 5
+          "degrade": 89,
+          "augraphy": 34,
+          "only_degrade": 56,
+          "only_augraphy": 1
         }
       },
       "unpaired": 0
