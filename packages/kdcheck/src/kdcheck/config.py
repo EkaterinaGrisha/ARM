@@ -122,10 +122,37 @@ class MarginColumns(Section):
     min_overlap: Share
 
 
+class PeopleCells(Section):
+    """Where GOST 2.104 puts names, signatures and dates. The core reads none of them; ``eval/mask_people.py`` fills
+    them with paper before a sheet image of the customer is shown outside this machine."""
+
+    columns: Span  # from the left edge of the block, over its whole height, in forms 1, 2 and 2a
+    margin_rows: tuple[Span, ...]  # in the binding field, mm above the bottom line of the frame
+    labels: tuple[str, ...]  # words of the form in the people columns, lower case
+    min_surname: int = Field(ge=2)  # letters of a word there taken for a surname when a masked sheet is checked
+
+    @field_validator("columns")
+    @classmethod
+    def _column(cls, value: Span) -> Span:
+        return _from_zero_up(value)
+
+    @field_validator("margin_rows")
+    @classmethod
+    def _rows(cls, value: tuple[Span, ...]) -> tuple[Span, ...]:
+        return tuple(_from_zero_up(span) for span in value)
+
+
+def _from_zero_up(span: Span) -> Span:
+    if not 0 <= span[0] < span[1]:
+        raise ValueError("промежуток — от меньшего к большему, от нуля")
+    return span
+
+
 class TitleBlockTemplate(Section):
     width: float
     forms: dict[int, TitleBlockForm]
     continuation: ContinuationForm  # form 2a of the later sheets
+    people: PeopleCells
     label_zone: tuple[Share, Share]
     label_row_tolerance: float
     scale_range: Span
