@@ -34,6 +34,7 @@ from kdcheck.schemas import (
     CriticalParameter,
     Discrepancy,
     DocumentInfo,
+    DocumentKind,
     EngineInfo,
     Extracted,
     KitInfo,
@@ -91,6 +92,7 @@ class BaselinePipeline:
         self.vlm_problem: str | None = None  # why the model is not asked in this run
         self.vlm_used = False
         self.later_sheets: set[str] = set()  # files whose form 2a says they are later sheets of a document
+        self.named_unread: set[str] = set()  # files not read whose name gives the designation of their document
 
     # ------------------------------------------------------------------ run
     def run(self, input_dir: Path, *, kit_id: str, kit_name: str, progress: ProgressCallback = no_progress) -> Report:
@@ -99,6 +101,7 @@ class BaselinePipeline:
         self.vlm_problem = self.vlm.unavailable() if self.vlm is not None else None
         self.vlm_used = False
         self.later_sheets = set()
+        self.named_unread = set()
         files, ignored = kit_files(input_dir, self.settings.ingest.file_names)
         if ignored:
             n = self.settings.checks.preliminary.listed
@@ -134,6 +137,8 @@ class BaselinePipeline:
                 report_log.append(LogEntry(level="error", message=f"Ошибка разбора: {exc}", document_id=doc.id))
         for doc in docs:
             report_log += _page_problems(doc)
+            if doc.info.status in UNREAD:
+                self._named_unread(doc)
         if self.vlm is not None and self.vlm_problem:
             message = f"Модель {self.vlm.engine.model} не ответила: {self.vlm_problem}. "
             message += "Основные надписи сканов прочитаны без неё" if not self.vlm_used else "Часть ячеек она не прочла"
@@ -169,13 +174,19 @@ class BaselinePipeline:
         drawing_refs = [
             DrawingRef(doc=d.info, part=next((p for p in parts if p.document_id == d.id), None))
             for d in docs
-            if d.info.kind in (*DRAWINGS, "other") and d.info.designation and d.info.sheet_of is None
+            if d.info.kind in (*DRAWINGS, "other")
+            and d.info.designation
+            and d.info.sheet_of is None
+            and d.id not in self.named_unread
         ]
         unread = [d.info for d in docs if _unread(d.info)]
+        named = [d.info for d in docs if d.id in self.named_unread and d.info.sheet_of is None]
         tree = _stage(
             "дерево изделия",
             report_log,
-            lambda: build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd, assembly.documents, unread),
+            lambda: build_tree(
+                [(d.info, s) for d, s in specs], drawing_refs, self.eskd, assembly.documents, unread, named
+            ),
             None,
         )
         discrepancies: list[Discrepancy] = []
@@ -544,7 +555,10 @@ class BaselinePipeline:
         self._set_sheet(doc, None, None)
         info.designation = des
         info.name = self._filename_name(info.file_name)
-        info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(des, None) else "part_drawing"
+        info.kind = self._filename_kind(info.file_name, des)
+        if info.kind not in DRAWINGS:  # a specification or a text document: its document is in the kit, not read
+            self.named_unread.add(doc.id)
+            return
         confidence = self.settings.ingest.confidence
         src = SourceRef(
             document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=confidence.filename
@@ -555,6 +569,29 @@ class BaselinePipeline:
         if info.name:
             tb.name = Extracted(value=info.name, raw=info.file_name, confidence=confidence.filename_name, source=src)
         parts.append(PartRecord(document_id=doc.id, designation=des, name=info.name, kind=info.kind, title_block=tb))
+
+    def _named_unread(self, doc: LoadedDocument) -> None:
+        """A file whose content is not read — damaged, encrypted, an unreadable scan — whose name gives a designation:
+        the document of that designation is in the kit, not read. It closes its position, and it is no unknown
+        document that may be the one another position misses."""
+        info = doc.info
+        des = self._filename_designation(info.file_name)
+        if not des:
+            return
+        info.designation, info.name = des, self._filename_name(info.file_name)
+        info.kind = self._filename_kind(info.file_name, des)
+        info.notes.append("Содержимое файла не прочитано: обозначение и вид документа взяты из имени файла")
+        self.named_unread.add(doc.id)
+
+    def _filename_kind(self, file_name: str, designation: str) -> DocumentKind:
+        """The kind of document a file name tells: by a code of file names, as «СП» of a specification, or by the
+        document code of its designation."""
+        words = self.settings.dictionaries
+        if (code := self.eskd.file_code(Path(file_name).stem)) in words.filename_codes:
+            return words.filename_codes[code]
+        if doc_code(designation) in words.text_codes:
+            return "other"
+        return "assembly_drawing" if self.eskd.is_assembly_drawing(designation, None) else "part_drawing"
 
     def _designation(self, doc: LoadedDocument, read: Extracted | None) -> str | None:
         """The designation of the title block, decided against the designation of the file name (ADR-0022)."""
@@ -609,11 +646,15 @@ def _stage(name: str, report_log: list[LogEntry], run: Callable[[], T], failed: 
         return failed
 
 
+UNREAD = ("unreadable", "damaged", "encrypted")  # statuses of a file whose content is not read
+
+
 def _unread(info: DocumentInfo) -> bool:
     """Whether a file may be a document of the kit the core did not read: a scan it could not read, a damaged or
-    encrypted file, a file of a kind not told, or a drawing or specification without a designation."""
-    if info.status in ("unreadable", "damaged", "encrypted"):
-        return True
+    encrypted file whose name gives no designation, a file of a kind not told, or a drawing or specification without
+    a designation."""
+    if info.status in UNREAD:
+        return not info.designation
     readable = info.status in ("ok", "warning") and info.sheet_of is None
     return readable and (info.kind == "unknown" or (info.kind != "other" and not info.designation))
 

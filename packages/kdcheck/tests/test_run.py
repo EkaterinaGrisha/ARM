@@ -124,6 +124,30 @@ def test_a_form_2_document_with_a_code_is_a_text_document_not_a_specification(tm
     assert (orphan.rule_id, orphan.preliminary) == ("B1.ORPHAN.001", False)
 
 
+@pytest.mark.parametrize("stray", [False, True])
+def test_a_damaged_file_named_after_its_document_closes_its_position(tmp_path, settings, stray):
+    """The file of a drawing that does not open, named after it: the drawing is in the kit, not read. The positions
+    whose drawings are missing are findings, preliminary only while a file without a designation stays unread."""
+    shutil.copy(KIT / "Спецификации" / "АРМ.303411.000 Редуктор колёсный.pdf", tmp_path / "spec.pdf")
+    (tmp_path / "АРМ.303411.002 Водило.pdf").write_bytes(b"%PDF-1.7\n" + b"\x00garbage" * 50)
+    if stray:
+        (tmp_path / "архив.pdf").write_bytes(b"%PDF-1.7\n" + b"\x01garbage" * 50)
+    report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
+    named = next(d for d in report.documents if d.file_name.startswith("АРМ.303411.002"))
+    assert (named.status, named.kind, named.designation) == ("damaged", "part_drawing", "АРМ.303411.002")
+    nodes = [n for root in report.tree for n in _walk(root) if n.designation == "АРМ.303411.002"]
+    assert nodes and all(n.status == "warning" and n.drawing_document_ids == [named.id] for n in nodes)
+    missing = [d for d in report.discrepancies if d.rule_id in ("B1.MISSING.001", "B1.MISSING.002")]
+    assert missing and all(d.designation != "АРМ.303411.002" for d in missing)
+    assert all(d.preliminary is stray for d in missing)
+
+
+def _walk(node):
+    yield node
+    for child in node.children:
+        yield from _walk(child)
+
+
 def test_byte_copy_is_read_once_and_is_no_duplicate_designation(tmp_path, settings):
     drawing = KIT / "Чертежи" / "АРМ.303411.002 Водило.pdf"
     (tmp_path / "архив").mkdir()

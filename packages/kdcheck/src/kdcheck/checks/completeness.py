@@ -223,7 +223,10 @@ class Checker:
         tree = self.tree
         if not tree.specs:
             return
-        unread = [doc for doc, spec in tree.specs if not spec.rows]  # specifications whose rows were not read
+        # specifications whose rows were not read, and files of specifications by their names not read at all
+        unread = [doc for doc, spec in tree.specs if not spec.rows] + [
+            d for d in tree.named if d.kind == "specification"
+        ]
         tail = self._unread_note(unread, UNREAD_SPECIFICATIONS) if unread else ""
         for des, refs in tree.drawings_by_des.items():
             base, code = base_designation(des), doc_code(des)

@@ -18,6 +18,7 @@ from kdcheck.schemas import (
     Discrepancy,
     DiscrepancyType,
     DocumentInfo,
+    DocumentKind,
     Extracted,
     PageInfo,
     Parameter,
@@ -47,17 +48,18 @@ def check(
     checks: Checks = SETTINGS.checks,
     later: set[str] | None = None,
     unread: list[DocumentInfo] | None = None,
+    named: list[DocumentInfo] | None = None,
 ) -> Result:
     """The tree and the discrepancies as the pipeline gets them: files assembled into documents first. ``later`` are
     the files with form 2a of a later sheet; by default every file past sheet 1. ``unread`` are files without a
-    designation read."""
+    designation read, ``named`` files not read whose name gives one."""
     parts = [d.part for d in drawings if d.part is not None]
     infos = [info for info, _ in specs] + [d.doc for d in drawings]
     if later is None:
         later = {info.id for info in infos if (info.sheet or 0) > 1}
     assembly = assemble(infos, specs, parts, later)
     refs = [d for d in drawings if d.doc.sheet_of is None]
-    tree = build_tree(assembly.specs, refs, ESKD, assembly.documents, unread)
+    tree = build_tree(assembly.specs, refs, ESKD, assembly.documents, unread, named)
     found = run_check(tree, ESKD, configured(checks), checks)
     return Result(tree.roots, found, assembly.log + tree.log)
 
@@ -345,6 +347,36 @@ def test_a_no_drawing_mark_in_doubt_leaves_the_missing_drawing_preliminary(statu
     [missing] = result.discrepancies
     assert (missing.rule_id, missing.preliminary) == ("B1.MISSING.001", True)
     assert "«БЧ» в строке спецификации прочитано с расхождением прочтений" in missing.message
+
+
+def damaged(doc_id: str, des: str, kind: DocumentKind) -> DocumentInfo:
+    """A file that did not open, whose name gives the designation and the kind of its document."""
+    return DocumentInfo(
+        id=doc_id, file_name=f"{des}.pdf", path=f"{des}.pdf", kind=kind, status="damaged", designation=des
+    )
+
+
+def test_a_file_not_read_but_named_is_the_document_of_its_position():
+    """A damaged «АБВГ.100000.001.pdf» is the drawing of its part, though not read: no missing drawing, and the node
+    says the document needs a look; a damaged file without a designation in its name still makes the others
+    preliminary."""
+    result = check([product(part_row())], [], named=[damaged("d1", PART, "part_drawing")])
+    assert result.discrepancies == []
+    [top] = result.tree
+    assert [(n.status, n.drawing_document_ids) for n in top.children] == [("warning", ["d1"])]
+    stray = DocumentInfo(id="d2", file_name="архив.pdf", path="архив.pdf", status="damaged")
+    two = check([product(part_row(), unit_row())], [], unread=[stray], named=[damaged("d1", PART, "part_drawing")])
+    assert {(d.rule_id, d.designation, d.preliminary) for d in two.discrepancies} == {("B1.SPEC.001", UNIT, True)}
+
+
+def test_a_specification_not_read_but_named_is_the_specification_of_its_assembly():
+    unit = damaged("s1", UNIT, "specification")
+    result = check([product(unit_row())], [drawing("d1", PART, "Вал")], named=[unit])
+    assert {(d.rule_id, d.designation, d.preliminary) for d in result.discrepancies} == {
+        ("B1.ORPHAN.001", PART, True)  # the unit lists the part, maybe: its rows are not read
+    }
+    [top] = result.tree
+    assert [(n.status, n.spec_document_id) for n in top.children] == [("warning", "s1")]
 
 
 def test_all_discrepancy_types():
