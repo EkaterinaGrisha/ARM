@@ -152,3 +152,11 @@ def test_a_variant_splits_into_its_base_and_number():
     assert split_variant("АБВГ.545648.519") == ("АБВГ.545648.519", "–")
     assert variant_designation("АБВГ.545648.519", "02") == "АБВГ.545648.519-02"
     assert variant_designation("АБВГ.545648.519", "–") == "АБВГ.545648.519"
+
+
+@pytest.mark.parametrize("read", ["TEXM.304125.001. СБ", "ТЕХМ.304125.001.СБ", "ТЕХМ.304125.001 . СБ"])
+def test_a_point_a_reader_puts_before_the_code_keeps_the_code(read):
+    """The model read «TEXM.304125.001. СБ» off a scan: without its code the assembly drawing became a part drawing
+    under the designation of the specification of its assembly."""
+    assert ESKD.normalize_designation(read) == "ТЕХМ.304125.001 СБ"
+    assert ESKD.normalize_designation("ТЕХМ.304125.001. Сборочный чертёж") == "ТЕХМ.304125.001"

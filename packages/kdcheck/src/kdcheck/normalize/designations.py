@@ -191,7 +191,8 @@ class Designations:
 
 
 def _compile(grammar: Grammar, digit: str, codes: tuple[str, ...]) -> re.Pattern[str]:
-    tail = r"(?:\s?-\s?(?P<exec>\d{2,3}))?(?:\s?(?P<code>" + "|".join(re.escape(c) for c in codes) + r"))?"
+    # a reader may put a point between the number and the code, «…001. СБ»: no designation has one there
+    tail = r"(?:\s?-\s?(?P<exec>\d{2,3}))?(?:\s?\.?\s?(?P<code>" + "|".join(re.escape(c) for c in codes) + r"))?"
     return re.compile(_BEFORE + "(?:" + grammar.pattern.replace(DIGIT, digit) + ")" + tail + _AFTER)
 
 
