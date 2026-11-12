@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pypdfium2 as pdfium
+import pytest
 from kdcheck.cli import main
 from kdcheck.config import settings_sha256
 from kdcheck.extract import review
@@ -161,6 +162,35 @@ def test_a_page_that_fails_to_parse_keeps_the_rest_of_the_drawing(tmp_path, sett
     assert doc.status == "warning" and doc.pages[0].problem == "ошибка разбора параметров: сбой разбора"
     assert part.title_block.designation and part.title_block.designation.value == "АРМ.303411.002"
     assert part.requirements and part.parameters  # the technical requirements were parsed before the page failed
+
+
+@pytest.mark.parametrize(
+    ("target", "stage", "empty"),
+    [
+        ("kdcheck.pipeline.build_tree", "дерево изделия", "tree"),
+        ("kdcheck.pipeline.check", "правила Блока 1", "discrepancies"),
+        ("kdcheck.pipeline.critical.select", "отбор критичных параметров", "critical_parameters"),
+    ],
+)
+def test_a_stage_that_fails_leaves_its_part_empty_and_the_report_written(
+    tmp_path, settings, monkeypatch, target, stage, empty
+):
+    shutil.copy(KIT / "Спецификации" / "АРМ.303411.000 Редуктор колёсный.pdf", tmp_path / "spec.pdf")
+    shutil.copy(KIT / "Чертежи" / "АРМ.303411.002 Водило.pdf", tmp_path / "drawing.pdf")
+    whole = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
+    assert whole.tree and whole.discrepancies and whole.critical_parameters
+
+    def broken(*args, **kwargs):
+        raise ZeroDivisionError("division by zero")
+
+    monkeypatch.setattr(target, broken)
+    report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
+    [failed] = [e for e in report.log if e.level == "error"]
+    assert failed.message.startswith(f"Сбой стадии «{stage}»: ZeroDivisionError")
+    assert getattr(report, empty) == []
+    assert report.documents == whole.documents and report.parts and report.specifications
+    kept = ["tree", "discrepancies"] if empty == "critical_parameters" else ["critical_parameters"]
+    assert all(getattr(report, part) == getattr(whole, part) for part in kept)  # the rules mark the nodes they find
 
 
 def test_file_names_of_a_maker_give_designations_and_names_without_sheets(tmp_path, settings):

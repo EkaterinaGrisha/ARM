@@ -8,7 +8,7 @@ from kdcheck.config import load_settings
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.ingest.text import Line
 from kdcheck.params import critical, parameters
-from kdcheck.schemas import DocumentInfo, Extracted, PartRecord, SourceRef
+from kdcheck.schemas import DocumentInfo, Extracted, Parameter, PartRecord, SourceRef
 
 SETTINGS = load_settings(use_ocr=False)
 PARSER = parameters.Parser(SETTINGS.dictionaries)
@@ -196,6 +196,24 @@ def test_the_tight_end_of_the_kit_is_marked_when_no_threshold_is_crossed():
 def test_no_tail_in_a_small_kit_or_in_a_kit_of_one_value():
     assert critical.select([_part("Ra 6,3") for _ in range(8)] + [_part("Ra 1,6")], SETTINGS.criticality) == []
     assert critical.select([_part("Ra 3,2") for _ in range(12)], SETTINGS.criticality) == []
+
+
+def test_a_zero_tolerance_and_a_general_grade_are_selected_with_nothing_to_compare_them_with():
+    """A positional tolerance «Ø0 Ⓜ» is a value, and the tightest; a general tolerance is no value of the kit: neither
+    stops the selection, and neither is compared with values the kit does not have."""
+    zero = Parameter(id="p1", category="geometric", name="⌖ Ø0 Ⓜ", text="⌖ Ø0 Ⓜ А", value=0.0)
+    general = Parameter(
+        id="p2", category="dimension_tolerance", name="h6", text="Неуказанные отклонения h6", it_grade=6, general=True
+    )
+    selected = critical.select([PartRecord(document_id="d1", parameters=[zero, general])], SETTINGS.criticality)
+    assert sorted(c.rule for c in selected) == ["tight_fit", "tight_geometric"]
+    assert all("медиана" not in c.reason for c in selected)
+
+
+def test_a_tolerance_is_compared_with_the_others_of_the_kit():
+    tolerances = [Parameter(id=f"p{v}", category="geometric", name="⌯", text="⌯", value=v) for v in (0.01, 0.1, 0.2)]
+    [tight] = critical.select([PartRecord(document_id="d1", parameters=tolerances)], SETTINGS.criticality)
+    assert "жёстче 67% допусков формы и расположения комплекта (медиана 0,1 мм)" in tight.reason
 
 
 def test_the_tail_of_hardness_is_its_high_end():

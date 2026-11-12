@@ -17,7 +17,7 @@ from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 from kdcheck.checks import rules
 from kdcheck.checks.completeness import check
@@ -31,6 +31,8 @@ from kdcheck.normalize.designations import Designations
 from kdcheck.ocr import cells, tesseract
 from kdcheck.params import critical, parameters
 from kdcheck.schemas import (
+    CriticalParameter,
+    Discrepancy,
     DocumentInfo,
     EngineInfo,
     Extracted,
@@ -45,7 +47,7 @@ from kdcheck.schemas import (
     TitleBlock,
     TreeNode,
 )
-from kdcheck.tree.documents import assemble
+from kdcheck.tree.documents import Assembly, assemble
 from kdcheck.tree.product import DrawingRef, build_tree
 from kdcheck.tree.rows import check_rows
 from kdcheck.vlm import spec_rows as vlm_spec_rows
@@ -54,6 +56,7 @@ from kdcheck.vlm import title_block as vlm_title_block
 from kdcheck.vlm.client import VlmClient, VlmError, load_prompt
 
 log = logging.getLogger(__name__)
+T = TypeVar("T")
 
 # (stage, share done 0..1, note)
 ProgressCallback = Callable[[str, float, str | None], None]
@@ -130,14 +133,29 @@ class BaselinePipeline:
             message += "Основные надписи сканов прочитаны без неё" if not self.vlm_used else "Часть ячеек она не прочла"
             report_log.append(LogEntry(level="warning", message=message))
 
+        # each stage past parsing is isolated as a file is: a stage that fails leaves its part of the report empty
+        # and says so in the log, and the report is still written with what the other stages found
         progress("Проверка комплектности", 0.87, None)
-        assembly = assemble([d.info for d in docs], [(d.info, s) for d, s in specs], parts, self.later_sheets)
+        infos = [d.info for d in docs]
+        loose = Assembly(specs=[(d.info, s) for d, s in specs], parts=parts, documents=[], log=[])
+        assembly = _stage(
+            "сборка документов из листов",
+            report_log,
+            lambda: assemble(infos, [(d.info, s) for d, s in specs], parts, self.later_sheets),
+            loose,
+        )
         report_log += [LogEntry(level="warning", message=m) for m in assembly.log]
         kept = {info.id for info, _ in assembly.specs}
         specs, parts = [(d, s) for d, s in specs if d.id in kept], assembly.parts
         designations = {d.info.designation for d in docs if d.info.designation}
         designations |= {f for d in docs if (f := self._filename_designation(d.info.file_name))}
-        if changed := check_rows(assembly.specs, designations, self.eskd, self.settings.dictionaries.row_designations):
+        row_rules = self.settings.dictionaries.row_designations
+        if changed := _stage(
+            "сверка строк спецификаций с комплектом",
+            report_log,
+            lambda: check_rows(assembly.specs, designations, self.eskd, row_rules),
+            None,
+        ):
             report_log.append(
                 LogEntry(level="info", message=f"Обозначения строк спецификаций сверены с комплектом: {changed}")
             )
@@ -149,25 +167,40 @@ class BaselinePipeline:
             and d.info.sheet_of is None
         ]
         unread = [d.info for d in docs if _unread(d.info)]
-        tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd, assembly.documents, unread)
-        discrepancies = check(tree, self.eskd, self.rules, self.settings.checks)
-        report_log += [LogEntry(level="warning", message=m) for m in tree.log]
+        tree = _stage(
+            "дерево изделия",
+            report_log,
+            lambda: build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd, assembly.documents, unread),
+            None,
+        )
+        discrepancies: list[Discrepancy] = []
+        if tree is not None:
+            discrepancies = _stage(
+                "правила Блока 1", report_log, lambda: check(tree, self.eskd, self.rules, self.settings.checks), []
+            )
+            report_log += [LogEntry(level="warning", message=m) for m in tree.log]
 
         progress("Анализ требований", 0.93, None)
-        criticals = critical.select(parts, self.settings.criticality)
+        criticals: list[CriticalParameter] = _stage(
+            "отбор критичных параметров", report_log, lambda: critical.select(parts, self.settings.criticality), []
+        )
 
         progress("Формирование отчёта", 0.97, None)
-        for model in [*parts, *(s for _, s in specs)]:
-            review.mark(model, self.settings.ingest.review)
-        infos = [d.info for d in docs]
+
+        def mark() -> None:
+            for model in [*parts, *(s for _, s in specs)]:
+                review.mark(model, self.settings.ingest.review)
+
+        _stage("отметка значений для проверки", report_log, mark, None)
         for d in infos:
             if d.status in ("damaged", "encrypted", "unsupported", "unreadable", "blank", "foreign", "duplicate_file"):
                 report_log.append(LogEntry(level="warning", message=d.problem or d.status, document_id=d.id))
-        tree_items = _count_nodes(tree.roots)
+        roots = tree.roots if tree is not None else []
+        tree_items = _count_nodes(roots)
         need = _count_nodes(
-            tree.roots, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document")
+            roots, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document")
         )
-        have = _count_nodes(tree.roots, lambda n: n.kind in ("part", "document") and bool(n.drawing_document_ids))
+        have = _count_nodes(roots, lambda n: n.kind in ("part", "document") and bool(n.drawing_document_ids))
         summary = Summary(
             documents_total=len(infos),
             documents_by_status=dict(Counter(d.status for d in infos)),
@@ -185,8 +218,8 @@ class BaselinePipeline:
         kit = KitInfo(
             id=kit_id,
             name=kit_name,
-            root_designation=tree.root_designation,
-            root_name=tree.root_name,
+            root_designation=tree.root_designation if tree is not None else None,
+            root_name=tree.root_name if tree is not None else None,
             processed_at=_now(),
             duration_sec=round(time.monotonic() - started, 2),
             pipeline_name=self.name,
@@ -200,7 +233,7 @@ class BaselinePipeline:
             summary=summary,
             documents=infos,
             specifications=[s for _, s in specs],
-            tree=tree.roots,
+            tree=roots,
             discrepancies=discrepancies,
             parts=parts,
             critical_parameters=criticals,
@@ -532,6 +565,18 @@ class BaselinePipeline:
             )
             found.append(LogEntry(level="warning", message=message))
         return found
+
+
+def _stage(name: str, report_log: list[LogEntry], run: Callable[[], T], failed: T) -> T:
+    """The result of a stage of the kit, or ``failed`` with an error in the log when it raises: one failed stage never
+    costs the report."""
+    try:
+        return run()
+    except Exception as exc:
+        log.exception("Сбой стадии «%s»", name)
+        message = f"Сбой стадии «{name}»: {type(exc).__name__}: {exc}. Её результатов в отчёте нет, остальное выполнено"
+        report_log.append(LogEntry(level="error", message=message))
+        return failed
 
 
 def _unread(info: DocumentInfo) -> bool:
