@@ -9,11 +9,12 @@ from pathlib import Path
 
 import pypdfium2 as pdfium
 import pytest
+from kdcheck import pipeline
 from kdcheck.cli import main
 from kdcheck.config import settings_sha256
 from kdcheck.extract import review
 from kdcheck.pipeline import BaselinePipeline
-from kdcheck.schemas import Report
+from kdcheck.schemas import Extracted, Report
 from PIL import Image
 from reportlab.pdfgen.canvas import Canvas
 
@@ -98,6 +99,29 @@ def test_a_file_named_like_a_service_one_but_not_one_stays(settings):
     assert names.is_ignored(Path("Чертежи/.DS_Store")) and names.is_ignored(Path("__MACOSX/a.pdf"))
     assert not names.is_ignored(Path("Чертежи/АРМ.303411.002 Водило.pdf"))
     assert not names.is_ignored(Path("Thumbs.db.pdf"))
+
+
+def test_a_form_2_document_with_a_code_is_a_text_document_not_a_specification(tmp_path, settings, monkeypatch):
+    spec = KIT / "Спецификации" / "АРМ.303411.000 Редуктор колёсный.pdf"
+    shutil.copy(spec, tmp_path / "spec.pdf")
+    (tmp_path / "note.pdf").write_bytes(spec.read_bytes() + b"%\n")  # other bytes, not a copy of the file
+    parse = pipeline.specification.parse
+
+    def note(doc, forms, eskd):  # the title block of an explanatory note on form 2, its text not a table of rows
+        found = parse(doc, forms, eskd)
+        if doc.info.file_name == "note.pdf":
+            found.designation = Extracted(value="АРМ.303411.000 ПЗ", source=found.designation.source)
+            found.name, found.rows = Extracted(value="Пояснительная записка"), []
+        return found
+
+    monkeypatch.setattr(pipeline.specification, "parse", note)
+    report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
+    doc = next(d for d in report.documents if d.file_name == "note.pdf")
+    assert (doc.kind, doc.designation, doc.status) == ("other", "АРМ.303411.000 ПЗ", "ok")
+    assert doc.title_block and doc.title_block.designation and doc.title_block.designation.source
+    assert [s.document_id for s in report.specifications] != [doc.id] and len(report.specifications) == 1
+    [orphan] = [d for d in report.discrepancies if d.designation == "АРМ.303411.000 ПЗ"]
+    assert (orphan.rule_id, orphan.preliminary) == ("B1.ORPHAN.001", False)
 
 
 def test_byte_copy_is_read_once_and_is_no_duplicate_designation(tmp_path, settings):

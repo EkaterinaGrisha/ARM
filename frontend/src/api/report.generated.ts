@@ -97,6 +97,10 @@ export interface DocumentInfo {
    * Файл — последующий лист документа, начатого в файле с этим id; спецификация и запись детали — по тому файлу. Пусто у первого листа и у документа в одном файле. С версии 1.4
    */
   sheet_of?: string | null;
+  /**
+   * Основная надпись документа вида `other` — пояснительной записки, ведомости, технических условий: обозначение, наименование, литера с доказательствами. У чертежа она в записи детали, у спецификации — в спецификации. С версии 1.10
+   */
+  title_block?: TitleBlock | null;
   notes: string[];
 }
 /**
@@ -117,25 +121,28 @@ export interface PageInfo {
    */
   problem?: string | null;
 }
-export interface Specification {
-  document_id: string;
+/**
+ * Поля основной надписи (ГОСТ 2.104).
+ */
+export interface TitleBlock {
   designation?: Extracted | null;
   name?: Extracted | null;
+  material?: Extracted | null;
+  mass?: Extracted | null;
+  scale?: Extracted | null;
   litera?: Extracted | null;
-  revision?: Extracted | null;
   /**
-   * «Листов» основной надписи первого листа. С версии 1.4
+   * Номер последнего изменения
    */
-  sheets?: Extracted | null;
+  revision?: Extracted | null;
+  archive_number?: Extracted | null;
   /**
-   * «Перв. примен.» первого листа: обозначение, где изделие записано впервые. С версии 1.8
+   * Первое применение
    */
   first_use?: Extracted | null;
-  /**
-   * Номера исполнений групповой спецификации ГОСТ 2.113: по варианту Б — в порядке граф, по варианту А — в порядке заголовков переменных данных; «–» — базовое, затем «01», «02»…; обозначение исполнения — обозначение спецификации с «-01». Пусто у единичной. С версии 1.6, вариант А — с версии 1.7
-   */
-  variants: string[];
-  rows: SpecRow[];
+  sheet?: Extracted | null;
+  sheets?: Extracted | null;
+  format?: Extracted | null;
 }
 /**
  * Извлечённое значение с прослеживаемостью.
@@ -177,6 +184,26 @@ export interface SourceRef {
    * Версия движка. С версии 1.1
    */
   engine_version?: string | null;
+}
+export interface Specification {
+  document_id: string;
+  designation?: Extracted | null;
+  name?: Extracted | null;
+  litera?: Extracted | null;
+  revision?: Extracted | null;
+  /**
+   * «Листов» основной надписи первого листа. С версии 1.4
+   */
+  sheets?: Extracted | null;
+  /**
+   * «Перв. примен.» первого листа: обозначение, где изделие записано впервые. С версии 1.8
+   */
+  first_use?: Extracted | null;
+  /**
+   * Номера исполнений групповой спецификации ГОСТ 2.113: по варианту Б — в порядке граф, по варианту А — в порядке заголовков переменных данных; «–» — базовое, затем «01», «02»…; обозначение исполнения — обозначение спецификации с «-01». Пусто у единичной. С версии 1.6, вариант А — с версии 1.7
+   */
+  variants: string[];
+  rows: SpecRow[];
 }
 export interface SpecRow {
   id: string;
@@ -258,7 +285,7 @@ export interface PartRecord {
   designation?: string | null;
   name?: string | null;
   kind: "specification" | "assembly_drawing" | "part_drawing" | "drawing" | "other" | "unknown";
-  title_block: TitleBlock;
+  title_block: TitleBlock1;
   /**
    * Пункты технических требований
    */
@@ -268,7 +295,7 @@ export interface PartRecord {
 /**
  * Поля основной надписи (ГОСТ 2.104).
  */
-export interface TitleBlock {
+export interface TitleBlock1 {
   designation?: Extracted | null;
   name?: Extracted | null;
   material?: Extracted | null;

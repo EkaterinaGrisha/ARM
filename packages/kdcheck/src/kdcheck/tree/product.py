@@ -32,6 +32,9 @@ from kdcheck.tree.documents import SheetSet
 
 @dataclass
 class DrawingRef:
+    """A document a position of a specification may name: a drawing with its part record, or a text document of kind
+    ``other`` with its own title block."""
+
     doc: DocumentInfo
     part: PartRecord | None
 
@@ -39,16 +42,16 @@ class DrawingRef:
     def designation(self) -> str | None:
         return self.doc.designation
 
+    def _cell(self, key: str) -> Extracted | None:
+        block = self.part.title_block if self.part is not None else self.doc.title_block
+        return getattr(block, key, None) if block is not None else None
+
     def tb_value(self, key: str) -> str | float | int | None:
-        if self.part is None:
-            return None
-        ex = getattr(self.part.title_block, key, None)
+        ex = self._cell(key)
         return ex.value if ex is not None else None
 
     def tb_source(self, key: str) -> SourceRef | None:
-        if self.part is None:
-            return None
-        ex = getattr(self.part.title_block, key, None)
+        ex = self._cell(key)
         return ex.source if ex is not None else None
 
 

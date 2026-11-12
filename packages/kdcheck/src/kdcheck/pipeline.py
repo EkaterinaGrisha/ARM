@@ -27,7 +27,7 @@ from kdcheck.ingest.document import LoadedDocument, Page, kit_files, load_docume
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.ingest.text import Line
 from kdcheck.normalize import file_designation
-from kdcheck.normalize.designations import Designations
+from kdcheck.normalize.designations import Designations, doc_code
 from kdcheck.ocr import cells, tesseract
 from kdcheck.params import critical, parameters
 from kdcheck.schemas import (
@@ -47,7 +47,7 @@ from kdcheck.schemas import (
     TitleBlock,
     TreeNode,
 )
-from kdcheck.tree.documents import Assembly, assemble
+from kdcheck.tree.documents import DRAWINGS, Assembly, assemble
 from kdcheck.tree.product import DrawingRef, build_tree
 from kdcheck.tree.rows import check_rows
 from kdcheck.vlm import spec_rows as vlm_spec_rows
@@ -165,12 +165,11 @@ class BaselinePipeline:
             report_log.append(
                 LogEntry(level="info", message=f"Обозначения строк спецификаций сверены с комплектом: {changed}")
             )
+        # the documents a position of a specification may name: drawings, and text documents as «… ПЗ»
         drawing_refs = [
             DrawingRef(doc=d.info, part=next((p for p in parts if p.document_id == d.id), None))
             for d in docs
-            if d.info.kind in ("part_drawing", "assembly_drawing", "drawing")
-            and d.info.designation
-            and d.info.sheet_of is None
+            if d.info.kind in (*DRAWINGS, "other") and d.info.designation and d.info.sheet_of is None
         ]
         unread = [d.info for d in docs if _unread(d.info)]
         tree = _stage(
@@ -212,7 +211,7 @@ class BaselinePipeline:
             documents_by_status=dict(Counter(d.status for d in infos)),
             documents_by_kind=dict(Counter(d.kind for d in infos)),
             specifications=len(specs),
-            drawings=len(drawing_refs),
+            drawings=sum(1 for d in drawing_refs if d.doc.kind in DRAWINGS),
             tree_items=tree_items,
             parts=len(parts),
             parameters=sum(len(p.parameters) for p in parts),
@@ -284,6 +283,8 @@ class BaselinePipeline:
                 self._set_sheet(doc, later.sheet, "later")
             else:
                 self._set_sheet(doc, None, "first" if head is not None and head.form == 2 else None)
+            if self._text_document(doc, spec):
+                return
             if not spec.rows:
                 info.status, info.problem = "warning", "Спецификация распознана, но строки таблицы не найдены"
             specs.append((doc, spec))
@@ -297,10 +298,12 @@ class BaselinePipeline:
             info.designation = self._designation(doc, spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
             self._set_sheet(doc, None, "first")
-            specs.append((doc, spec))
+            if not self._text_document(doc, spec):
+                specs.append((doc, spec))
             return
         if geom is None and (later := title_block.later_sheet(doc, page, forms, self.eskd)) is not None:
-            parts.append(self._parse_later_sheet(doc, page, later))
+            if (record := self._parse_later_sheet(doc, page, later)) is not None:
+                parts.append(record)
             return
         if geom is None:
             fallback = title_block.default_geometry(page, forms)
@@ -365,9 +368,10 @@ class BaselinePipeline:
         part.parameters += self._annotations(doc, aside, next_id)
         return part
 
-    def _parse_later_sheet(self, doc: LoadedDocument, page: Page, later: title_block.LaterSheet) -> PartRecord:
+    def _parse_later_sheet(self, doc: LoadedDocument, page: Page, later: title_block.LaterSheet) -> PartRecord | None:
         """A later sheet of a drawing kept in a file of its own (ADR-0017): the designation and the number of the sheet
-        of its form 2a, and the parameters drawn on its field. The document gets them at its first sheet."""
+        of its form 2a, and the parameters drawn on its field. The document gets them at its first sheet. A later
+        sheet of a text document, «… ПЗ», is of kind ``other`` and has no parameters."""
         info, forms = doc.info, self.settings.forms
         tb = TitleBlock(designation=later.designation, sheet=later.sheet)
         self._designation_from_filename(doc, tb)
@@ -376,6 +380,9 @@ class BaselinePipeline:
         info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(designation, None) else "part_drawing"
         info.designation = designation
         info.name = self._filename_name(info.file_name)
+        if designation is not None and doc_code(designation) in self.settings.dictionaries.text_codes:
+            info.kind, info.title_block = "other", tb
+            return None
         if designation is None:
             info.status, info.problem = "warning", "Последующий лист чертежа: обозначение не прочитано"
         if page.method == "ocr":
@@ -444,6 +451,23 @@ class BaselinePipeline:
         info.sheet = number if number is not None else named
         if form == "later":
             self.later_sheets.add(doc.id)
+
+    def _text_document(self, doc: LoadedDocument, spec: Specification) -> bool:
+        """Whether a document read as a specification is a text document of the kit: its designation has a code, as
+        «… ПЗ» or «… ВП» has, and a specification has none (GOST 2.102). It is then of kind ``other``, with its title
+        block, and its table is no rows of a specification."""
+        info = doc.info
+        code = doc_code(info.designation) if info.designation else None
+        if code is None:
+            return False
+        info.kind = "other"
+        info.title_block = TitleBlock(
+            designation=spec.designation, name=spec.name, litera=spec.litera, sheets=spec.sheets
+        )
+        info.notes.append(
+            f"Документ с кодом «{code}» на бланке формы 2 — не спецификация: строки таблицы не разбираются"
+        )
+        return True
 
     def _read_spec_cells(self, doc: LoadedDocument, spec: Specification) -> None:
         """A specification read by the model as a drawing is (ADR-0021): the cells of form 2 on the first page that

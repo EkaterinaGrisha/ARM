@@ -116,6 +116,16 @@ def drawing(
     return DrawingRef(doc=info, part=PartRecord(document_id=doc_id, designation=des, name=name, title_block=tb))
 
 
+def text_document(doc_id: str, des: str, name: str, litera: str = "О1") -> DrawingRef:
+    """A text document of the kit, «… ПЗ»: of kind ``other``, with its title block and no part record."""
+    tb = TitleBlock(designation=Extracted(value=des), name=Extracted(value=name), litera=Extracted(value=litera))
+    info = DocumentInfo(
+        id=doc_id, file_name=f"{doc_id}.pdf", path=f"{doc_id}.pdf", kind="other", designation=des, name=name
+    )
+    info.title_block = tb
+    return DrawingRef(doc=info, part=None)
+
+
 def found(result) -> set[tuple[str | None, str | None]]:
     return {(d.rule_id, d.designation) for d in result.discrepancies}
 
@@ -528,6 +538,32 @@ CASES: dict[str, tuple[Callable[[], Kit], Callable[[], Kit]]] = {
         lambda: ([product(part_row())], [first_used(drawing("d1", PART, "Вал"), "АБВГ.999999.000")]),
     ),
 }
+
+
+def note_row() -> SpecRow:
+    return row(4, "Документация", f"{TOP} ПЗ", "Пояснительная записка", None)
+
+
+def test_a_text_document_of_the_kit_is_the_document_of_its_position():
+    """«… ПЗ» on form 2 is no drawing and no specification: it closes its position, and no specification of the kit
+    is left without rows to make the other findings preliminary."""
+    stranger = drawing("d9", "АБВГ.999999.001", "Чужая")
+    note = text_document("t1", f"{TOP} ПЗ", "Пояснительная записка")
+    result = check([product(part_row(), note_row())], [drawing("d1", PART, "Вал"), note, stranger])
+    assert found(result) == {("B1.ORPHAN.001", "АБВГ.999999.001")}
+    assert not any(d.preliminary for d in result.discrepancies)
+    [top] = result.tree
+    assert [n.drawing_document_ids for n in top.children if n.kind == "document"] == [["t1"]]
+    without = check([product(part_row(), note_row())], [drawing("d1", PART, "Вал")])
+    assert found(without) == {("B1.MISSING.002", f"{TOP} ПЗ")}
+
+
+def test_a_text_document_no_specification_names_is_reported_and_two_versions_of_it_too():
+    notes = [text_document("t1", f"{TOP} ПЗ", "Пояснительная записка", litera=lit) for lit in ("О1", "А")]
+    notes[1].doc.id = "t2"
+    assert ("B1.ORPHAN.001", f"{TOP} ПЗ") in found(check([product(part_row())], [drawing("d1", PART, "Вал"), notes[0]]))
+    two = found(check([product(part_row(), note_row())], [drawing("d1", PART, "Вал"), *notes]))
+    assert {("B1.DUP.001", f"{TOP} ПЗ"), ("B1.VERSION.001", f"{TOP} ПЗ")} <= two
 
 
 def fired(kit: Kit, checks: Checks = SETTINGS.checks) -> set[str | None]:

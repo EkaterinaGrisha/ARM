@@ -447,6 +447,7 @@ class Dictionaries(Section):
     assembly_drawing_code: str
     assembly_drawing_name: str
     document_codes: tuple[str, ...]
+    text_codes: tuple[str, ...]
     filename_codes: dict[str, DocumentKind]
     designations: tuple[Grammar, ...] = Field(min_length=1)
     litera_order: tuple[str, ...]
@@ -476,6 +477,12 @@ class Dictionaries(Section):
     def _hints_compile(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         re.compile("|".join(value))
         return value
+
+    @model_validator(mode="after")
+    def _text_codes_are_codes(self) -> Dictionaries:
+        if unknown := [c for c in self.text_codes if c not in self.document_codes]:
+            raise ValueError(f"коды текстовых документов не из document_codes: {', '.join(unknown)}")
+        return self
 
 
 # ---------------------------------------------------------------- checks.yaml
