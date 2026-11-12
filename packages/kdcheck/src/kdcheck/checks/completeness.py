@@ -300,6 +300,23 @@ class Checker:
                     docs=[d.id for d, _ in items],
                     sources=[s.designation.source if s.designation else None for _, s in items],
                 )
+        for des, items in tree.spec_by_des.items():
+            drawings = [r for r in tree.drawings_by_des.get(des, []) if r.doc.kind == "part_drawing"]
+            if not drawings:  # the assembly drawing of an assembly is «… СБ»
+                continue
+            specs = ", ".join(d.path for d, _ in items)
+            files = ", ".join(r.doc.path for r in drawings)
+            self.add(
+                "B1.DUP.004",
+                des,
+                f"Обозначение {des} присвоено спецификации сборочной единицы ({specs}) и чертежу детали "
+                f"«{drawings[0].doc.name or '—'}» ({files}): документ одного изделия поглощает другой",
+                actual=files,
+                docs=[d.id for d, _ in items] + [r.doc.id for r in drawings],
+                nodes=tree.node_index.get(des, []),
+                sources=[s.designation.source if s.designation else None for _, s in items]
+                + [r.tb_source("designation") for r in drawings],
+            )
 
     def _check_sheets(self) -> None:
         """A document whose title block counts more sheets than the kit has, or whose sheets skip a number."""

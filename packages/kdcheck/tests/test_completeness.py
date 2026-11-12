@@ -473,6 +473,10 @@ CASES: dict[str, tuple[Callable[[], Kit], Callable[[], Kit]]] = {
         # a specification and the assembly drawing of the same unit
         lambda: ([product(unit_row()), spec("s1", UNIT, "Узел", [])], [drawing("d2", f"{UNIT} СБ", "Узел")]),
     ),
+    "B1.DUP.004": (  # a drawing of a part under the designation of an assembly with a specification of its own
+        lambda: ([product(unit_row()), spec("s1", UNIT, "Узел", [])], [drawing("d2", UNIT, "Кронштейн")]),
+        lambda: ([product(unit_row()), spec("s1", UNIT, "Узел", [])], [drawing("d2", f"{UNIT} СБ", "Узел")]),
+    ),
     "B1.VERSION.001": (
         lambda: (
             [product(part_row())],

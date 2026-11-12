@@ -11,6 +11,7 @@ rules:
   B1.DUP.001: {enabled: true, severity: high}        # one designation on several documents
   B1.DUP.002: {enabled: true, severity: high}        # one designation on positions with different names
   B1.DUP.003: {enabled: true, severity: high}        # one designation on several specifications
+  B1.DUP.004: {enabled: true, severity: high}        # one designation on a specification and a part drawing
   B1.VERSION.001: {enabled: true, severity: medium}  # copies of a document differ in change number or litera
   B1.LITERA.001: {enabled: true, severity: medium}   # a specification and its assembly drawing differ in litera
   B1.LITERA.002: {enabled: true, severity: medium}   # a component has a lower litera than its assembly (GOST 2.103)
