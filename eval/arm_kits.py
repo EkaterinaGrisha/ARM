@@ -37,6 +37,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from kdcheck.ingest.document import kit_files
 from kdcheck.normalize.designations import Designations
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.report.labels import PARAMETER_CATEGORY
@@ -107,7 +108,8 @@ KIT_NOTE = re.compile(r"^Спецификация, строка .+: прочит
 
 def files_of(folder: Path) -> dict[str, str]:
     """Every file the core would see in a kit folder, by its path from the folder, with its sha256."""
-    return {p.relative_to(folder).as_posix(): sha256(p) for p in sorted(folder.rglob("*")) if p.is_file()}
+    files, _ = kit_files(folder, load_settings(use_ocr=False).ingest.file_names)
+    return {p.relative_to(folder).as_posix(): sha256(p) for p in files}
 
 
 def register(kit: str, folder: Path, role: str) -> int:

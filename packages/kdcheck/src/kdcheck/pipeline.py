@@ -23,7 +23,7 @@ from kdcheck.checks import rules
 from kdcheck.checks.completeness import check
 from kdcheck.config import Settings, settings_sha256
 from kdcheck.extract import review, specification, tech_requirements, title_block
-from kdcheck.ingest.document import LoadedDocument, Page, load_document, page_raster
+from kdcheck.ingest.document import LoadedDocument, Page, kit_files, load_document, page_raster
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.ingest.text import Line
 from kdcheck.normalize import file_designation
@@ -99,7 +99,13 @@ class BaselinePipeline:
         self.vlm_problem = self.vlm.unavailable() if self.vlm is not None else None
         self.vlm_used = False
         self.later_sheets = set()
-        files = sorted(p for p in input_dir.rglob("*") if p.is_file())
+        files, ignored = kit_files(input_dir, self.settings.ingest.file_names)
+        if ignored:
+            n = self.settings.checks.preliminary.listed
+            listed = ", ".join(p.relative_to(input_dir).as_posix() for p in ignored[:n])
+            listed += f" и ещё {len(ignored) - n}" if len(ignored) > n else ""
+            message = f"Служебные файлы не входят в комплект ({len(ignored)}): {listed}"
+            report_log.append(LogEntry(level="info", message=message))
         self.eskd = self.designations.for_kit([p.stem for p in files])
         report_log += self._designation_systems(files)
         progress("Чтение файлов", 0.0, f"Файлов в комплекте: {len(files)}")

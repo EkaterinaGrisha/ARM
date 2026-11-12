@@ -445,7 +445,7 @@ PROBLEM_FILES = {
     "Чертежи_архив.pdf": "damaged",
     "скан_0034.jpg": "unreadable",
     "Акт приёмки КД.pdf": "foreign",
-    "Thumbs.db": "unsupported",
+    "Редуктор колёсный.dwg": "unsupported",
     "скан_0035.jpg": "blank",
 }
 
@@ -485,9 +485,11 @@ def build(out: Path, truth_path: Path | None = None, seed: int = 7) -> KitTruth:
     unreadable = scan(draw_drawing(DRAWINGS[8]), rng=rng, noise=noise, unreadable=True)
     unreadable.save(out / "скан_0034.jpg", "JPEG", quality=40)
     (out / "Акт приёмки КД.pdf").write_bytes(draw_foreign(ROOT, SPECS[0].name))
+    # a file of the system, not of the kit: the core leaves it out and names it in the log
     (out / "Thumbs.db").write_bytes(bytes(rng.randrange(256) for _ in range(1024)))
     blank = scan(blank_pdf(), rng=rng, noise=noise)  # the scanned back of a sheet
     blank.save(out / "скан_0035.jpg", "JPEG", quality=72, dpi=(150, 150))
+    (out / "Редуктор колёсный.dwg").write_bytes(b"AC1032" + bytes(1018))  # the CAD model the drawings came from
     truth.problem_files = PROBLEM_FILES
     truth.discrepancies = [ExpectedDiscrepancy(type=t, designation=d, rule_id=r) for t, d, r in EXPECTED_DISCREPANCIES]
     truth.write(truth_path or out.with_name(out.name + "_truth.json"))

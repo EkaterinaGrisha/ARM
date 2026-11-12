@@ -11,12 +11,13 @@ are not packages, such as the PP-OCRv5 recognizer, are in ``models/`` of the che
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
 import os
 import re
 import string
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
@@ -330,6 +331,11 @@ class Review(Section):
 class FileNames(Section):
     sheet_suffix: str
     unknown_shape_share: Share
+    ignored: list[str] = Field(min_length=1)
+
+    def is_ignored(self, path: PurePath) -> bool:
+        """Whether a part of ``path`` names a service file or folder: «.DS_Store», «Thumbs.db», «__MACOSX»."""
+        return any(fnmatch.fnmatchcase(part.lower(), p.lower()) for part in path.parts for p in self.ignored)
 
     @field_validator("sheet_suffix")
     @classmethod

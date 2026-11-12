@@ -86,3 +86,5 @@ review:                          # values the report marks for a check against t
 file_names:                      # what a file name tells besides the designation (ADR-0016)
   sheet_suffix: '\s*\((\d+)\)$'  # «Рама в сборе(2)»: sheet 2 of a document kept one sheet per file; not part of the name
   unknown_shape_share: 0.5       # more than this share of names starting with a designation no grammar knows → a warning
+  ignored: ['.*', '~$*', Thumbs.db, desktop.ini, __MACOSX]  # service files of a system or an editor and their folders,
+                                 # by any part of the path: no documents of the kit, the log names them

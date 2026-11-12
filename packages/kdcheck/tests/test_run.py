@@ -82,6 +82,24 @@ def test_bad_files_get_statuses(tmp_path, settings):
     assert report.tree == []
 
 
+def test_service_files_of_a_system_are_no_documents_of_the_kit(tmp_path, settings):
+    shutil.copy(KIT / "Чертежи" / "АРМ.303411.002 Водило.pdf", tmp_path / "Водило.pdf")
+    (tmp_path / ".DS_Store").write_bytes(b"")
+    (tmp_path / "Thumbs.db").write_bytes(b"\xd0\xcf\x11\xe0")
+    (tmp_path / "__MACOSX").mkdir()
+    (tmp_path / "__MACOSX" / "._Водило.pdf").write_bytes(b"\x00\x05\x16\x07")
+    report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
+    assert [d.path for d in report.documents] == ["Водило.pdf"] and report.documents[0].status == "ok"
+    assert any(e.message.startswith("Служебные файлы не входят в комплект (3): ") for e in report.log)
+
+
+def test_a_file_named_like_a_service_one_but_not_one_stays(settings):
+    names = settings.ingest.file_names
+    assert names.is_ignored(Path("Чертежи/.DS_Store")) and names.is_ignored(Path("__MACOSX/a.pdf"))
+    assert not names.is_ignored(Path("Чертежи/АРМ.303411.002 Водило.pdf"))
+    assert not names.is_ignored(Path("Thumbs.db.pdf"))
+
+
 def test_byte_copy_is_read_once_and_is_no_duplicate_designation(tmp_path, settings):
     drawing = KIT / "Чертежи" / "АРМ.303411.002 Водило.pdf"
     (tmp_path / "архив").mkdir()
