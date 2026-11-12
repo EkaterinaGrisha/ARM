@@ -74,7 +74,7 @@ def test_a_sheet_without_a_title_block_has_no_block_to_mask(settings):
 def test_names_with_initials_are_found_and_other_text_is_not():
     text = "Разраб. Иванов И.И.\nПров. П. С. Петров\nН.контр. СИДОРОВА А. Б.\nУтв. Кузнецов"
     assert mask_people.count_names(text) == 3  # without initials, a surname is searched among those of the kit
-    assert mask_people.count_names("Сталь 45 ГОСТ 1050-2013\nШСМГ.01.030 СБ\nМасса 3,01 М 1:2") == 0
+    assert mask_people.count_names("Сталь 45 ГОСТ 1050-2013\nАРМ.303411.001 СБ\nМасса 3,01 М 1:2") == 0
 
 
 def test_the_surnames_of_a_people_column_are_its_capitalised_words_but_the_labels(settings):
