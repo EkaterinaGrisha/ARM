@@ -25,7 +25,13 @@ from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 
-from kdcheck.normalize.designations import BASE_VARIANT, Designations, split_variant, variant_designation
+from kdcheck.normalize.designations import (
+    BASE_VARIANT,
+    Designations,
+    base_designation,
+    split_variant,
+    variant_designation,
+)
 from kdcheck.schemas import DocumentInfo, Extracted, NodeKind, PartRecord, SourceRef, Specification, SpecRow, TreeNode
 from kdcheck.tree.documents import SheetSet
 
@@ -120,7 +126,8 @@ class _Builder:
         self._node_ids = 0
         self.spec_by_des: defaultdict[str, list[tuple[DocumentInfo, Specification]]] = defaultdict(list)
         for doc, spec in specs:
-            des = eskd.normalize_designation(text(spec.designation)) or doc.designation
+            read = eskd.normalize_designation(text(spec.designation))
+            des = base_designation(read) if read else doc.designation  # a specification has no code (GOST 2.102)
             if des:
                 self.spec_by_des[des].append((doc, spec))
         self.variants: dict[str, tuple[str, str]] = {}  # a variant of a group specification → its base and number

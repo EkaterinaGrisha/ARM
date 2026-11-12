@@ -148,6 +148,26 @@ def _walk(node):
         yield from _walk(child)
 
 
+def test_a_specification_with_rows_and_the_code_of_its_assembly_drawing_stays_a_specification(
+    tmp_path, settings, monkeypatch
+):
+    """A student writes «…00.СБ» on the specification: it is still the specification of the assembly «…00»."""
+    shutil.copy(KIT / "Спецификации" / "АРМ.303411.000 Редуктор колёсный.pdf", tmp_path / "spec.pdf")
+    parse = pipeline.specification.parse
+
+    def coded(doc, forms, eskd):
+        found = parse(doc, forms, eskd)
+        found.designation = Extracted(value="АРМ.303411.000 СБ", source=found.designation.source)
+        return found
+
+    monkeypatch.setattr(pipeline.specification, "parse", coded)
+    report = BaselinePipeline(settings).run(tmp_path, kit_id="t", kit_name="t")
+    [doc] = report.documents
+    assert (doc.kind, doc.designation) == ("specification", "АРМ.303411.000")
+    assert any("у спецификации кода нет" in note for note in doc.notes)
+    assert report.kit.root_designation == "АРМ.303411.000" and report.tree
+
+
 def test_byte_copy_is_read_once_and_is_no_duplicate_designation(tmp_path, settings):
     drawing = KIT / "Чертежи" / "АРМ.303411.002 Водило.pdf"
     (tmp_path / "архив").mkdir()
