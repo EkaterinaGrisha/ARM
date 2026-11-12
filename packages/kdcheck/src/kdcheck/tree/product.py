@@ -79,6 +79,8 @@ class ProductTree:
     documents: list[SheetSet] = field(default_factory=list)  # the documents of the kit with their sheets
     unread: list[DocumentInfo] = field(default_factory=list)  # documents whose designation is not read
     named: list[DocumentInfo] = field(default_factory=list)  # files not read whose name gives their designation
+    # node id → the files not read whose name gives its designation: its document is in the kit, but cannot be used
+    unread_files: dict[str, list[DocumentInfo]] = field(default_factory=dict)
     # node id → why the value that would close its finding is in doubt, and the documents of that value: the finding
     # stays, preliminary
     doubtful: dict[str, tuple[str, list[str]]] = field(default_factory=dict)
@@ -208,13 +210,11 @@ class _Builder:
         self.tree.referenced.update({des, group})
         # a variant has the group assembly drawing of its base when it has none of its own (GOST 2.113)
         drawings = self.drawings_by_des.get(f"{des} {self.sb}") or self.drawings_by_des.get(f"{group} {self.sb}", [])
-        node.drawing_document_ids = [d.doc.id for d in drawings] or [
-            d.id for d in self.named.get(f"{des} {self.sb}", [])
-        ]
+        node.drawing_document_ids = [d.doc.id for d in drawings]
         if not specs:
-            unread = [d for d in self.named.get(des, []) if d.kind == "specification"]
-            node.spec_document_id = unread[0].id if unread else None
-            node.status = "warning" if unread else "missing"  # its specification is in the kit, not read
+            node.status = "missing"
+            if unread := [d for d in self.named.get(des, []) if d.kind == "specification"]:
+                self.tree.unread_files[node.id] = unread  # its specification is in the kit, not read
             return node
         if des in path:
             self.tree.log.append(f"Циклическая ссылка на {des} — раскрытие остановлено")
@@ -270,12 +270,11 @@ class _Builder:
                 if not found:
                     found, doubtful = self._group_drawings(des)
                 node.drawing_document_ids = [d.doc.id for d in found]
-                unread = [d for d in self.named.get(des, []) if d.kind != "specification"]
-                if not found and unread:  # its drawing is in the kit, not read
-                    node.drawing_document_ids, node.status = [d.id for d in unread], "warning"
-                elif not found:
+                if not found:
                     node.status = "missing"
                     self._doubt(node, mark, doubtful)
+                    if unread := [d for d in self.named.get(des, []) if d.kind != "specification"]:
+                        self.tree.unread_files[node.id] = unread  # its drawing is in the kit, not read
         else:
             node.status = "not_required"
         return node
@@ -343,8 +342,8 @@ def build_tree(
 ) -> ProductTree:
     """The tree of the specifications and drawings of the kit, one of each per document of its sheets; ``unread`` are
     the documents of the kit whose designation is not read, any of which may be one the tree misses; ``named`` are
-    the files whose content is not read and whose name gives the designation: each is the document of its position,
-    which gets the ``warning`` status."""
+    the files whose content is not read and whose name gives the designation: the document of a position is then in
+    the kit but cannot be used, and the finding of the position names the file."""
     tree = _Builder(specs, drawings, eskd, named or []).build()
     tree.documents = documents or []
     tree.unread = unread or []
