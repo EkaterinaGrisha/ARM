@@ -104,11 +104,15 @@ class Checker:
         self._check_first_use()
         return self.discrepancies
 
-    def _unread_note(self, docs: list[DocumentInfo], what: str) -> str:
-        """The tail of a preliminary finding: which documents of the kit were not read."""
-        n = self.listed
-        listed = ", ".join(d.path for d in docs[:n]) + (f" и ещё {len(docs) - n}" if len(docs) > n else "")
-        return f". Находка предварительная: {what} ({len(docs)}: {listed}), искомый документ может быть среди них"
+    def _unread_note(self, docs: list[DocumentInfo], what: str, also: str | None = None) -> str:
+        """The tail of a preliminary finding: ``also``, a reason of its own, and which documents of the kit were not
+        read."""
+        reasons = [also] if also else []
+        if docs:
+            n = self.listed
+            listed = ", ".join(d.path for d in docs[:n]) + (f" и ещё {len(docs) - n}" if len(docs) > n else "")
+            reasons.append(f"{what} ({len(docs)}: {listed}), искомый документ может быть среди них")
+        return f". Находка предварительная: {'; '.join(reasons)}" if reasons else ""
 
     def _same_name(self, a: str | None, b: str | None, *sources: SourceRef | None) -> bool:
         """Whether two names are one: the same after normalization or, when one of them was read by OCR or a model,
@@ -176,16 +180,18 @@ class Checker:
             parent = self.tree.parents[node.id]
             document = node.kind == "document"
             what = "Документ" if document else "Чертёж детали"
+            why, doubted = self.tree.doubtful.get(node.id, (None, []))
+            tail = self._unread_note(unread, UNREAD_DOCUMENTS, why)
             self.add(
                 "B1.MISSING.002" if document else "B1.MISSING.001",
                 node.designation,
                 f"{what} {node.designation} «{node.name or '—'}» указан в спецификации {parent.designation}, "
                 "но в комплекте не найден" + tail,
                 expected=node.designation,
-                docs=([parent.spec_document_id] if parent.spec_document_id else []) + [d.id for d in unread],
+                docs=([parent.spec_document_id] if parent.spec_document_id else []) + doubted + [d.id for d in unread],
                 nodes=nodes,
                 sources=[row.source if row else None],
-                preliminary=bool(unread),
+                preliminary=bool(unread) or why is not None,
             )
 
     def _check_unlisted_assemblies(self) -> None:

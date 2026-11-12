@@ -317,6 +317,36 @@ def test_a_variant_of_a_part_is_drawn_on_the_group_drawing_of_its_base(mass, mis
     assert result.tree[0].children[1].drawing_document_ids == ([] if missing else ["d1"])
 
 
+def test_a_see_table_in_doubt_leaves_the_missing_drawing_of_a_variant_preliminary():
+    """«См. табл.» the model alone read, or one the readings disagree on, does not make the drawing a group one: the
+    variant without a drawing of its own is reported, as a preliminary finding that names the doubt."""
+    product = spec(
+        "s0",
+        "АБВГ.100000.000",
+        "Изделие",
+        [row(1, "Детали", "АБВГ.100000.001", "Ось"), row(2, "Детали", "АБВГ.100000.001-01", "Ось")],
+    )
+    base = drawing("d1", "АБВГ.100000.001", "Ось")
+    base.part.title_block.mass = Extracted(value="См. табл.", status="conflict")
+    [missing] = check([product], [base]).discrepancies
+    assert (missing.rule_id, missing.designation, missing.preliminary) == ("B1.MISSING.001", "АБВГ.100000.001-01", True)
+    assert "«См. табл.» в графе «Масса» чертежа d1.pdf прочитано одной моделью" in missing.message
+    assert "d1" in missing.document_ids
+
+
+@pytest.mark.parametrize("status", ["conflict", None])
+def test_a_no_drawing_mark_in_doubt_leaves_the_missing_drawing_preliminary(status):
+    part = row(1, "Детали", PART, "Вал")
+    part.format = Extracted(value="БЧ", status=status, source=SourceRef(document_id="s0", method="ocr"))
+    result = check([product(part)], [])
+    if status is None:
+        assert result.discrepancies == []
+        return
+    [missing] = result.discrepancies
+    assert (missing.rule_id, missing.preliminary) == ("B1.MISSING.001", True)
+    assert "«БЧ» в строке спецификации прочитано с расхождением прочтений" in missing.message
+
+
 def test_all_discrepancy_types():
     specs = [
         spec(

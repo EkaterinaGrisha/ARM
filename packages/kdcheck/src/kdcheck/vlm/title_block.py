@@ -5,7 +5,8 @@ only, and :func:`kdcheck.extract.title_block.cell_value` turns the text into the
 so the cell is the evidence of the value. The model reads the cells the rules left empty, and with ``verify`` every
 one. When its value differs from the one read before, the cell gets the ``conflict`` status and keeps the reading
 ``vlm.conflict`` names (ADR-0019): the model's, with the evidence of the model, or the one read before; the other
-reading goes to the notes of the document.
+reading goes to the notes of the document. A value that closes a finding by itself, «См. табл.» for the mass, read by
+the model alone in a cell the rules read empty, is a conflict too: it does not close the finding.
 """
 
 from __future__ import annotations
@@ -75,6 +76,12 @@ def read_cells(
         )
         read = Extracted(value=value, raw=text, confidence=confidence, source=source)
         if current is None:
+            if _closes_a_finding(field, value, eskd):
+                read.status = "conflict"
+                notes.append(
+                    f"Основная надпись, «{label}»: ячейка не прочитана, модель прочла «{value}»; "
+                    "прочтение одной модели находку не снимает"
+                )
             setattr(tb, field, read)
             continue
         note = f"Основная надпись, «{label}»: прочитано «{current.value}», модель прочла «{value}»"
@@ -86,6 +93,13 @@ def read_cells(
             current.status = "conflict"
             notes.append(note)
     return notes
+
+
+def _closes_a_finding(field: str, value: object, eskd: Designations) -> bool:
+    """Whether the value of a cell closes a finding by itself: «См. табл.» for the mass makes the drawing a group one,
+    which draws the variants without drawings of their own (GOST 2.113). A reading of the model alone, where the rules
+    read nothing, is set against the empty cell as a conflict, so the finding stays, preliminary (Block 1)."""
+    return field == "mass" and value == eskd.words.see_table.name
 
 
 def _crop(raster: Raster, geom: Geometry, cell: tuple[float, float, float, float]) -> Image.Image:

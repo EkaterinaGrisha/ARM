@@ -216,6 +216,23 @@ def test_the_model_fills_a_cell_the_rules_left_empty(settings, eskd, server):
     assert source.bbox == cell  # the evidence is the template cell the model was shown
 
 
+def test_a_see_table_the_model_alone_read_is_a_conflict(settings, eskd, server):
+    """«См. табл.» makes a drawing a group one and closes the finding of a variant; read by the model alone in a cell
+    the rules read empty, it does not close it."""
+    server.say("Масса", "См. табл.")
+    on = _settings(settings, server.url, verify=False, fields={"mass": "Масса"})
+    doc, page, geom, tb = _drawing(on, eskd)
+    tb.mass = None
+    client = VlmClient(on.models.vlm, Prompt("cell.v1", "«{label}»"))
+    raster = page_raster(doc, page, on, get_backend(on.models.pdf.backend))
+    notes = vlm_title_block.read_cells(doc, page, geom, tb, client=client, raster=raster, settings=on, eskd=eskd)
+    assert (tb.mass.value, tb.mass.status, tb.mass.source.method) == ("См. табл.", "conflict", "vlm")
+    assert notes == [
+        "Основная надпись, «Масса»: ячейка не прочитана, модель прочла «См. табл.»; "
+        "прочтение одной модели находку не снимает"
+    ]
+
+
 def _verified(settings, eskd, server, conflict: str):
     server.say("Масса", "4.2")  # the same value written with a point
     server.say("Масштаб", "Масштаб 1:2")  # the rules read 1:1
