@@ -21,7 +21,7 @@ from typing import Literal
 from PIL import Image, ImageChops, ImageFilter, ImageStat
 
 from kdcheck import limits
-from kdcheck.config import BlankSheet, ScanQuality, Settings, Sheet
+from kdcheck.config import BlankSheet, FileNames, ScanQuality, Settings, Sheet
 from kdcheck.ingest.pdf import EncryptedPdfError, PdfBackend, PdfPage, get_backend
 from kdcheck.ingest.text import BBox, Engine, Line
 from kdcheck.layout import raster
@@ -154,6 +154,13 @@ class LoadedDocument:
             engine=name,
             engine_version=version,
         )
+
+
+def kit_files(folder: Path, names: FileNames) -> tuple[list[Path], list[Path]]:
+    """The files of a kit folder, in order, and the service files of a system or an editor left out of it."""
+    files = sorted(p for p in folder.rglob("*") if p.is_file())
+    ignored = [p for p in files if names.is_ignored(p.relative_to(folder))]
+    return [p for p in files if p not in set(ignored)], ignored
 
 
 def document_id(rel_path: str) -> str:

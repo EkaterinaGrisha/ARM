@@ -1,10 +1,11 @@
 """Stage 8: documents assembled from their sheets (ADR-0017).
 
 A kit may keep a document of several sheets one sheet per file, the number of the sheet in brackets at the end of the
-file name. Files are sheets of one document when they carry one designation, are of one kind and start at different
-sheets. The first sheet keeps the specification or the part record of the document, with the rows and parameters of
-every sheet; each value still names its own file in ``SourceRef.document_id``. Files that share a designation and a
-sheet number stay apart: the rules report them as duplicates.
+file name. Files are sheets of one document when they carry one designation, are of one kind (a specification, a
+drawing, or a text document as «… ПЗ») and start at different sheets. The first sheet keeps the specification or the
+part record of the document, with the rows and parameters of every sheet; each value still names its own file in
+``SourceRef.document_id``. Files that share a designation and a sheet number stay apart: the rules report them as
+duplicates.
 """
 
 from __future__ import annotations
@@ -42,8 +43,8 @@ class Assembly:
 
 
 def _family(info: DocumentInfo) -> str | None:
-    if info.kind == "specification":
-        return "specification"
+    if info.kind in ("specification", "other"):
+        return info.kind
     return "drawing" if info.kind in DRAWINGS else None
 
 
@@ -126,6 +127,8 @@ def assemble(
             if head is not None:
                 head.rows = _rows(read)
             sheets = head.sheets if head is not None else None
+        elif family == "other":
+            sheets = first.title_block.sheets if first.title_block is not None else None
         else:
             record = part_of.get(first.id)
             rest = [part_of[f.id] for f in files[1:] if f.id in part_of]
@@ -169,6 +172,8 @@ def _single(
 ) -> SheetSet:
     if info.id in spec_of:
         sheets = spec_of[info.id].sheets
+    elif info.title_block is not None:  # a text document
+        sheets = info.title_block.sheets
     else:
         part = part_of.get(info.id)
         sheets = part.title_block.sheets if part is not None else None

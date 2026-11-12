@@ -20,6 +20,8 @@ assembly_drawing_code: СБ
 assembly_drawing_name: сборочный чертеж  # in the name of an assembly drawing; ё is compared as е
 
 document_codes: [СБ, ВО, ТЧ, ГЧ, МЭ, МЧ, УЧ, ЭЗ, Э3, ПЗ, ТУ, ВП, ВД, ПЭ3, ТБ, РР, Д1]  # GOST 2.102
+text_codes: [ПЗ, ТУ, ВП, ВД, ПЭ3, ТБ, РР, Д1]  # of them, the codes of text documents on forms 2 and 2a (GOST 2.104): never
+                                 # a drawing, and never a specification, which has no code
 filename_codes: {СП: specification}  # codes a maker writes only into file names, and the kind of document each means
 
 # Grammars of designations, one per system of designation, tried in this order (ADR-0016). Where two matches overlap,

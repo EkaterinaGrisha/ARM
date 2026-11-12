@@ -81,6 +81,19 @@ class Designations:
         """
         return [(value, start, end) for value, _, start, end in self._found(text, file_name)]
 
+    def file_code(self, stem: str) -> str | None:
+        """The document code a file name writes after its first designation, a code written only into file names
+        too: «АРМ.303411.000 СП Редуктор» → «СП»."""
+        found = self._found(stem, True)
+        if not found:
+            return None
+        _, order, start, _ = found[0]
+        compiled = self._grammars[order]
+        text = stem.replace("_", " ")
+        text = text.upper().translate(self._lat_to_cyr) if compiled.grammar.upper else text.translate(self._lat_to_cyr)
+        m = compiled.file_name.match(text, start)
+        return m["code"] if m else None
+
     def _found(self, text: str, file_name: bool) -> list[tuple[str, int, int, int]]:
         """Designations of a string with the grammar of each: (normalized, grammar index, start, end).
 

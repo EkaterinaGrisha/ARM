@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.9"
+SCHEMA_VERSION = "1.10"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
@@ -133,6 +133,14 @@ class DocumentInfo(Model):
         description=(
             "Файл — последующий лист документа, начатого в файле с этим id; спецификация и запись детали — "
             "по тому файлу. Пусто у первого листа и у документа в одном файле. С версии 1.4"
+        ),
+    )
+    title_block: TitleBlock | None = Field(
+        None,
+        description=(
+            "Основная надпись документа вида `other` — пояснительной записки, ведомости, технических условий: "
+            "обозначение, наименование, литера с доказательствами. У чертежа она в записи детали, у спецификации — "
+            "в спецификации. С версии 1.10"
         ),
     )
     notes: list[str] = []

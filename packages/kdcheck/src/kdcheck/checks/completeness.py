@@ -104,11 +104,15 @@ class Checker:
         self._check_first_use()
         return self.discrepancies
 
-    def _unread_note(self, docs: list[DocumentInfo], what: str) -> str:
-        """The tail of a preliminary finding: which documents of the kit were not read."""
-        n = self.listed
-        listed = ", ".join(d.path for d in docs[:n]) + (f" и ещё {len(docs) - n}" if len(docs) > n else "")
-        return f". Находка предварительная: {what} ({len(docs)}: {listed}), искомый документ может быть среди них"
+    def _unread_note(self, docs: list[DocumentInfo], what: str, also: str | None = None) -> str:
+        """The tail of a preliminary finding: ``also``, a reason of its own, and which documents of the kit were not
+        read."""
+        reasons = [also] if also else []
+        if docs:
+            n = self.listed
+            listed = ", ".join(d.path for d in docs[:n]) + (f" и ещё {len(docs) - n}" if len(docs) > n else "")
+            reasons.append(f"{what} ({len(docs)}: {listed}), искомый документ может быть среди них")
+        return f". Находка предварительная: {'; '.join(reasons)}" if reasons else ""
 
     def _same_name(self, a: str | None, b: str | None, *sources: SourceRef | None) -> bool:
         """Whether two names are one: the same after normalization or, when one of them was read by OCR or a model,
@@ -176,16 +180,18 @@ class Checker:
             parent = self.tree.parents[node.id]
             document = node.kind == "document"
             what = "Документ" if document else "Чертёж детали"
+            why, doubted = self.tree.doubtful.get(node.id, (None, []))
+            tail = self._unread_note(unread, UNREAD_DOCUMENTS, why)
             self.add(
                 "B1.MISSING.002" if document else "B1.MISSING.001",
                 node.designation,
                 f"{what} {node.designation} «{node.name or '—'}» указан в спецификации {parent.designation}, "
                 "но в комплекте не найден" + tail,
                 expected=node.designation,
-                docs=([parent.spec_document_id] if parent.spec_document_id else []) + [d.id for d in unread],
+                docs=([parent.spec_document_id] if parent.spec_document_id else []) + doubted + [d.id for d in unread],
                 nodes=nodes,
                 sources=[row.source if row else None],
-                preliminary=bool(unread),
+                preliminary=bool(unread) or why is not None,
             )
 
     def _check_unlisted_assemblies(self) -> None:
@@ -217,7 +223,10 @@ class Checker:
         tree = self.tree
         if not tree.specs:
             return
-        unread = [doc for doc, spec in tree.specs if not spec.rows]  # specifications whose rows were not read
+        # specifications whose rows were not read, and files of specifications by their names not read at all
+        unread = [doc for doc, spec in tree.specs if not spec.rows] + [
+            d for d in tree.named if d.kind == "specification"
+        ]
         tail = self._unread_note(unread, UNREAD_SPECIFICATIONS) if unread else ""
         for des, refs in tree.drawings_by_des.items():
             base, code = base_designation(des), doc_code(des)
@@ -300,6 +309,23 @@ class Checker:
                     docs=[d.id for d, _ in items],
                     sources=[s.designation.source if s.designation else None for _, s in items],
                 )
+        for des, items in tree.spec_by_des.items():
+            drawings = [r for r in tree.drawings_by_des.get(des, []) if r.doc.kind == "part_drawing"]
+            if not drawings:  # the assembly drawing of an assembly is «… СБ»
+                continue
+            specs = ", ".join(d.path for d, _ in items)
+            files = ", ".join(r.doc.path for r in drawings)
+            self.add(
+                "B1.DUP.004",
+                des,
+                f"Обозначение {des} присвоено спецификации сборочной единицы ({specs}) и чертежу детали "
+                f"«{drawings[0].doc.name or '—'}» ({files}): документ одного изделия поглощает другой",
+                actual=files,
+                docs=[d.id for d, _ in items] + [r.doc.id for r in drawings],
+                nodes=tree.node_index.get(des, []),
+                sources=[s.designation.source if s.designation else None for _, s in items]
+                + [r.tb_source("designation") for r in drawings],
+            )
 
     def _check_sheets(self) -> None:
         """A document whose title block counts more sheets than the kit has, or whose sheets skip a number."""

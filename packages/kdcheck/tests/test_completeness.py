@@ -18,6 +18,7 @@ from kdcheck.schemas import (
     Discrepancy,
     DiscrepancyType,
     DocumentInfo,
+    DocumentKind,
     Extracted,
     PageInfo,
     Parameter,
@@ -47,17 +48,18 @@ def check(
     checks: Checks = SETTINGS.checks,
     later: set[str] | None = None,
     unread: list[DocumentInfo] | None = None,
+    named: list[DocumentInfo] | None = None,
 ) -> Result:
     """The tree and the discrepancies as the pipeline gets them: files assembled into documents first. ``later`` are
     the files with form 2a of a later sheet; by default every file past sheet 1. ``unread`` are files without a
-    designation read."""
+    designation read, ``named`` files not read whose name gives one."""
     parts = [d.part for d in drawings if d.part is not None]
     infos = [info for info, _ in specs] + [d.doc for d in drawings]
     if later is None:
         later = {info.id for info in infos if (info.sheet or 0) > 1}
     assembly = assemble(infos, specs, parts, later)
     refs = [d for d in drawings if d.doc.sheet_of is None]
-    tree = build_tree(assembly.specs, refs, ESKD, assembly.documents, unread)
+    tree = build_tree(assembly.specs, refs, ESKD, assembly.documents, unread, named)
     found = run_check(tree, ESKD, configured(checks), checks)
     return Result(tree.roots, found, assembly.log + tree.log)
 
@@ -114,6 +116,16 @@ def drawing(
         sheets=Extracted(value=sheets, source=SourceRef(document_id=doc_id, method="text_layer")) if sheets else None,
     )
     return DrawingRef(doc=info, part=PartRecord(document_id=doc_id, designation=des, name=name, title_block=tb))
+
+
+def text_document(doc_id: str, des: str, name: str, litera: str = "О1") -> DrawingRef:
+    """A text document of the kit, «… ПЗ»: of kind ``other``, with its title block and no part record."""
+    tb = TitleBlock(designation=Extracted(value=des), name=Extracted(value=name), litera=Extracted(value=litera))
+    info = DocumentInfo(
+        id=doc_id, file_name=f"{doc_id}.pdf", path=f"{doc_id}.pdf", kind="other", designation=des, name=name
+    )
+    info.title_block = tb
+    return DrawingRef(doc=info, part=None)
 
 
 def found(result) -> set[tuple[str | None, str | None]]:
@@ -307,6 +319,66 @@ def test_a_variant_of_a_part_is_drawn_on_the_group_drawing_of_its_base(mass, mis
     assert result.tree[0].children[1].drawing_document_ids == ([] if missing else ["d1"])
 
 
+def test_a_see_table_in_doubt_leaves_the_missing_drawing_of_a_variant_preliminary():
+    """«См. табл.» the model alone read, or one the readings disagree on, does not make the drawing a group one: the
+    variant without a drawing of its own is reported, as a preliminary finding that names the doubt."""
+    product = spec(
+        "s0",
+        "АБВГ.100000.000",
+        "Изделие",
+        [row(1, "Детали", "АБВГ.100000.001", "Ось"), row(2, "Детали", "АБВГ.100000.001-01", "Ось")],
+    )
+    base = drawing("d1", "АБВГ.100000.001", "Ось")
+    base.part.title_block.mass = Extracted(value="См. табл.", status="conflict")
+    [missing] = check([product], [base]).discrepancies
+    assert (missing.rule_id, missing.designation, missing.preliminary) == ("B1.MISSING.001", "АБВГ.100000.001-01", True)
+    assert "«См. табл.» в графе «Масса» чертежа d1.pdf прочитано одной моделью" in missing.message
+    assert "d1" in missing.document_ids
+
+
+@pytest.mark.parametrize("status", ["conflict", None])
+def test_a_no_drawing_mark_in_doubt_leaves_the_missing_drawing_preliminary(status):
+    part = row(1, "Детали", PART, "Вал")
+    part.format = Extracted(value="БЧ", status=status, source=SourceRef(document_id="s0", method="ocr"))
+    result = check([product(part)], [])
+    if status is None:
+        assert result.discrepancies == []
+        return
+    [missing] = result.discrepancies
+    assert (missing.rule_id, missing.preliminary) == ("B1.MISSING.001", True)
+    assert "«БЧ» в строке спецификации прочитано с расхождением прочтений" in missing.message
+
+
+def damaged(doc_id: str, des: str, kind: DocumentKind) -> DocumentInfo:
+    """A file that did not open, whose name gives the designation and the kind of its document."""
+    return DocumentInfo(
+        id=doc_id, file_name=f"{des}.pdf", path=f"{des}.pdf", kind=kind, status="damaged", designation=des
+    )
+
+
+def test_a_file_not_read_but_named_is_the_document_of_its_position():
+    """A damaged «АБВГ.100000.001.pdf» is the drawing of its part, though not read: no missing drawing, and the node
+    says the document needs a look; a damaged file without a designation in its name still makes the others
+    preliminary."""
+    result = check([product(part_row())], [], named=[damaged("d1", PART, "part_drawing")])
+    assert result.discrepancies == []
+    [top] = result.tree
+    assert [(n.status, n.drawing_document_ids) for n in top.children] == [("warning", ["d1"])]
+    stray = DocumentInfo(id="d2", file_name="архив.pdf", path="архив.pdf", status="damaged")
+    two = check([product(part_row(), unit_row())], [], unread=[stray], named=[damaged("d1", PART, "part_drawing")])
+    assert {(d.rule_id, d.designation, d.preliminary) for d in two.discrepancies} == {("B1.SPEC.001", UNIT, True)}
+
+
+def test_a_specification_not_read_but_named_is_the_specification_of_its_assembly():
+    unit = damaged("s1", UNIT, "specification")
+    result = check([product(unit_row())], [drawing("d1", PART, "Вал")], named=[unit])
+    assert {(d.rule_id, d.designation, d.preliminary) for d in result.discrepancies} == {
+        ("B1.ORPHAN.001", PART, True)  # the unit lists the part, maybe: its rows are not read
+    }
+    [top] = result.tree
+    assert [(n.status, n.spec_document_id) for n in top.children] == [("warning", "s1")]
+
+
 def test_all_discrepancy_types():
     specs = [
         spec(
@@ -463,6 +535,10 @@ CASES: dict[str, tuple[Callable[[], Kit], Callable[[], Kit]]] = {
         # a specification and the assembly drawing of the same unit
         lambda: ([product(unit_row()), spec("s1", UNIT, "Узел", [])], [drawing("d2", f"{UNIT} СБ", "Узел")]),
     ),
+    "B1.DUP.004": (  # a drawing of a part under the designation of an assembly with a specification of its own
+        lambda: ([product(unit_row()), spec("s1", UNIT, "Узел", [])], [drawing("d2", UNIT, "Кронштейн")]),
+        lambda: ([product(unit_row()), spec("s1", UNIT, "Узел", [])], [drawing("d2", f"{UNIT} СБ", "Узел")]),
+    ),
     "B1.VERSION.001": (
         lambda: (
             [product(part_row())],
@@ -528,6 +604,32 @@ CASES: dict[str, tuple[Callable[[], Kit], Callable[[], Kit]]] = {
         lambda: ([product(part_row())], [first_used(drawing("d1", PART, "Вал"), "АБВГ.999999.000")]),
     ),
 }
+
+
+def note_row() -> SpecRow:
+    return row(4, "Документация", f"{TOP} ПЗ", "Пояснительная записка", None)
+
+
+def test_a_text_document_of_the_kit_is_the_document_of_its_position():
+    """«… ПЗ» on form 2 is no drawing and no specification: it closes its position, and no specification of the kit
+    is left without rows to make the other findings preliminary."""
+    stranger = drawing("d9", "АБВГ.999999.001", "Чужая")
+    note = text_document("t1", f"{TOP} ПЗ", "Пояснительная записка")
+    result = check([product(part_row(), note_row())], [drawing("d1", PART, "Вал"), note, stranger])
+    assert found(result) == {("B1.ORPHAN.001", "АБВГ.999999.001")}
+    assert not any(d.preliminary for d in result.discrepancies)
+    [top] = result.tree
+    assert [n.drawing_document_ids for n in top.children if n.kind == "document"] == [["t1"]]
+    without = check([product(part_row(), note_row())], [drawing("d1", PART, "Вал")])
+    assert found(without) == {("B1.MISSING.002", f"{TOP} ПЗ")}
+
+
+def test_a_text_document_no_specification_names_is_reported_and_two_versions_of_it_too():
+    notes = [text_document("t1", f"{TOP} ПЗ", "Пояснительная записка", litera=lit) for lit in ("О1", "А")]
+    notes[1].doc.id = "t2"
+    assert ("B1.ORPHAN.001", f"{TOP} ПЗ") in found(check([product(part_row())], [drawing("d1", PART, "Вал"), notes[0]]))
+    two = found(check([product(part_row(), note_row())], [drawing("d1", PART, "Вал"), *notes]))
+    assert {("B1.DUP.001", f"{TOP} ПЗ"), ("B1.VERSION.001", f"{TOP} ПЗ")} <= two
 
 
 def fired(kit: Kit, checks: Checks = SETTINGS.checks) -> set[str | None]:

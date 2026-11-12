@@ -10,7 +10,7 @@ parts has its own tail. The thresholds and scores are in ``criticality.yaml``.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from statistics import median
 
@@ -58,6 +58,15 @@ def _fmt(v: float | None) -> str:
     return f"{v:g}".replace(".", ",")
 
 
+def _against(value: float, kit: Sequence[float], shown: Callable[[float], str], what: str) -> str:
+    """How the value stands among the values of its kind in the kit, «; точнее 80% … (медиана …)»; nothing when the
+    kit has no other value to compare with, as for a general tolerance, which the kit values leave out."""
+    if len(kit) < 2:
+        return ""
+    share = sum(1 for v in kit if v > value) / len(kit)
+    return f"; {what.format(share=f'{share:.0%}')} комплекта (медиана {shown(median(kit))})"
+
+
 def select(parts: list[PartRecord], rules: Criticality) -> list[CriticalParameter]:
     fit, rough, hard = rules.tight_fit, rules.fine_roughness, rules.high_hardness
     chem, geo, rare = rules.chemical_heat_treatment, rules.tight_geometric, rules.rare_in_kit
@@ -66,7 +75,7 @@ def select(parts: list[PartRecord], rules: Criticality) -> list[CriticalParamete
 
     grades = [p.it_grade for _, p in all_params if p.category == "dimension_tolerance" and p.it_grade and not p.general]
     ra = [p.value for _, p in all_params if p.category == "roughness" and p.qualifier == "Ra" and p.value]
-    gdt = [p.value for _, p in all_params if p.category == "geometric" and p.value]
+    gdt = [p.value for _, p in all_params if p.category == "geometric" and p.value is not None]  # «Ø0 Ⓜ» is a value
     coatings = Counter(
         (p.qualifier or p.name).lower()
         for part in parts
@@ -98,13 +107,12 @@ def select(parts: list[PartRecord], rules: Criticality) -> list[CriticalParamete
 
     for part, p in all_params:
         if p.category == "dimension_tolerance" and p.it_grade and p.it_grade <= fit.max_it_grade:
-            share = sum(1 for g in grades if g > p.it_grade) / len(grades) if grades else 0
             add(
                 part,
                 p,
                 "tight_fit",
                 f"Квалитет IT{p.it_grade} ({p.qualifier}) — требует чистовой обработки (шлифование) и контроля "
-                f"калибрами; точнее {share:.0%} посадочных размеров комплекта (медиана IT{median(grades):g})",
+                f"калибрами{_against(p.it_grade, grades, lambda v: f'IT{v:g}', 'точнее {share} посадочных размеров')}",
                 fit.strict_score if p.it_grade <= fit.strict_it_grade else fit.score,
             )
         elif p.category == "roughness" and p.value is not None and not p.general:
@@ -144,8 +152,8 @@ def select(parts: list[PartRecord], rules: Criticality) -> list[CriticalParamete
                 part,
                 p,
                 "tight_geometric",
-                f"Допуск {_fmt(p.value)} мм — обработка с одной установки или на координатном оборудовании; "
-                f"жёстче {sum(1 for v in gdt if v > p.value) / len(gdt):.0%} допусков формы и расположения комплекта",
+                f"Допуск {_fmt(p.value)} мм — обработка с одной установки или на координатном оборудовании"
+                + _against(p.value, gdt, lambda v: f"{_fmt(v)} мм", "жёстче {share} допусков формы и расположения"),
                 geo.score,
             )
         elif (

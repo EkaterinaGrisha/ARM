@@ -17,21 +17,24 @@ from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 from kdcheck.checks import rules
 from kdcheck.checks.completeness import check
 from kdcheck.config import Settings, settings_sha256
 from kdcheck.extract import review, specification, tech_requirements, title_block
-from kdcheck.ingest.document import LoadedDocument, Page, load_document, page_raster
+from kdcheck.ingest.document import LoadedDocument, Page, kit_files, load_document, page_raster
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.ingest.text import Line
 from kdcheck.normalize import file_designation
-from kdcheck.normalize.designations import Designations
+from kdcheck.normalize.designations import Designations, doc_code
 from kdcheck.ocr import cells, tesseract
 from kdcheck.params import critical, parameters
 from kdcheck.schemas import (
+    CriticalParameter,
+    Discrepancy,
     DocumentInfo,
+    DocumentKind,
     EngineInfo,
     Extracted,
     KitInfo,
@@ -45,7 +48,7 @@ from kdcheck.schemas import (
     TitleBlock,
     TreeNode,
 )
-from kdcheck.tree.documents import assemble
+from kdcheck.tree.documents import DRAWINGS, Assembly, assemble
 from kdcheck.tree.product import DrawingRef, build_tree
 from kdcheck.tree.rows import check_rows
 from kdcheck.vlm import spec_rows as vlm_spec_rows
@@ -54,6 +57,7 @@ from kdcheck.vlm import title_block as vlm_title_block
 from kdcheck.vlm.client import VlmClient, VlmError, load_prompt
 
 log = logging.getLogger(__name__)
+T = TypeVar("T")
 
 # (stage, share done 0..1, note)
 ProgressCallback = Callable[[str, float, str | None], None]
@@ -88,6 +92,7 @@ class BaselinePipeline:
         self.vlm_problem: str | None = None  # why the model is not asked in this run
         self.vlm_used = False
         self.later_sheets: set[str] = set()  # files whose form 2a says they are later sheets of a document
+        self.named_unread: set[str] = set()  # files not read whose name gives the designation of their document
 
     # ------------------------------------------------------------------ run
     def run(self, input_dir: Path, *, kit_id: str, kit_name: str, progress: ProgressCallback = no_progress) -> Report:
@@ -96,7 +101,14 @@ class BaselinePipeline:
         self.vlm_problem = self.vlm.unavailable() if self.vlm is not None else None
         self.vlm_used = False
         self.later_sheets = set()
-        files = sorted(p for p in input_dir.rglob("*") if p.is_file())
+        self.named_unread = set()
+        files, ignored = kit_files(input_dir, self.settings.ingest.file_names)
+        if ignored:
+            n = self.settings.checks.preliminary.listed
+            listed = ", ".join(p.relative_to(input_dir).as_posix() for p in ignored[:n])
+            listed += f" и ещё {len(ignored) - n}" if len(ignored) > n else ""
+            message = f"Служебные файлы не входят в комплект ({len(ignored)}): {listed}"
+            report_log.append(LogEntry(level="info", message=message))
         self.eskd = self.designations.for_kit([p.stem for p in files])
         report_log += self._designation_systems(files)
         progress("Чтение файлов", 0.0, f"Файлов в комплекте: {len(files)}")
@@ -125,55 +137,92 @@ class BaselinePipeline:
                 report_log.append(LogEntry(level="error", message=f"Ошибка разбора: {exc}", document_id=doc.id))
         for doc in docs:
             report_log += _page_problems(doc)
+            if doc.info.status in UNREAD:
+                self._named_unread(doc)
         if self.vlm is not None and self.vlm_problem:
             message = f"Модель {self.vlm.engine.model} не ответила: {self.vlm_problem}. "
             message += "Основные надписи сканов прочитаны без неё" if not self.vlm_used else "Часть ячеек она не прочла"
             report_log.append(LogEntry(level="warning", message=message))
 
+        # each stage past parsing is isolated as a file is: a stage that fails leaves its part of the report empty
+        # and says so in the log, and the report is still written with what the other stages found
         progress("Проверка комплектности", 0.87, None)
-        assembly = assemble([d.info for d in docs], [(d.info, s) for d, s in specs], parts, self.later_sheets)
+        infos = [d.info for d in docs]
+        loose = Assembly(specs=[(d.info, s) for d, s in specs], parts=parts, documents=[], log=[])
+        assembly = _stage(
+            "сборка документов из листов",
+            report_log,
+            lambda: assemble(infos, [(d.info, s) for d, s in specs], parts, self.later_sheets),
+            loose,
+        )
         report_log += [LogEntry(level="warning", message=m) for m in assembly.log]
         kept = {info.id for info, _ in assembly.specs}
         specs, parts = [(d, s) for d, s in specs if d.id in kept], assembly.parts
         designations = {d.info.designation for d in docs if d.info.designation}
         designations |= {f for d in docs if (f := self._filename_designation(d.info.file_name))}
-        if changed := check_rows(assembly.specs, designations, self.eskd, self.settings.dictionaries.row_designations):
+        row_rules = self.settings.dictionaries.row_designations
+        if changed := _stage(
+            "сверка строк спецификаций с комплектом",
+            report_log,
+            lambda: check_rows(assembly.specs, designations, self.eskd, row_rules),
+            None,
+        ):
             report_log.append(
                 LogEntry(level="info", message=f"Обозначения строк спецификаций сверены с комплектом: {changed}")
             )
+        # the documents a position of a specification may name: drawings, and text documents as «… ПЗ»
         drawing_refs = [
             DrawingRef(doc=d.info, part=next((p for p in parts if p.document_id == d.id), None))
             for d in docs
-            if d.info.kind in ("part_drawing", "assembly_drawing", "drawing")
+            if d.info.kind in (*DRAWINGS, "other")
             and d.info.designation
             and d.info.sheet_of is None
+            and d.id not in self.named_unread
         ]
         unread = [d.info for d in docs if _unread(d.info)]
-        tree = build_tree([(d.info, s) for d, s in specs], drawing_refs, self.eskd, assembly.documents, unread)
-        discrepancies = check(tree, self.eskd, self.rules, self.settings.checks)
-        report_log += [LogEntry(level="warning", message=m) for m in tree.log]
+        named = [d.info for d in docs if d.id in self.named_unread and d.info.sheet_of is None]
+        tree = _stage(
+            "дерево изделия",
+            report_log,
+            lambda: build_tree(
+                [(d.info, s) for d, s in specs], drawing_refs, self.eskd, assembly.documents, unread, named
+            ),
+            None,
+        )
+        discrepancies: list[Discrepancy] = []
+        if tree is not None:
+            discrepancies = _stage(
+                "правила Блока 1", report_log, lambda: check(tree, self.eskd, self.rules, self.settings.checks), []
+            )
+            report_log += [LogEntry(level="warning", message=m) for m in tree.log]
 
         progress("Анализ требований", 0.93, None)
-        criticals = critical.select(parts, self.settings.criticality)
+        criticals: list[CriticalParameter] = _stage(
+            "отбор критичных параметров", report_log, lambda: critical.select(parts, self.settings.criticality), []
+        )
 
         progress("Формирование отчёта", 0.97, None)
-        for model in [*parts, *(s for _, s in specs)]:
-            review.mark(model, self.settings.ingest.review)
-        infos = [d.info for d in docs]
+
+        def mark() -> None:
+            for model in [*parts, *(s for _, s in specs)]:
+                review.mark(model, self.settings.ingest.review)
+
+        _stage("отметка значений для проверки", report_log, mark, None)
         for d in infos:
             if d.status in ("damaged", "encrypted", "unsupported", "unreadable", "blank", "foreign", "duplicate_file"):
                 report_log.append(LogEntry(level="warning", message=d.problem or d.status, document_id=d.id))
-        tree_items = _count_nodes(tree.roots)
+        roots = tree.roots if tree is not None else []
+        tree_items = _count_nodes(roots)
         need = _count_nodes(
-            tree.roots, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document")
+            roots, lambda n: n.status in ("ok", "missing", "warning") and n.kind in ("part", "document")
         )
-        have = _count_nodes(tree.roots, lambda n: n.kind in ("part", "document") and bool(n.drawing_document_ids))
+        have = _count_nodes(roots, lambda n: n.kind in ("part", "document") and bool(n.drawing_document_ids))
         summary = Summary(
             documents_total=len(infos),
             documents_by_status=dict(Counter(d.status for d in infos)),
             documents_by_kind=dict(Counter(d.kind for d in infos)),
             specifications=len(specs),
-            drawings=len(drawing_refs),
+            drawings=sum(1 for d in drawing_refs if d.doc.kind in DRAWINGS),
             tree_items=tree_items,
             parts=len(parts),
             parameters=sum(len(p.parameters) for p in parts),
@@ -185,8 +234,8 @@ class BaselinePipeline:
         kit = KitInfo(
             id=kit_id,
             name=kit_name,
-            root_designation=tree.root_designation,
-            root_name=tree.root_name,
+            root_designation=tree.root_designation if tree is not None else None,
+            root_name=tree.root_name if tree is not None else None,
             processed_at=_now(),
             duration_sec=round(time.monotonic() - started, 2),
             pipeline_name=self.name,
@@ -200,7 +249,7 @@ class BaselinePipeline:
             summary=summary,
             documents=infos,
             specifications=[s for _, s in specs],
-            tree=tree.roots,
+            tree=roots,
             discrepancies=discrepancies,
             parts=parts,
             critical_parameters=criticals,
@@ -245,6 +294,8 @@ class BaselinePipeline:
                 self._set_sheet(doc, later.sheet, "later")
             else:
                 self._set_sheet(doc, None, "first" if head is not None and head.form == 2 else None)
+            if self._text_document(doc, spec):
+                return
             if not spec.rows:
                 info.status, info.problem = "warning", "Спецификация распознана, но строки таблицы не найдены"
             specs.append((doc, spec))
@@ -258,10 +309,12 @@ class BaselinePipeline:
             info.designation = self._designation(doc, spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
             self._set_sheet(doc, None, "first")
-            specs.append((doc, spec))
+            if not self._text_document(doc, spec):
+                specs.append((doc, spec))
             return
         if geom is None and (later := title_block.later_sheet(doc, page, forms, self.eskd)) is not None:
-            parts.append(self._parse_later_sheet(doc, page, later))
+            if (record := self._parse_later_sheet(doc, page, later)) is not None:
+                parts.append(record)
             return
         if geom is None:
             fallback = title_block.default_geometry(page, forms)
@@ -326,9 +379,10 @@ class BaselinePipeline:
         part.parameters += self._annotations(doc, aside, next_id)
         return part
 
-    def _parse_later_sheet(self, doc: LoadedDocument, page: Page, later: title_block.LaterSheet) -> PartRecord:
+    def _parse_later_sheet(self, doc: LoadedDocument, page: Page, later: title_block.LaterSheet) -> PartRecord | None:
         """A later sheet of a drawing kept in a file of its own (ADR-0017): the designation and the number of the sheet
-        of its form 2a, and the parameters drawn on its field. The document gets them at its first sheet."""
+        of its form 2a, and the parameters drawn on its field. The document gets them at its first sheet. A later
+        sheet of a text document, «… ПЗ», is of kind ``other`` and has no parameters."""
         info, forms = doc.info, self.settings.forms
         tb = TitleBlock(designation=later.designation, sheet=later.sheet)
         self._designation_from_filename(doc, tb)
@@ -337,6 +391,9 @@ class BaselinePipeline:
         info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(designation, None) else "part_drawing"
         info.designation = designation
         info.name = self._filename_name(info.file_name)
+        if designation is not None and doc_code(designation) in self.settings.dictionaries.text_codes:
+            info.kind, info.title_block = "other", tb
+            return None
         if designation is None:
             info.status, info.problem = "warning", "Последующий лист чертежа: обозначение не прочитано"
         if page.method == "ocr":
@@ -405,6 +462,23 @@ class BaselinePipeline:
         info.sheet = number if number is not None else named
         if form == "later":
             self.later_sheets.add(doc.id)
+
+    def _text_document(self, doc: LoadedDocument, spec: Specification) -> bool:
+        """Whether a document read as a specification is a text document of the kit: its designation has a code, as
+        «… ПЗ» or «… ВП» has, and a specification has none (GOST 2.102). It is then of kind ``other``, with its title
+        block, and its table is no rows of a specification."""
+        info = doc.info
+        code = doc_code(info.designation) if info.designation else None
+        if code is None:
+            return False
+        info.kind = "other"
+        info.title_block = TitleBlock(
+            designation=spec.designation, name=spec.name, litera=spec.litera, sheets=spec.sheets
+        )
+        info.notes.append(
+            f"Документ с кодом «{code}» на бланке формы 2 — не спецификация: строки таблицы не разбираются"
+        )
+        return True
 
     def _read_spec_cells(self, doc: LoadedDocument, spec: Specification) -> None:
         """A specification read by the model as a drawing is (ADR-0021): the cells of form 2 on the first page that
@@ -481,7 +555,10 @@ class BaselinePipeline:
         self._set_sheet(doc, None, None)
         info.designation = des
         info.name = self._filename_name(info.file_name)
-        info.kind = "assembly_drawing" if self.eskd.is_assembly_drawing(des, None) else "part_drawing"
+        info.kind = self._filename_kind(info.file_name, des)
+        if info.kind not in DRAWINGS:  # a specification or a text document: its document is in the kit, not read
+            self.named_unread.add(doc.id)
+            return
         confidence = self.settings.ingest.confidence
         src = SourceRef(
             document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=confidence.filename
@@ -492,6 +569,29 @@ class BaselinePipeline:
         if info.name:
             tb.name = Extracted(value=info.name, raw=info.file_name, confidence=confidence.filename_name, source=src)
         parts.append(PartRecord(document_id=doc.id, designation=des, name=info.name, kind=info.kind, title_block=tb))
+
+    def _named_unread(self, doc: LoadedDocument) -> None:
+        """A file whose content is not read — damaged, encrypted, an unreadable scan — whose name gives a designation:
+        the document of that designation is in the kit, not read. It closes its position, and it is no unknown
+        document that may be the one another position misses."""
+        info = doc.info
+        des = self._filename_designation(info.file_name)
+        if not des:
+            return
+        info.designation, info.name = des, self._filename_name(info.file_name)
+        info.kind = self._filename_kind(info.file_name, des)
+        info.notes.append("Содержимое файла не прочитано: обозначение и вид документа взяты из имени файла")
+        self.named_unread.add(doc.id)
+
+    def _filename_kind(self, file_name: str, designation: str) -> DocumentKind:
+        """The kind of document a file name tells: by a code of file names, as «СП» of a specification, or by the
+        document code of its designation."""
+        words = self.settings.dictionaries
+        if (code := self.eskd.file_code(Path(file_name).stem)) in words.filename_codes:
+            return words.filename_codes[code]
+        if doc_code(designation) in words.text_codes:
+            return "other"
+        return "assembly_drawing" if self.eskd.is_assembly_drawing(designation, None) else "part_drawing"
 
     def _designation(self, doc: LoadedDocument, read: Extracted | None) -> str | None:
         """The designation of the title block, decided against the designation of the file name (ADR-0022)."""
@@ -534,11 +634,27 @@ class BaselinePipeline:
         return found
 
 
+def _stage(name: str, report_log: list[LogEntry], run: Callable[[], T], failed: T) -> T:
+    """The result of a stage of the kit, or ``failed`` with an error in the log when it raises: one failed stage never
+    costs the report."""
+    try:
+        return run()
+    except Exception as exc:
+        log.exception("Сбой стадии «%s»", name)
+        message = f"Сбой стадии «{name}»: {type(exc).__name__}: {exc}. Её результатов в отчёте нет, остальное выполнено"
+        report_log.append(LogEntry(level="error", message=message))
+        return failed
+
+
+UNREAD = ("unreadable", "damaged", "encrypted")  # statuses of a file whose content is not read
+
+
 def _unread(info: DocumentInfo) -> bool:
     """Whether a file may be a document of the kit the core did not read: a scan it could not read, a damaged or
-    encrypted file, a file of a kind not told, or a drawing or specification without a designation."""
-    if info.status in ("unreadable", "damaged", "encrypted"):
-        return True
+    encrypted file whose name gives no designation, a file of a kind not told, or a drawing or specification without
+    a designation."""
+    if info.status in UNREAD:
+        return not info.designation
     readable = info.status in ("ok", "warning") and info.sheet_of is None
     return readable and (info.kind == "unknown" or (info.kind != "other" and not info.designation))
 

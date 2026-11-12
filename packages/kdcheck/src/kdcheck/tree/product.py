@@ -32,6 +32,9 @@ from kdcheck.tree.documents import SheetSet
 
 @dataclass
 class DrawingRef:
+    """A document a position of a specification may name: a drawing with its part record, or a text document of kind
+    ``other`` with its own title block."""
+
     doc: DocumentInfo
     part: PartRecord | None
 
@@ -39,17 +42,22 @@ class DrawingRef:
     def designation(self) -> str | None:
         return self.doc.designation
 
+    def _cell(self, key: str) -> Extracted | None:
+        block = self.part.title_block if self.part is not None else self.doc.title_block
+        return getattr(block, key, None) if block is not None else None
+
     def tb_value(self, key: str) -> str | float | int | None:
-        if self.part is None:
-            return None
-        ex = getattr(self.part.title_block, key, None)
+        ex = self._cell(key)
         return ex.value if ex is not None else None
 
     def tb_source(self, key: str) -> SourceRef | None:
-        if self.part is None:
-            return None
-        ex = getattr(self.part.title_block, key, None)
+        ex = self._cell(key)
         return ex.source if ex is not None else None
+
+    def tb_conflict(self, key: str) -> bool:
+        """Whether the readings of the cell disagree, or the model alone read it (ADR-0019)."""
+        ex = self._cell(key)
+        return ex is not None and ex.status == "conflict"
 
 
 @dataclass
@@ -70,6 +78,10 @@ class ProductTree:
     parents: dict[str, TreeNode] = field(default_factory=dict)  # node id → the assembly that lists the node
     documents: list[SheetSet] = field(default_factory=list)  # the documents of the kit with their sheets
     unread: list[DocumentInfo] = field(default_factory=list)  # documents whose designation is not read
+    named: list[DocumentInfo] = field(default_factory=list)  # files not read whose name gives their designation
+    # node id → why the value that would close its finding is in doubt, and the documents of that value: the finding
+    # stays, preliminary
+    doubtful: dict[str, tuple[str, list[str]]] = field(default_factory=dict)
 
     def nodes(self) -> Iterator[TreeNode]:
         """Every node, depth first, each before its children."""
@@ -89,9 +101,17 @@ def text(ex: Extracted | None) -> str | None:
 
 class _Builder:
     def __init__(
-        self, specs: list[tuple[DocumentInfo, Specification]], drawings: list[DrawingRef], eskd: Designations
+        self,
+        specs: list[tuple[DocumentInfo, Specification]],
+        drawings: list[DrawingRef],
+        eskd: Designations,
+        named: list[DocumentInfo],
     ) -> None:
         self.eskd = eskd
+        self.named: defaultdict[str, list[DocumentInfo]] = defaultdict(list)
+        for info in named:
+            if info.designation:
+                self.named[info.designation].append(info)
         self.sections: dict[str, NodeKind] = eskd.words.spec_sections
         self.needs_drawing = set(eskd.words.needs_drawing)
         self.sb = eskd.words.assembly_drawing_code
@@ -188,9 +208,13 @@ class _Builder:
         self.tree.referenced.update({des, group})
         # a variant has the group assembly drawing of its base when it has none of its own (GOST 2.113)
         drawings = self.drawings_by_des.get(f"{des} {self.sb}") or self.drawings_by_des.get(f"{group} {self.sb}", [])
-        node.drawing_document_ids = [d.doc.id for d in drawings]
+        node.drawing_document_ids = [d.doc.id for d in drawings] or [
+            d.id for d in self.named.get(f"{des} {self.sb}", [])
+        ]
         if not specs:
-            node.status = "missing"
+            unread = [d for d in self.named.get(des, []) if d.kind == "specification"]
+            node.spec_document_id = unread[0].id if unread else None
+            node.status = "warning" if unread else "missing"  # its specification is in the kit, not read
             return node
         if des in path:
             self.tree.log.append(f"Циклическая ссылка на {des} — раскрытие остановлено")
@@ -237,16 +261,37 @@ class _Builder:
         if des:
             self.node_index[des].append(node)
         if kind in self.needs_drawing or (kind == "unknown" and des):
-            if not des or self._no_drawing(row):
+            mark = self._no_drawing(row)
+            if not des or (mark is not None and mark.status != "conflict"):
                 node.status = "not_required"
             else:
-                found = self.drawings_by_des.get(des, []) or self._group_drawings(des)
-                node.drawing_document_ids = [d.doc.id for d in found]
+                found = self.drawings_by_des.get(des, [])
+                doubtful: list[DrawingRef] = []
                 if not found:
+                    found, doubtful = self._group_drawings(des)
+                node.drawing_document_ids = [d.doc.id for d in found]
+                unread = [d for d in self.named.get(des, []) if d.kind != "specification"]
+                if not found and unread:  # its drawing is in the kit, not read
+                    node.drawing_document_ids, node.status = [d.id for d in unread], "warning"
+                elif not found:
                     node.status = "missing"
+                    self._doubt(node, mark, doubtful)
         else:
             node.status = "not_required"
         return node
+
+    def _doubt(self, node: TreeNode, mark: Extracted | None, group: list[DrawingRef]) -> None:
+        """Why a missing drawing may be no finding: a «БЧ» or a «См. табл.» whose readings disagree."""
+        if group:
+            files = ", ".join(d.doc.path for d in group)
+            why = f"«{self.eskd.words.see_table.name}» в графе «Масса» чертежа {files} прочитано одной моделью или с "
+            why += "расхождением прочтений, а с ним чертёж групповой и изображает исполнение"
+            self.tree.doubtful[node.id] = (why, [d.doc.id for d in group])
+        elif mark is not None:
+            why = f"«{self.eskd.words.no_drawing_mark}» в строке спецификации прочитано с расхождением прочтений, а с "
+            why += "ним деталь изготавливается без чертежа"
+            source = mark.source.document_id if mark.source is not None else None
+            self.tree.doubtful[node.id] = (why, [source] if source else [])
 
     def _part_only(self, des: str) -> bool:
         """Whether the kit has a part drawing of ``des`` and neither a specification nor an assembly drawing of it."""
@@ -257,23 +302,28 @@ class _Builder:
             return False
         return any(d.doc.kind == "part_drawing" for d in self.drawings_by_des.get(des, []))
 
-    def _no_drawing(self, row: SpecRow) -> bool:
-        """Whether the row marks a part made without a drawing: «БЧ» in the format column, as GOST 2.106 writes it,
-        or in the note, as some makers do."""
+    def _no_drawing(self, row: SpecRow) -> Extracted | None:
+        """The cell of the row that marks a part made without a drawing: «БЧ» in the format column, as GOST 2.106
+        writes it, or in the note, as some makers do; None when the row has no such mark."""
         note = self.eskd.cyrillic((text(row.note) or "").upper()).replace(" ", "")
-        return self.eskd.no_drawing(text(row.format)) or self.eskd.words.no_drawing_mark in note
+        if self.eskd.no_drawing(text(row.format)):
+            return row.format
+        return row.note if self.eskd.words.no_drawing_mark in note else None
 
-    def _group_drawings(self, des: str) -> list[DrawingRef]:
+    def _group_drawings(self, des: str) -> tuple[list[DrawingRef], list[DrawingRef]]:
         """The group drawing of the base of the variant ``des``: the drawing of the base that writes «См. табл.» for
-        the mass; none for a base variant or without such a drawing."""
+        the mass; none for a base variant or without such a drawing. Second, the drawings whose «См. табл.» is in
+        doubt: the readings of the cell disagree, or the model alone read it."""
         base, number = split_variant(des)
         if number == BASE_VARIANT:
-            return []
+            return [], []
         group = self.eskd.words.see_table.name
         found = [d for d in self.drawings_by_des.get(base, []) if d.tb_value("mass") == group]
-        if found:
+        sure = [d for d in found if not d.tb_conflict("mass")]
+        if sure:
             self.tree.referenced.add(base)
-        return found
+            return sure, []
+        return [], found
 
 
 def _qty(row: SpecRow, variant: str | None) -> float | None:
@@ -289,10 +339,14 @@ def build_tree(
     eskd: Designations,
     documents: list[SheetSet] | None = None,
     unread: list[DocumentInfo] | None = None,
+    named: list[DocumentInfo] | None = None,
 ) -> ProductTree:
     """The tree of the specifications and drawings of the kit, one of each per document of its sheets; ``unread`` are
-    the documents of the kit whose designation is not read, any of which may be one the tree misses."""
-    tree = _Builder(specs, drawings, eskd).build()
+    the documents of the kit whose designation is not read, any of which may be one the tree misses; ``named`` are
+    the files whose content is not read and whose name gives the designation: each is the document of its position,
+    which gets the ``warning`` status."""
+    tree = _Builder(specs, drawings, eskd, named or []).build()
     tree.documents = documents or []
     tree.unread = unread or []
+    tree.named = named or []
     return tree
