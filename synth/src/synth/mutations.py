@@ -5,7 +5,9 @@ the drawn files. Each picks a target no other mutation has used and writes into 
 reports: the discrepancy type of the report, the designation, the Block 1 rule when the core has one, and the
 consequences, such as the drawings a lost specification leaves outside every specification. The rule ids are text,
 since synth does not import the core (ADR-0010); a mutation with no rule yet measures a gap of the check. Group
-documents of GOST 2.113 are no targets: one of them covers several designations, and a mutation plants an error in one.
+documents of GOST 2.113 are no targets, but for the group drawing of a part with its variant, which goes whole: one of
+them covers several designations, and a mutation plants an error in one. A mutation may plant no discrepancy at all
+and test that the check stays quiet: an explanatory note of the kit is no specification without rows.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from typing import TYPE_CHECKING, Literal
 
 from synth import degrade, vocab
 from synth.model import Change, Container, Drawing, Output, Row
-from synth.product import Part
+from synth.product import Part, Unit
 from synth.render import draw_drawing, draw_foreign
 
 if TYPE_CHECKING:
@@ -272,6 +274,200 @@ def drop_sheet(kit: Kit) -> bool:
     return True
 
 
+def _vector_units(kit: Kit) -> list[Unit]:
+    """Free assemblies whose specification is drawn as a vector: the rules of positions and of the first use read
+    the rows of a text layer only (``positions.methods`` of the core)."""
+    return [
+        u for u in kit.free_units() if kit.specs[u.designation].output.kind == "vector" and not _rows_touched(kit, u)
+    ]
+
+
+def _rows_touched(kit: Kit, unit: Unit) -> bool:
+    """Whether a mutation has used a row of the specification of ``unit``."""
+    return any(r.designation in kit.touched for r in kit.specs[unit.designation].rows if r.designation)
+
+
+@_mutation("documents", "Записать сборочную единицу в раздел «Детали»")
+def section_of_assembly(kit: Kit) -> bool:
+    """The row of an assembly with a specification of its own moves to the parts of its parent (GOST 2.106, 3.5)."""
+    units = [u for u in kit.free_units() if u.parent is not None and u.parent.designation not in kit.touched]
+    if not units:
+        return False
+    unit = kit.rng.choice(units)
+    rows = kit.specs[unit.parent.designation].rows  # type: ignore[union-attr]
+    row = next(r for r in rows if r.designation == unit.designation and r.section == "Сборочные единицы")
+    rows.remove(row)
+    row.section = "Детали"
+    _insert_part_row(rows, row)
+    kit.touched.add(unit.designation)
+    kit.expect("section_mismatch", unit.designation, "B1.SECTION.001", "section_of_assembly")
+    return True
+
+
+@_mutation("documents", "Повторить номер позиции в спецификации")
+def repeat_position(kit: Kit) -> bool:
+    units = [u for u in _vector_units(kit) if sum(1 for r in kit.specs[u.designation].rows if r.pos) >= 2]
+    if not units:
+        return False
+    unit = kit.rng.choice(units)
+    numbered = [r for r in kit.specs[unit.designation].rows if r.pos]
+    first, second = kit.rng.sample(numbered, 2)
+    second.pos = first.pos
+    kit.touched.add(unit.designation)
+    kit.expect("position_anomaly", unit.designation, "B1.POS.001", "repeat_position")
+    return True
+
+
+@_mutation("documents", "Убрать количество у строки спецификации")
+def drop_quantity(kit: Kit) -> bool:
+    """A purchased item or a material: no other document depends on the quantity of its row."""
+    components = ("Стандартные изделия", "Прочие изделия", "Материалы")
+    units = [u for u in _vector_units(kit) if any(r.section in components for r in kit.specs[u.designation].rows)]
+    if not units:
+        return False
+    unit = kit.rng.choice(units)
+    row = kit.rng.choice([r for r in kit.specs[unit.designation].rows if r.section in components])
+    row.qty = ""
+    kit.touched.add(unit.designation)
+    kit.expect("position_anomaly", unit.designation, "B1.POS.002", "drop_quantity")
+    return True
+
+
+@_mutation("documents", "Убрать обозначение у строки детали")
+def drop_row_designation(kit: Kit) -> bool:
+    """The drawing of the part is then named by no specification."""
+    free = [(u, p, d) for u, p, d in kit.free_parts() if u in _vector_units(kit)]
+    if not free:
+        return False
+    unit, part, _ = kit.rng.choice(free)
+    row = next(r for r in kit.specs[unit.designation].rows if r.designation == part.designation)
+    row.designation = ""
+    kit.touched |= {unit.designation, part.designation}
+    kit.expect("position_anomaly", unit.designation, "B1.POS.003", "drop_row_designation")
+    kit.expect("orphan_drawing", part.designation, "B1.ORPHAN.001", "drop_row_designation")
+    return True
+
+
+@_mutation("documents", "«Перв. примен.» чертежа детали называет другую сборочную единицу")
+def first_use_elsewhere(kit: Kit) -> bool:
+    """The other assembly does not list the part: its specification is drawn as a vector, so its rows are read
+    whole."""
+    vector = _vector_units(kit)
+    pairs = [
+        (part, drawing, other)
+        for unit, part, drawing in kit.free_parts(vector=True)
+        if drawing.output.kind == "vector"
+        for other in vector
+        if other is not unit and all(r.designation != part.designation for r in kit.specs[other.designation].rows)
+    ]
+    if not pairs:
+        return False
+    part, drawing, other = kit.rng.choice(pairs)
+    drawing.first_use = other.designation
+    kit.touched |= {part.designation, other.designation}
+    kit.expect("first_use_mismatch", part.designation, "B1.FIRSTUSE.001", "first_use_elsewhere")
+    return True
+
+
+@_mutation("documents", "Вторая спецификация с тем же обозначением")
+def duplicate_spec(kit: Kit) -> bool:
+    """A newer version of the specification of an assembly beside the older one: another change, the same rows."""
+    units = [
+        u
+        for u in kit.free_units()
+        if u.parent is not None and not _rows_touched(kit, u) and not kit.specs[u.designation].output.sheet_files
+    ]
+    if not units:
+        return False
+    unit = kit.rng.choice(units)
+    spec = kit.specs[unit.designation]
+    number = max((c.number for c in spec.changes), default=0) + 1
+    change = Change(number, f"{kit.org}.И.{kit.rng.randint(100, 999):04d}-25", f"{kit.rng.randint(1, 12):02d}.25")
+    newer = dataclasses.replace(spec, file=_beside(spec.file, f" изм.{number}"), changes=[change, *spec.changes])
+    newer.rows = [dataclasses.replace(r, quantities=dict(r.quantities)) for r in spec.rows]
+    kit.more_specs.append(newer)
+    kit.touched.add(unit.designation)
+    kit.expect("duplicate_designation", unit.designation, "B1.DUP.003", "duplicate_spec")
+    return True
+
+
+@_mutation("documents", "Чертёж детали с обозначением сборочной единицы")
+def part_drawing_of_unit(kit: Kit) -> bool:
+    """The assembly keeps its specification and its assembly drawing; a part drawing gets its designation too."""
+    units = [u for u in kit.free_units() if u.parent is not None]
+    if not units:
+        return False
+    unit = kit.rng.choice(units)
+    kind = kit.rng.choice(vocab.PART_KINDS)
+    part = Part(unit.designation, kit.rng.choice(kind.names), kind, 1)
+    drawing = kit.part_drawing(unit, part, kit.rng.choice(kind.formats))
+    taken = {s.file for s in kit.specs.values()} | {d.file for d in kit.drawings}
+    while drawing.file in taken:
+        drawing.file = _beside(drawing.file, " деталь")
+    kit.drawings.append(drawing)
+    kit.touched.add(unit.designation)
+    kit.expect("duplicate_designation", unit.designation, "B1.DUP.004", "part_drawing_of_unit")
+    return True
+
+
+@_mutation("documents", "Удалить групповой чертёж детали и её исполнения")
+def drop_group_drawing(kit: Kit) -> bool:
+    """The drawing of a part and its variant «-01» in one, GOST 2.113: both positions lose their drawing."""
+    found = []
+    for unit in kit.units():
+        if unit.variants:
+            continue
+        for part in unit.parts:
+            members = [p for p in unit.parts if p.group == part.designation]
+            if part.group != part.designation or any(p.designation in kit.touched for p in members):
+                continue
+            if (drawing := kit.drawing(part.designation)) is not None and drawing.variants:
+                found.append((members, drawing))
+    if not found:
+        return False
+    members, drawing = kit.rng.choice(found)
+    kit.drawings.remove(drawing)
+    for part in members:
+        kit.touched.add(part.designation)
+        kit.expect("missing_drawing", part.designation, "B1.MISSING.001", "drop_group_drawing")
+    return True
+
+
+@_mutation("documents", "Положить пояснительную записку из раздела «Документация»")
+def text_document(kit: Kit) -> bool:
+    """An explanatory note on form 2, written in «Документация» of its assembly: no discrepancy. A check that takes a
+    document on form 2 for a specification reports its row as missing and the drawings outside every specification
+    as preliminary (ADR-0029)."""
+    units = [u for u in kit.free_units() if not _rows_touched(kit, u)]
+    if not units:
+        return False
+    unit = kit.rng.choice(units)
+    spec = kit.specs[unit.designation]
+    designation, name = f"{unit.designation} ПЗ", "Пояснительная записка"
+    lines = [
+        "1 Назначение и область применения",
+        f"{unit.name} {unit.designation} входит в изделие {kit.root.designation} «{kit.root.name}».",
+        "2 Техническая характеристика",
+        "Конструкция и параметры приведены на сборочном чертеже и в спецификации.",
+    ]
+    note = dataclasses.replace(
+        spec,
+        file=kit.path(unit, designation, name, ".pdf"),
+        designation=designation,
+        name=name,
+        rows=[],
+        output=Output(),
+        group="",
+        variants=[],
+        text=lines,
+    )
+    after = next(i for i, r in enumerate(spec.rows) if r.section == "Документация") + 1
+    spec.rows.insert(after, Row("Документация", "А4", "", designation, name))
+    kit.texts.append(note)
+    kit.touched.add(unit.designation)
+    return True
+
+
 # ---------------------------------------------------------------------------------------- files
 
 
@@ -346,7 +542,8 @@ def byte_copy(kit: Kit) -> bool:
 
 @_mutation("files", "Положить файл неподдерживаемого формата")
 def unsupported_file(kit: Kit) -> bool:
-    name, head = kit.rng.choice((("Thumbs.db", b"\xd0\xcf\x11\xe0"), ("Сборка.dwg", b"AC1027")))
+    # a CAD file of the kit; a service file of the system, as «Thumbs.db», is no document of the kit at all
+    name, head = kit.rng.choice((("Сборка.step", b"ISO-10303-21;"), ("Сборка.dwg", b"AC1027")))
     if name in kit.files:
         return False
     kit.files[name] = head + kit.rng.randbytes(2000)

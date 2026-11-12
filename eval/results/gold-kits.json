@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-10",
+  "date": "2026-11-12",
   "machine": "Darwin arm64, Python 3.11.15",
   "ocr": true,
   "kits": {
@@ -38,10 +38,11 @@
       "expected": 7,
       "found": 6,
       "missed": [
-        "orphan_drawing: СУИР.06.06.00"
+        "orphan_drawing: СУИР.06.06.00 СБ"
       ],
       "extra": [
-        "revision_mismatch: СУИР.06.06.00"
+        "name_mismatch: СУИР.06.06.00",
+        "revision_mismatch: СУИР.06.06.00 СБ"
       ],
       "tree_items": 12
     }

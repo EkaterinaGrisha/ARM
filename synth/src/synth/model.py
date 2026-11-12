@@ -110,3 +110,4 @@ class Spec:
     font_type: FontType = "A"
     group: Group = ""
     variants: list[str] = field(default_factory=list)  # a group specification: its variants, the base one first
+    text: list[str] = field(default_factory=list)  # a text document on form 2, «… ПЗ»: its lines, and no rows

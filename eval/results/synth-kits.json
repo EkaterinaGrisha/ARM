@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-11",
+  "date": "2026-11-12",
   "machine": "Darwin arm64, Python 3.11.15",
   "tesseract": "5.5.2",
   "corpus": {
@@ -7,15 +7,15 @@
     "seed": 1,
     "sheet_files": 0.5,
     "model": "qwen3.6-35b-a3b-mlx",
-    "sheet_documents": 11,
-    "sheet_file_count": 23,
+    "sheet_documents": 10,
+    "sheet_file_count": 22,
     "clean": 4,
-    "planted": 77,
-    "problem_files": 21,
-    "documents": 550,
+    "planted": 67,
+    "problem_files": 13,
+    "documents": 557,
     "captured": {
-      "scan": 52,
-      "vector": 469,
+      "scan": 55,
+      "vector": 473,
       "raster": 29
     },
     "mutations": [
@@ -23,19 +23,28 @@
       "damage_file",
       "drop_assembly_drawing",
       "drop_assembly_spec",
+      "drop_group_drawing",
       "drop_part_drawing",
+      "drop_quantity",
+      "drop_row_designation",
       "drop_sheet",
       "duplicate_designation",
       "duplicate_position",
+      "duplicate_spec",
       "encrypt_file",
       "extra_drawing",
+      "first_use_elsewhere",
       "foreign_document",
       "format_in_spec",
       "litera_assembly_drawing",
       "litera_component",
+      "part_drawing_of_unit",
       "rename_assembly_spec",
       "rename_on_drawing",
+      "repeat_position",
       "second_version",
+      "section_of_assembly",
+      "text_document",
       "unreadable_scan",
       "unsupported_file"
     ]
@@ -46,54 +55,99 @@
       "model": null,
       "prompts": [],
       "total": {
-        "expected": 77,
-        "found": 66,
-        "extra": 66,
-        "precision": 0.5,
-        "recall": 0.857,
-        "found_preliminary": 16,
-        "extra_preliminary": 8,
-        "precision_sure": 0.463
+        "expected": 67,
+        "found": 58,
+        "extra": 79,
+        "precision": 0.423,
+        "recall": 0.866,
+        "found_preliminary": 0,
+        "extra_preliminary": 0,
+        "precision_sure": 0.423
       },
       "rules": [
         {
           "rule": "B1.DUP.001",
-          "expected": 7,
-          "found": 7,
+          "expected": 4,
+          "found": 4,
           "missed": 0,
-          "extra": 11,
-          "precision": 0.389,
+          "extra": 10,
+          "precision": 0.286,
           "recall": 1.0
         },
         {
           "rule": "B1.DUP.002",
-          "expected": 4,
-          "found": 3,
+          "expected": 2,
+          "found": 1,
           "missed": 1,
           "extra": 0,
           "precision": 1.0,
-          "recall": 0.75
+          "recall": 0.5
+        },
+        {
+          "rule": "B1.DUP.003",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.DUP.004",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.FIRSTUSE.001",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
         },
         {
           "rule": "B1.FORMAT.001",
-          "expected": 4,
-          "found": 3,
-          "missed": 1,
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
           "extra": 0,
           "precision": 1.0,
-          "recall": 0.75
+          "recall": 1.0
         },
         {
           "rule": "B1.LITERA.001",
-          "expected": 3,
+          "expected": 2,
           "found": 1,
-          "missed": 2,
+          "missed": 1,
           "extra": 0,
           "precision": 1.0,
-          "recall": 0.333
+          "recall": 0.5
         },
         {
           "rule": "B1.LITERA.002",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.MISSING.001",
+          "expected": 13,
+          "found": 10,
+          "missed": 3,
+          "extra": 5,
+          "precision": 0.667,
+          "recall": 0.769
+        },
+        {
+          "rule": "B1.MISSING.002",
           "expected": 3,
           "found": 2,
           "missed": 1,
@@ -102,36 +156,18 @@
           "recall": 0.667
         },
         {
-          "rule": "B1.MISSING.001",
-          "expected": 14,
-          "found": 14,
-          "missed": 0,
-          "extra": 5,
-          "precision": 0.737,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.MISSING.002",
+          "rule": "B1.NAME.001",
           "expected": 4,
           "found": 3,
           "missed": 1,
-          "extra": 0,
-          "precision": 1.0,
+          "extra": 1,
+          "precision": 0.75,
           "recall": 0.75
         },
         {
-          "rule": "B1.NAME.001",
-          "expected": 7,
-          "found": 7,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
           "rule": "B1.NAME.002",
-          "expected": 4,
-          "found": 4,
+          "expected": 2,
+          "found": 2,
           "missed": 0,
           "extra": 0,
           "precision": 1.0,
@@ -139,21 +175,48 @@
         },
         {
           "rule": "B1.ORPHAN.001",
-          "expected": 17,
-          "found": 13,
-          "missed": 4,
-          "extra": 39,
-          "precision": 0.25,
-          "recall": 0.765
+          "expected": 12,
+          "found": 12,
+          "missed": 0,
+          "extra": 51,
+          "precision": 0.19,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.POS.001",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.POS.002",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.POS.003",
+          "expected": 1,
+          "found": 1,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
         },
         {
           "rule": "B1.SECTION.001",
-          "expected": 0,
-          "found": 0,
+          "expected": 3,
+          "found": 3,
           "missed": 0,
           "extra": 1,
-          "precision": 0.0,
-          "recall": null
+          "precision": 0.75,
+          "recall": 1.0
         },
         {
           "rule": "B1.SHEETS.001",
@@ -166,87 +229,119 @@
         },
         {
           "rule": "B1.SPEC.001",
-          "expected": 3,
-          "found": 3,
+          "expected": 2,
+          "found": 2,
           "missed": 0,
-          "extra": 10,
-          "precision": 0.231,
+          "extra": 11,
+          "precision": 0.154,
           "recall": 1.0
         },
         {
           "rule": "B1.VERSION.001",
-          "expected": 4,
-          "found": 4,
-          "missed": 0,
+          "expected": 2,
+          "found": 1,
+          "missed": 1,
           "extra": 0,
           "precision": 1.0,
-          "recall": 1.0
+          "recall": 0.5
         }
       ],
       "mutations": {
         "damage_file": {
+          "found": 2,
+          "expected": 3
+        },
+        "drop_assembly_drawing": {
+          "found": 2,
+          "expected": 3
+        },
+        "drop_assembly_spec": {
+          "found": 11,
+          "expected": 11
+        },
+        "drop_group_drawing": {
           "found": 4,
           "expected": 4
         },
-        "drop_assembly_drawing": {
-          "found": 3,
-          "expected": 4
-        },
-        "drop_assembly_spec": {
-          "found": 13,
-          "expected": 17
-        },
         "drop_part_drawing": {
-          "found": 3,
-          "expected": 3
+          "found": 2,
+          "expected": 2
+        },
+        "drop_quantity": {
+          "found": 2,
+          "expected": 2
+        },
+        "drop_row_designation": {
+          "found": 2,
+          "expected": 2
         },
         "drop_sheet": {
           "found": 2,
           "expected": 3
         },
         "duplicate_designation": {
-          "found": 3,
-          "expected": 3
+          "found": 2,
+          "expected": 2
         },
         "duplicate_position": {
-          "found": 7,
-          "expected": 8
+          "found": 2,
+          "expected": 4
+        },
+        "duplicate_spec": {
+          "found": 2,
+          "expected": 2
         },
         "encrypt_file": {
-          "found": 3,
-          "expected": 3
+          "found": 1,
+          "expected": 2
         },
         "extra_drawing": {
-          "found": 3,
-          "expected": 3
+          "found": 2,
+          "expected": 2
+        },
+        "first_use_elsewhere": {
+          "found": 2,
+          "expected": 2
         },
         "format_in_spec": {
-          "found": 3,
-          "expected": 4
+          "found": 2,
+          "expected": 2
         },
         "litera_assembly_drawing": {
           "found": 1,
-          "expected": 3
+          "expected": 2
         },
         "litera_component": {
           "found": 2,
-          "expected": 3
+          "expected": 2
+        },
+        "part_drawing_of_unit": {
+          "found": 2,
+          "expected": 2
         },
         "rename_assembly_spec": {
-          "found": 4,
-          "expected": 4
+          "found": 2,
+          "expected": 2
         },
         "rename_on_drawing": {
+          "found": 2,
+          "expected": 2
+        },
+        "repeat_position": {
+          "found": 2,
+          "expected": 2
+        },
+        "second_version": {
+          "found": 3,
+          "expected": 4
+        },
+        "section_of_assembly": {
           "found": 3,
           "expected": 3
         },
-        "second_version": {
-          "found": 8,
-          "expected": 8
-        },
         "unreadable_scan": {
-          "found": 4,
-          "expected": 4
+          "found": 1,
+          "expected": 2
         }
       },
       "clean_kits": 4,
@@ -337,79 +432,90 @@
         }
       ],
       "problem_files": {
-        "right": 21,
-        "total": 21
+        "right": 13,
+        "total": 13
       },
       "other_statuses": {
-        "warning": 93
+        "warning": 96
       },
       "causes": {
-        "лишнее: скан спецификации без OCR: обозначение — из имени файла, остальных полей нет": 37,
-        "лишнее: растр без OCR: обозначение — из имени файла, остальных полей нет": 8,
+        "лишнее: скан спецификации без OCR: обозначение — из имени файла, остальных полей нет": 47,
+        "лишнее: растр без OCR: обозначение — из имени файла, остальных полей нет": 9,
         "лишнее: скан без OCR: обозначение — из имени файла, остальных полей нет": 8,
-        "пропуск: все спецификации комплекта — растры или сканы: их строк ядро не читает, дерева изделия нет": 5,
+        "пропуск: скан спецификации без OCR: обозначение — из имени файла, остальных полей нет": 6,
         "лишнее: исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано": 5,
         "лишнее: растр спецификации без OCR: обозначение — из имени файла, остальных полей нет": 5,
-        "пропуск: растр без OCR: обозначение — из имени файла, остальных полей нет": 3,
-        "пропуск: скан спецификации без OCR: обозначение — из имени файла, остальных полей нет": 1,
-        "пропуск: растр спецификации без OCR: обозначение — из имени файла, остальных полей нет": 1,
-        "лишнее: исполнение групповой сборочной единицы по варианту А (ГОСТ 2.113): заголовок исполнения не опознан, ядро ищет спецификацию с обозначением исполнения": 1,
-        "пропуск: скан без OCR: обозначение — из имени файла, остальных полей нет": 1
+        "пропуск: скан без OCR: обозначение — из имени файла, остальных полей нет": 3,
+        "лишнее: исполнение групповой сборочной единицы по варианту А (ГОСТ 2.113): заголовок исполнения не опознан, ядро ищет спецификацию с обозначением исполнения": 1
       },
       "errors": [
         {
           "kit": "kit_001",
           "kind": "пропуск",
-          "rule": "B1.ORPHAN.001",
-          "designation": "ВЕДС.758422.001",
-          "cause": "все спецификации комплекта — растры или сканы: их строк ядро не читает, дерева изделия нет"
+          "rule": "B1.MISSING.001",
+          "designation": "ВЕДС.715422.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_001",
           "kind": "пропуск",
-          "rule": "B1.ORPHAN.001",
-          "designation": "ВЕДС.715211.001",
-          "cause": "все спецификации комплекта — растры или сканы: их строк ядро не читает, дерева изделия нет"
+          "rule": "B1.MISSING.001",
+          "designation": "ВЕДС.741321.002",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_001",
-          "kind": "пропуск",
-          "rule": "B1.ORPHAN.001",
-          "designation": "ВЕДС.741321.001",
-          "cause": "все спецификации комплекта — растры или сканы: их строк ядро не читает, дерева изделия нет"
+          "kind": "лишнее",
+          "rule": "B1.SPEC.001",
+          "designation": "ВЕДС.301411.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_001",
-          "kind": "пропуск",
+          "kind": "лишнее",
           "rule": "B1.ORPHAN.001",
-          "designation": "ВЕДС.721321.001",
-          "cause": "все спецификации комплекта — растры или сканы: их строк ядро не читает, дерева изделия нет"
+          "designation": "ВЕДС.301411.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_001",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "ВЕДС.301411.001 СБ",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_001",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "ВЕДС.711141.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_001",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "ВЕДС.758411.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_001",
+          "kind": "лишнее",
+          "rule": "B1.DUP.001",
+          "designation": "ВЕДС.301411.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_002",
           "kind": "пропуск",
           "rule": "B1.LITERA.001",
-          "designation": "ВЕДС.301411.001",
-          "cause": "все спецификации комплекта — растры или сканы: их строк ядро не читает, дерева изделия нет"
-        },
-        {
-          "kit": "kit_001",
-          "kind": "лишнее",
-          "rule": "B1.SPEC.001",
-          "designation": "ВЕДС.301411.001",
-          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_001",
-          "kind": "лишнее",
-          "rule": "B1.DUP.001",
-          "designation": "ВЕДС.301411.001",
-          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+          "designation": "МАШН.303411.001",
+          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_002",
-          "kind": "пропуск",
-          "rule": "B1.SHEETS.001",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
           "designation": "МАШН.758422.002",
           "cause": "растр без OCR: обозначение — из имени файла, остальных полей нет"
         },
@@ -422,17 +528,30 @@
         },
         {
           "kit": "kit_004",
+          "kind": "пропуск",
+          "rule": "B1.SHEETS.001",
+          "designation": "МАШН.305312.101",
+          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_004",
           "kind": "лишнее",
           "rule": "B1.SPEC.001",
           "designation": "МАШН.305312.000",
-          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет",
-          "preliminary": true
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_004",
           "kind": "лишнее",
           "rule": "B1.ORPHAN.001",
           "designation": "МАШН.305312.000",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_004",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "МАШН.305312.000 ПЗ",
           "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
@@ -464,43 +583,32 @@
           "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
-          "kit": "kit_004",
-          "kind": "лишнее",
-          "rule": "B1.DUP.001",
-          "designation": "МАШН.305312.101",
-          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
           "kit": "kit_007",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "МАШН.758411.001-01",
-          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано",
-          "preliminary": true
+          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано"
+        },
+        {
+          "kit": "kit_008",
+          "kind": "пропуск",
+          "rule": "B1.MISSING.002",
+          "designation": "ЛМКР.301411.002 СБ",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_008",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "ЛМКР.715211.001-01",
-          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано",
-          "preliminary": true
+          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано"
         },
         {
           "kit": "kit_008",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "ЛМКР.711141.005-01",
-          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано",
-          "preliminary": true
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.SPEC.001",
-          "designation": "ЛМКР.301411.002",
-          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет",
-          "preliminary": true
+          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано"
         },
         {
           "kit": "kit_008",
@@ -531,6 +639,20 @@
           "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
+          "kit": "kit_008",
+          "kind": "лишнее",
+          "rule": "B1.SECTION.001",
+          "designation": "ЛМКР.301411.002",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_009",
+          "kind": "пропуск",
+          "rule": "B1.MISSING.001",
+          "designation": "КТРМ.381146.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
           "kit": "kit_009",
           "kind": "лишнее",
           "rule": "B1.SPEC.001",
@@ -555,13 +677,6 @@
           "kit": "kit_009",
           "kind": "лишнее",
           "rule": "B1.ORPHAN.001",
-          "designation": "КТРМ.381146.001",
-          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_009",
-          "kind": "лишнее",
-          "rule": "B1.ORPHAN.001",
           "designation": "КТРМ.381146.002",
           "cause": "растр без OCR: обозначение — из имени файла, остальных полей нет"
         },
@@ -578,13 +693,6 @@
           "rule": "B1.DUP.001",
           "designation": "МАШН.715211.001",
           "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_012",
-          "kind": "пропуск",
-          "rule": "B1.DUP.002",
-          "designation": "ТЕХМ.302231.206",
-          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_012",
@@ -624,6 +732,13 @@
         {
           "kit": "kit_012",
           "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "ТЕХМ.302231.206",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_012",
+          "kind": "лишнее",
           "rule": "B1.DUP.001",
           "designation": "ТЕХМ.302231.101",
           "cause": "растр без OCR: обозначение — из имени файла, остальных полей нет"
@@ -637,24 +752,17 @@
         },
         {
           "kit": "kit_013",
-          "kind": "пропуск",
-          "rule": "B1.FORMAT.001",
-          "designation": "ПМЛС.732211.004",
-          "cause": "растр без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_013",
-          "kind": "пропуск",
-          "rule": "B1.MISSING.002",
-          "designation": "ПМЛС.303411.002 СБ",
-          "cause": "растр спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+          "kind": "лишнее",
+          "rule": "B1.SPEC.001",
+          "designation": "ПМЛС.304125.001-01",
+          "cause": "исполнение групповой сборочной единицы по варианту А (ГОСТ 2.113): заголовок исполнения не опознан, ядро ищет спецификацию с обозначением исполнения"
         },
         {
           "kit": "kit_013",
           "kind": "лишнее",
           "rule": "B1.SPEC.001",
-          "designation": "ПМЛС.304125.001-01",
-          "cause": "исполнение групповой сборочной единицы по варианту А (ГОСТ 2.113): заголовок исполнения не опознан, ядро ищет спецификацию с обозначением исполнения"
+          "designation": "ПМЛС.303411.002",
+          "cause": "растр спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_013",
@@ -748,20 +856,6 @@
           "cause": "растр спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
-          "kit": "kit_013",
-          "kind": "лишнее",
-          "rule": "B1.SECTION.001",
-          "designation": "ПМЛС.303411.002",
-          "cause": "растр спецификации без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
-          "kit": "kit_014",
-          "kind": "пропуск",
-          "rule": "B1.LITERA.001",
-          "designation": "АБВГ.302231.001",
-          "cause": "растр без OCR: обозначение — из имени файла, остальных полей нет"
-        },
-        {
           "kit": "kit_014",
           "kind": "лишнее",
           "rule": "B1.DUP.001",
@@ -771,33 +865,86 @@
         {
           "kit": "kit_016",
           "kind": "пропуск",
-          "rule": "B1.LITERA.002",
-          "designation": "СПРН.721411.001",
+          "rule": "B1.VERSION.001",
+          "designation": "СПРН.713111.004",
           "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.SPEC.001",
+          "designation": "СПРН.301411.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_016",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "СПРН.732211.002-01",
-          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано",
-          "preliminary": true
+          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано"
         },
         {
           "kit": "kit_016",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "СПРН.732211.002-02",
-          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано",
-          "preliminary": true
+          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "СПРН.722155.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "СПРН.731112.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "СПРН.731112.002",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "СПРН.758411.003",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_016",
+          "kind": "лишнее",
+          "rule": "B1.NAME.001",
+          "designation": "СПРН.713111.004",
+          "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_018",
+          "kind": "пропуск",
+          "rule": "B1.DUP.002",
+          "designation": "ТЕХМ.732211.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_018",
+          "kind": "пропуск",
+          "rule": "B1.NAME.001",
+          "designation": "ТЕХМ.732211.001",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_018",
           "kind": "лишнее",
           "rule": "B1.SPEC.001",
           "designation": "ТЕХМ.305312.002",
-          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет",
-          "preliminary": true
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_018",
@@ -903,7 +1050,7 @@
           "value_accuracy": null
         },
         "captured:dimension_tolerance": {
-          "expected": 82,
+          "expected": 86,
           "found": 0,
           "extra": 0,
           "valued": 0,
@@ -913,7 +1060,7 @@
           "value_accuracy": null
         },
         "captured:general_tolerance": {
-          "expected": 47,
+          "expected": 49,
           "found": 0,
           "extra": 0,
           "valued": 0,
@@ -933,7 +1080,7 @@
           "value_accuracy": null
         },
         "captured:hardness": {
-          "expected": 44,
+          "expected": 43,
           "found": 0,
           "extra": 0,
           "valued": 0,
@@ -943,7 +1090,7 @@
           "value_accuracy": null
         },
         "captured:heat_treatment": {
-          "expected": 30,
+          "expected": 29,
           "found": 0,
           "extra": 0,
           "valued": 0,
@@ -953,7 +1100,7 @@
           "value_accuracy": null
         },
         "captured:roughness": {
-          "expected": 126,
+          "expected": 131,
           "found": 0,
           "extra": 0,
           "valued": 0,
@@ -963,8 +1110,8 @@
           "value_accuracy": null
         },
         "vector:coating": {
-          "expected": 169,
-          "found": 169,
+          "expected": 168,
+          "found": 168,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
@@ -973,8 +1120,8 @@
           "value_accuracy": null
         },
         "vector:dimension_tolerance": {
-          "expected": 385,
-          "found": 385,
+          "expected": 392,
+          "found": 392,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
@@ -983,8 +1130,8 @@
           "value_accuracy": null
         },
         "vector:general_tolerance": {
-          "expected": 274,
-          "found": 274,
+          "expected": 273,
+          "found": 273,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
@@ -993,31 +1140,31 @@
           "value_accuracy": null
         },
         "vector:geometric": {
-          "expected": 215,
-          "found": 215,
+          "expected": 213,
+          "found": 213,
           "extra": 0,
-          "valued": 56,
-          "value_right": 56,
+          "valued": 58,
+          "value_right": 58,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:hardness": {
-          "expected": 197,
-          "found": 197,
+          "expected": 193,
+          "found": 193,
           "extra": 0,
-          "valued": 197,
-          "value_right": 197,
+          "valued": 193,
+          "value_right": 193,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:heat_treatment": {
-          "expected": 146,
-          "found": 146,
+          "expected": 143,
+          "found": 143,
           "extra": 0,
-          "valued": 80,
-          "value_right": 80,
+          "valued": 74,
+          "value_right": 74,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
@@ -1026,8 +1173,8 @@
           "expected": 675,
           "found": 675,
           "extra": 0,
-          "valued": 60,
-          "value_right": 60,
+          "valued": 57,
+          "value_right": 57,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
@@ -1037,24 +1184,24 @@
       "wrong_values": {},
       "regions": {
         "vector:основная надпись": {
-          "values": 3687,
-          "right": 3687,
+          "values": 3694,
+          "right": 3694,
           "share": 1.0
         },
         "vector:параметр": {
-          "values": 2061,
-          "right": 2061,
+          "values": 2057,
+          "right": 2057,
           "share": 1.0
         },
         "vector:строка спецификации": {
-          "values": 1164,
-          "right": 1164,
+          "values": 1182,
+          "right": 1182,
           "share": 1.0
         }
       },
       "wrong_regions": {},
       "sheet_files": {
-        "documents": 11,
+        "documents": 10,
         "files": 12,
         "apart": 12,
         "documents_whole": 0,
@@ -1069,13 +1216,13 @@
         },
         {
           "kit": "kit_002",
-          "file": "МАШН.304125.001 Ступица в сборе/МАШН.305312.001 Корпус в сборе/МАШН.303411.001 Насос/МАШН.303411.002 Натяжитель/МАШН.758422.002_Гайка_специальная(3).jpg",
+          "file": "МАШН.304125.001 Ступица в сборе/МАШН.305312.001 Корпус в сборе/МАШН.303411.001 Насос/МАШН.303411.002 Натяжитель/МАШН.758422.002_Гайка_специальная(2).jpg",
           "outcome": "apart",
           "why": "Скан без текстового слоя: распознавание (OCR) недоступно, обозначение взято из имени файла"
         },
         {
-          "kit": "kit_004",
-          "file": "Чертежи/МАШН.305312.101(2).jpg",
+          "kit": "kit_002",
+          "file": "МАШН.304125.001 Ступица в сборе/МАШН.305312.001 Корпус в сборе/МАШН.303411.001 Насос/МАШН.303411.002 Натяжитель/МАШН.758422.002_Гайка_специальная(3).jpg",
           "outcome": "apart",
           "why": "Скан без текстового слоя: распознавание (OCR) недоступно, обозначение взято из имени файла"
         },
@@ -1140,20 +1287,20 @@
       "model": null,
       "prompts": [],
       "total": {
-        "expected": 77,
-        "found": 75,
-        "extra": 28,
-        "precision": 0.728,
-        "recall": 0.974,
-        "found_preliminary": 16,
-        "extra_preliminary": 5,
-        "precision_sure": 0.72
+        "expected": 67,
+        "found": 65,
+        "extra": 25,
+        "precision": 0.722,
+        "recall": 0.97,
+        "found_preliminary": 0,
+        "extra_preliminary": 0,
+        "precision_sure": 0.722
       },
       "rules": [
         {
           "rule": "B1.DUP.001",
-          "expected": 7,
-          "found": 7,
+          "expected": 4,
+          "found": 4,
           "missed": 0,
           "extra": 0,
           "precision": 1.0,
@@ -1161,71 +1308,98 @@
         },
         {
           "rule": "B1.DUP.002",
-          "expected": 4,
-          "found": 4,
+          "expected": 2,
+          "found": 2,
           "missed": 0,
           "extra": 3,
-          "precision": 0.571,
+          "precision": 0.4,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.DUP.003",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.DUP.004",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.FIRSTUSE.001",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
           "recall": 1.0
         },
         {
           "rule": "B1.FORMAT.001",
-          "expected": 4,
-          "found": 4,
+          "expected": 2,
+          "found": 2,
           "missed": 0,
           "extra": 1,
-          "precision": 0.8,
+          "precision": 0.667,
           "recall": 1.0
         },
         {
           "rule": "B1.LITERA.001",
-          "expected": 3,
+          "expected": 2,
           "found": 2,
-          "missed": 1,
-          "extra": 2,
-          "precision": 0.5,
-          "recall": 0.667
+          "missed": 0,
+          "extra": 1,
+          "precision": 0.667,
+          "recall": 1.0
         },
         {
           "rule": "B1.LITERA.002",
-          "expected": 3,
+          "expected": 2,
           "found": 2,
-          "missed": 1,
-          "extra": 3,
-          "precision": 0.4,
-          "recall": 0.667
+          "missed": 0,
+          "extra": 2,
+          "precision": 0.5,
+          "recall": 1.0
         },
         {
           "rule": "B1.MISSING.001",
-          "expected": 14,
-          "found": 14,
+          "expected": 13,
+          "found": 13,
           "missed": 0,
           "extra": 4,
-          "precision": 0.778,
+          "precision": 0.765,
           "recall": 1.0
         },
         {
           "rule": "B1.MISSING.002",
-          "expected": 4,
-          "found": 4,
-          "missed": 0,
-          "extra": 3,
-          "precision": 0.571,
-          "recall": 1.0
+          "expected": 3,
+          "found": 2,
+          "missed": 1,
+          "extra": 4,
+          "precision": 0.333,
+          "recall": 0.667
         },
         {
           "rule": "B1.NAME.001",
-          "expected": 7,
-          "found": 7,
+          "expected": 4,
+          "found": 4,
           "missed": 0,
-          "extra": 8,
-          "precision": 0.467,
+          "extra": 6,
+          "precision": 0.4,
           "recall": 1.0
         },
         {
           "rule": "B1.NAME.002",
-          "expected": 4,
-          "found": 4,
+          "expected": 2,
+          "found": 2,
           "missed": 0,
           "extra": 0,
           "precision": 1.0,
@@ -1233,15 +1407,42 @@
         },
         {
           "rule": "B1.ORPHAN.001",
-          "expected": 17,
-          "found": 17,
+          "expected": 12,
+          "found": 12,
           "missed": 0,
-          "extra": 1,
-          "precision": 0.944,
+          "extra": 2,
+          "precision": 0.857,
           "recall": 1.0
         },
         {
-          "rule": "B1.SHEETS.001",
+          "rule": "B1.POS.001",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.POS.002",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.POS.003",
+          "expected": 1,
+          "found": 1,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.SECTION.001",
           "expected": 3,
           "found": 3,
           "missed": 0,
@@ -1250,88 +1451,129 @@
           "recall": 1.0
         },
         {
-          "rule": "B1.SPEC.001",
+          "rule": "B1.SHEETS.001",
           "expected": 3,
-          "found": 3,
+          "found": 2,
+          "missed": 1,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 0.667
+        },
+        {
+          "rule": "B1.SPEC.001",
+          "expected": 2,
+          "found": 2,
           "missed": 0,
           "extra": 2,
-          "precision": 0.6,
+          "precision": 0.5,
           "recall": 1.0
         },
         {
           "rule": "B1.VERSION.001",
-          "expected": 4,
-          "found": 4,
+          "expected": 2,
+          "found": 2,
           "missed": 0,
-          "extra": 1,
-          "precision": 0.8,
+          "extra": 0,
+          "precision": 1.0,
           "recall": 1.0
         }
       ],
       "mutations": {
         "damage_file": {
-          "found": 4,
-          "expected": 4
-        },
-        "drop_assembly_drawing": {
-          "found": 4,
-          "expected": 4
-        },
-        "drop_assembly_spec": {
-          "found": 17,
-          "expected": 17
-        },
-        "drop_part_drawing": {
           "found": 3,
           "expected": 3
         },
+        "drop_assembly_drawing": {
+          "found": 2,
+          "expected": 3
+        },
+        "drop_assembly_spec": {
+          "found": 11,
+          "expected": 11
+        },
+        "drop_group_drawing": {
+          "found": 4,
+          "expected": 4
+        },
+        "drop_part_drawing": {
+          "found": 2,
+          "expected": 2
+        },
+        "drop_quantity": {
+          "found": 2,
+          "expected": 2
+        },
+        "drop_row_designation": {
+          "found": 2,
+          "expected": 2
+        },
         "drop_sheet": {
-          "found": 3,
+          "found": 2,
           "expected": 3
         },
         "duplicate_designation": {
-          "found": 3,
-          "expected": 3
+          "found": 2,
+          "expected": 2
         },
         "duplicate_position": {
-          "found": 8,
-          "expected": 8
-        },
-        "encrypt_file": {
-          "found": 3,
-          "expected": 3
-        },
-        "extra_drawing": {
-          "found": 3,
-          "expected": 3
-        },
-        "format_in_spec": {
           "found": 4,
           "expected": 4
+        },
+        "duplicate_spec": {
+          "found": 2,
+          "expected": 2
+        },
+        "encrypt_file": {
+          "found": 2,
+          "expected": 2
+        },
+        "extra_drawing": {
+          "found": 2,
+          "expected": 2
+        },
+        "first_use_elsewhere": {
+          "found": 2,
+          "expected": 2
+        },
+        "format_in_spec": {
+          "found": 2,
+          "expected": 2
         },
         "litera_assembly_drawing": {
           "found": 2,
-          "expected": 3
+          "expected": 2
         },
         "litera_component": {
           "found": 2,
-          "expected": 3
+          "expected": 2
+        },
+        "part_drawing_of_unit": {
+          "found": 2,
+          "expected": 2
         },
         "rename_assembly_spec": {
+          "found": 2,
+          "expected": 2
+        },
+        "rename_on_drawing": {
+          "found": 2,
+          "expected": 2
+        },
+        "repeat_position": {
+          "found": 2,
+          "expected": 2
+        },
+        "second_version": {
           "found": 4,
           "expected": 4
         },
-        "rename_on_drawing": {
+        "section_of_assembly": {
           "found": 3,
           "expected": 3
         },
-        "second_version": {
-          "found": 8,
-          "expected": 8
-        },
         "unreadable_scan": {
-          "found": 4,
-          "expected": 4
+          "found": 2,
+          "expected": 2
         }
       },
       "clean_kits": 4,
@@ -1373,30 +1615,42 @@
         }
       ],
       "problem_files": {
-        "right": 21,
-        "total": 21
+        "right": 13,
+        "total": 13
       },
-      "other_statuses": {
-        "warning": 1
-      },
+      "other_statuses": {},
       "causes": {
-        "лишнее: скан спецификации: OCR прочитал с ошибкой": 16,
+        "лишнее: скан спецификации: OCR прочитал с ошибкой": 15,
         "лишнее: такого обозначения в комплекте нет: OCR исказил его на скане": 3,
-        "лишнее: скан: OCR прочитал с ошибкой": 3,
         "лишнее: исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано": 2,
         "лишнее: скан спецификации: OCR заменил цифру, вышло обозначение другой позиции комплекта": 2,
-        "пропуск: все спецификации комплекта — растры или сканы: их строк ядро не читает, дерева изделия нет": 1,
+        "пропуск: скан: OCR прочитал с ошибкой": 1,
+        "пропуск: скан спецификации: OCR прочитал с ошибкой": 1,
         "лишнее: исполнение групповой сборочной единицы по варианту А (ГОСТ 2.113): заголовок исполнения не опознан, ядро ищет спецификацию с обозначением исполнения": 1,
         "лишнее: растр: OCR прочитал с ошибкой": 1,
-        "пропуск: скан: OCR прочитал с ошибкой": 1
+        "лишнее: скан: OCR прочитал с ошибкой": 1
       },
       "errors": [
         {
-          "kit": "kit_001",
+          "kit": "kit_004",
           "kind": "пропуск",
-          "rule": "B1.LITERA.001",
-          "designation": "ВЕДС.301411.001",
-          "cause": "все спецификации комплекта — растры или сканы: их строк ядро не читает, дерева изделия нет"
+          "rule": "B1.SHEETS.001",
+          "designation": "МАШН.305312.101",
+          "cause": "скан: OCR прочитал с ошибкой"
+        },
+        {
+          "kit": "kit_004",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.002",
+          "designation": "МАШН.305312.000",
+          "cause": "скан спецификации: OCR прочитал с ошибкой"
+        },
+        {
+          "kit": "kit_004",
+          "kind": "лишнее",
+          "rule": "B1.ORPHAN.001",
+          "designation": "МАШН.305312.000 ПЗ",
+          "cause": "скан спецификации: OCR прочитал с ошибкой"
         },
         {
           "kit": "kit_004",
@@ -1406,62 +1660,44 @@
           "cause": "скан спецификации: OCR прочитал с ошибкой"
         },
         {
-          "kit": "kit_004",
-          "kind": "лишнее",
-          "rule": "B1.NAME.001",
-          "designation": "МАШН.305312.002",
-          "cause": "скан спецификации: OCR прочитал с ошибкой"
-        },
-        {
           "kit": "kit_007",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "МАШН.758411.001-01",
-          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано",
-          "preliminary": true
+          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано"
+        },
+        {
+          "kit": "kit_008",
+          "kind": "пропуск",
+          "rule": "B1.MISSING.002",
+          "designation": "ЛМКР.301411.002 СБ",
+          "cause": "скан спецификации: OCR прочитал с ошибкой"
         },
         {
           "kit": "kit_008",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "ЛМКР.715211.001-01",
-          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано",
-          "preliminary": true
+          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано"
         },
         {
           "kit": "kit_008",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "АМКР.731311.001-01",
-          "cause": "такого обозначения в комплекте нет: OCR исказил его на скане",
-          "preliminary": true
+          "cause": "такого обозначения в комплекте нет: OCR исказил его на скане"
         },
         {
           "kit": "kit_008",
           "kind": "лишнее",
           "rule": "B1.MISSING.001",
           "designation": "АМКР.722155.002-01",
-          "cause": "такого обозначения в комплекте нет: OCR исказил его на скане",
-          "preliminary": true
+          "cause": "такого обозначения в комплекте нет: OCR исказил его на скане"
         },
         {
           "kit": "kit_008",
           "kind": "лишнее",
           "rule": "B1.DUP.002",
-          "designation": "ЛМКР.301411.002",
-          "cause": "скан спецификации: OCR прочитал с ошибкой"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.NAME.001",
-          "designation": "ЛМКР.301411.002",
-          "cause": "скан спецификации: OCR прочитал с ошибкой"
-        },
-        {
-          "kit": "kit_008",
-          "kind": "лишнее",
-          "rule": "B1.LITERA.001",
           "designation": "ЛМКР.301411.002",
           "cause": "скан спецификации: OCR прочитал с ошибкой"
         },
@@ -1492,13 +1728,6 @@
           "rule": "B1.LITERA.002",
           "designation": "ТЕХМ.302231.200",
           "cause": "скан спецификации: OCR прочитал с ошибкой"
-        },
-        {
-          "kit": "kit_012",
-          "kind": "лишнее",
-          "rule": "B1.LITERA.002",
-          "designation": "ТЕХМ.302231.113",
-          "cause": "скан: OCR прочитал с ошибкой"
         },
         {
           "kit": "kit_012",
@@ -1537,23 +1766,9 @@
         },
         {
           "kit": "kit_016",
-          "kind": "пропуск",
-          "rule": "B1.LITERA.002",
-          "designation": "СПРН.721411.001",
-          "cause": "скан: OCR прочитал с ошибкой"
-        },
-        {
-          "kit": "kit_016",
-          "kind": "лишнее",
-          "rule": "B1.VERSION.001",
-          "designation": "СПРН.713111.004",
-          "cause": "скан: OCR прочитал с ошибкой"
-        },
-        {
-          "kit": "kit_016",
           "kind": "лишнее",
           "rule": "B1.NAME.001",
-          "designation": "СПРН.715211.002",
+          "designation": "СПРН.305312.002",
           "cause": "скан: OCR прочитал с ошибкой"
         },
         {
@@ -1561,8 +1776,7 @@
           "kind": "лишнее",
           "rule": "B1.MISSING.002",
           "designation": "ТЕХМ.305312.002",
-          "cause": "скан спецификации: OCR прочитал с ошибкой",
-          "preliminary": true
+          "cause": "скан спецификации: OCR прочитал с ошибкой"
         },
         {
           "kit": "kit_018",
@@ -1610,77 +1824,77 @@
       "parameters": {
         "captured:coating": {
           "expected": 26,
-          "found": 11,
-          "extra": 4,
+          "found": 12,
+          "extra": 5,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.733,
-          "recall": 0.423,
+          "precision": 0.706,
+          "recall": 0.462,
           "value_accuracy": null
         },
         "captured:dimension_tolerance": {
-          "expected": 82,
-          "found": 16,
-          "extra": 19,
+          "expected": 86,
+          "found": 13,
+          "extra": 20,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.457,
-          "recall": 0.195,
+          "precision": 0.394,
+          "recall": 0.151,
           "value_accuracy": null
         },
         "captured:general_tolerance": {
-          "expected": 47,
-          "found": 8,
+          "expected": 49,
+          "found": 9,
           "extra": 1,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.889,
-          "recall": 0.17,
+          "precision": 0.9,
+          "recall": 0.184,
           "value_accuracy": null
         },
         "captured:geometric": {
           "expected": 49,
-          "found": 12,
+          "found": 9,
           "extra": 0,
-          "valued": 5,
-          "value_right": 3,
+          "valued": 4,
+          "value_right": 2,
           "precision": 1.0,
-          "recall": 0.245,
-          "value_accuracy": 0.6
+          "recall": 0.184,
+          "value_accuracy": 0.5
         },
         "captured:hardness": {
-          "expected": 44,
-          "found": 14,
+          "expected": 43,
+          "found": 13,
           "extra": 7,
-          "valued": 14,
-          "value_right": 13,
-          "precision": 0.667,
-          "recall": 0.318,
-          "value_accuracy": 0.929
+          "valued": 13,
+          "value_right": 12,
+          "precision": 0.65,
+          "recall": 0.302,
+          "value_accuracy": 0.923
         },
         "captured:heat_treatment": {
-          "expected": 30,
-          "found": 18,
+          "expected": 29,
+          "found": 17,
           "extra": 0,
-          "valued": 13,
-          "value_right": 10,
+          "valued": 12,
+          "value_right": 8,
           "precision": 1.0,
-          "recall": 0.6,
-          "value_accuracy": 0.769
+          "recall": 0.586,
+          "value_accuracy": 0.667
         },
         "captured:roughness": {
-          "expected": 126,
-          "found": 40,
+          "expected": 131,
+          "found": 43,
           "extra": 28,
           "valued": 1,
           "value_right": 1,
-          "precision": 0.588,
-          "recall": 0.317,
+          "precision": 0.606,
+          "recall": 0.328,
           "value_accuracy": 1.0
         },
         "vector:coating": {
-          "expected": 169,
-          "found": 169,
+          "expected": 168,
+          "found": 168,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
@@ -1689,8 +1903,8 @@
           "value_accuracy": null
         },
         "vector:dimension_tolerance": {
-          "expected": 385,
-          "found": 385,
+          "expected": 392,
+          "found": 392,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
@@ -1699,8 +1913,8 @@
           "value_accuracy": null
         },
         "vector:general_tolerance": {
-          "expected": 274,
-          "found": 274,
+          "expected": 273,
+          "found": 273,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
@@ -1709,31 +1923,31 @@
           "value_accuracy": null
         },
         "vector:geometric": {
-          "expected": 215,
-          "found": 215,
+          "expected": 213,
+          "found": 213,
           "extra": 0,
-          "valued": 56,
-          "value_right": 56,
+          "valued": 58,
+          "value_right": 58,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:hardness": {
-          "expected": 197,
-          "found": 197,
+          "expected": 193,
+          "found": 193,
           "extra": 0,
-          "valued": 197,
-          "value_right": 197,
+          "valued": 193,
+          "value_right": 193,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:heat_treatment": {
-          "expected": 146,
-          "found": 146,
+          "expected": 143,
+          "found": 143,
           "extra": 0,
-          "valued": 80,
-          "value_right": 80,
+          "valued": 74,
+          "value_right": 74,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
@@ -1742,8 +1956,8 @@
           "expected": 675,
           "found": 675,
           "extra": 0,
-          "valued": 60,
-          "value_right": 60,
+          "valued": 57,
+          "value_right": 57,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
@@ -1756,62 +1970,55 @@
         "heat_treatment: от 1 до 1.4 мм → —": 1,
         "geometric: = 0.03 мм → = 20.03 мм": 1,
         "geometric: = 0.05 мм → = 3 мм": 1,
+        "heat_treatment: от 2 до 3 мм → —": 1,
         "heat_treatment: от 2 до 3 мм → от 20 до 30 мм": 1
       },
       "regions": {
         "captured:основная надпись": {
-          "values": 565,
-          "right": 565,
+          "values": 583,
+          "right": 583,
           "share": 1.0
         },
         "captured:параметр": {
-          "values": 119,
+          "values": 116,
           "right": 88,
-          "share": 0.739
+          "share": 0.759
         },
         "captured:строка спецификации": {
-          "values": 116,
-          "right": 116,
+          "values": 128,
+          "right": 128,
           "share": 1.0
         },
         "vector:основная надпись": {
-          "values": 3687,
-          "right": 3687,
+          "values": 3694,
+          "right": 3694,
           "share": 1.0
         },
         "vector:параметр": {
-          "values": 2061,
-          "right": 2061,
+          "values": 2057,
+          "right": 2057,
           "share": 1.0
         },
         "vector:строка спецификации": {
-          "values": 1164,
-          "right": 1164,
+          "values": 1182,
+          "right": 1182,
           "share": 1.0
         }
       },
       "wrong_regions": {
-        "параметр, растры и сканы: захватывает другое значение": 27,
+        "параметр, растры и сканы: захватывает другое значение": 23,
+        "параметр, растры и сканы: не тот файл листа": 2,
         "параметр, растры и сканы: другая страница": 2,
-        "параметр, растры и сканы: не тот файл листа": 1,
         "параметр, растры и сканы: не там, где значение": 1
       },
       "sheet_files": {
-        "documents": 11,
+        "documents": 10,
         "files": 12,
-        "right": 11,
+        "right": 12,
         "documents_whole": 10,
-        "apart": 1,
-        "share": 0.917
+        "share": 1.0
       },
-      "sheet_files_wrong": [
-        {
-          "kit": "kit_004",
-          "file": "Чертежи/МАШН.305312.101(2).jpg",
-          "outcome": "apart",
-          "why": "Скан распознан, но основная надпись не найдена — тип документа не определён"
-        }
-      ]
+      "sheet_files_wrong": []
     },
     {
       "ocr": true,
@@ -1821,27 +2028,18 @@
         "spec_row_cell.v1 sha256:255b3bc469e3"
       ],
       "total": {
-        "expected": 77,
-        "found": 76,
-        "extra": 10,
-        "precision": 0.884,
-        "recall": 0.987,
-        "found_preliminary": 16,
-        "extra_preliminary": 0,
-        "precision_sure": 0.857
+        "expected": 67,
+        "found": 65,
+        "extra": 11,
+        "precision": 0.855,
+        "recall": 0.97,
+        "found_preliminary": 0,
+        "extra_preliminary": 2,
+        "precision_sure": 0.878
       },
       "rules": [
         {
           "rule": "B1.DUP.001",
-          "expected": 7,
-          "found": 7,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.DUP.002",
           "expected": 4,
           "found": 4,
           "missed": 0,
@@ -1850,7 +2048,88 @@
           "recall": 1.0
         },
         {
+          "rule": "B1.DUP.002",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.DUP.003",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.DUP.004",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.FIRSTUSE.001",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
           "rule": "B1.FORMAT.001",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 1,
+          "precision": 0.667,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.LITERA.001",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 1,
+          "precision": 0.667,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.LITERA.002",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.MISSING.001",
+          "expected": 13,
+          "found": 13,
+          "missed": 0,
+          "extra": 3,
+          "precision": 0.812,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.MISSING.002",
+          "expected": 3,
+          "found": 2,
+          "missed": 1,
+          "extra": 1,
+          "precision": 0.667,
+          "recall": 0.667
+        },
+        {
+          "rule": "B1.NAME.001",
           "expected": 4,
           "found": 4,
           "missed": 0,
@@ -1859,7 +2138,52 @@
           "recall": 1.0
         },
         {
-          "rule": "B1.LITERA.001",
+          "rule": "B1.NAME.002",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.ORPHAN.001",
+          "expected": 12,
+          "found": 12,
+          "missed": 0,
+          "extra": 1,
+          "precision": 0.923,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.POS.001",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.POS.002",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.POS.003",
+          "expected": 1,
+          "found": 1,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.SECTION.001",
           "expected": 3,
           "found": 3,
           "missed": 0,
@@ -1868,7 +2192,7 @@
           "recall": 1.0
         },
         {
-          "rule": "B1.LITERA.002",
+          "rule": "B1.SHEETS.001",
           "expected": 3,
           "found": 2,
           "missed": 1,
@@ -1877,72 +2201,18 @@
           "recall": 0.667
         },
         {
-          "rule": "B1.MISSING.001",
-          "expected": 14,
-          "found": 14,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.MISSING.002",
-          "expected": 4,
-          "found": 4,
-          "missed": 0,
-          "extra": 2,
-          "precision": 0.667,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.NAME.001",
-          "expected": 7,
-          "found": 7,
-          "missed": 0,
-          "extra": 3,
-          "precision": 0.7,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.NAME.002",
-          "expected": 4,
-          "found": 4,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.ORPHAN.001",
-          "expected": 17,
-          "found": 17,
-          "missed": 0,
-          "extra": 1,
-          "precision": 0.944,
-          "recall": 1.0
-        },
-        {
-          "rule": "B1.SHEETS.001",
-          "expected": 3,
-          "found": 3,
-          "missed": 0,
-          "extra": 0,
-          "precision": 1.0,
-          "recall": 1.0
-        },
-        {
           "rule": "B1.SPEC.001",
-          "expected": 3,
-          "found": 3,
+          "expected": 2,
+          "found": 2,
           "missed": 0,
           "extra": 3,
-          "precision": 0.5,
+          "precision": 0.4,
           "recall": 1.0
         },
         {
           "rule": "B1.VERSION.001",
-          "expected": 4,
-          "found": 4,
+          "expected": 2,
+          "found": 2,
           "missed": 0,
           "extra": 0,
           "precision": 1.0,
@@ -1951,79 +2221,104 @@
       ],
       "mutations": {
         "damage_file": {
-          "found": 4,
-          "expected": 4
+          "found": 3,
+          "expected": 3
         },
         "drop_assembly_drawing": {
-          "found": 4,
-          "expected": 4
-        },
-        "drop_assembly_spec": {
-          "found": 17,
-          "expected": 17
-        },
-        "drop_part_drawing": {
-          "found": 3,
-          "expected": 3
-        },
-        "drop_sheet": {
-          "found": 3,
-          "expected": 3
-        },
-        "duplicate_designation": {
-          "found": 3,
-          "expected": 3
-        },
-        "duplicate_position": {
-          "found": 8,
-          "expected": 8
-        },
-        "encrypt_file": {
-          "found": 3,
-          "expected": 3
-        },
-        "extra_drawing": {
-          "found": 3,
-          "expected": 3
-        },
-        "format_in_spec": {
-          "found": 4,
-          "expected": 4
-        },
-        "litera_assembly_drawing": {
-          "found": 3,
-          "expected": 3
-        },
-        "litera_component": {
           "found": 2,
           "expected": 3
         },
-        "rename_assembly_spec": {
+        "drop_assembly_spec": {
+          "found": 11,
+          "expected": 11
+        },
+        "drop_group_drawing": {
           "found": 4,
           "expected": 4
         },
+        "drop_part_drawing": {
+          "found": 2,
+          "expected": 2
+        },
+        "drop_quantity": {
+          "found": 2,
+          "expected": 2
+        },
+        "drop_row_designation": {
+          "found": 2,
+          "expected": 2
+        },
+        "drop_sheet": {
+          "found": 2,
+          "expected": 3
+        },
+        "duplicate_designation": {
+          "found": 2,
+          "expected": 2
+        },
+        "duplicate_position": {
+          "found": 4,
+          "expected": 4
+        },
+        "duplicate_spec": {
+          "found": 2,
+          "expected": 2
+        },
+        "encrypt_file": {
+          "found": 2,
+          "expected": 2
+        },
+        "extra_drawing": {
+          "found": 2,
+          "expected": 2
+        },
+        "first_use_elsewhere": {
+          "found": 2,
+          "expected": 2
+        },
+        "format_in_spec": {
+          "found": 2,
+          "expected": 2
+        },
+        "litera_assembly_drawing": {
+          "found": 2,
+          "expected": 2
+        },
+        "litera_component": {
+          "found": 2,
+          "expected": 2
+        },
+        "part_drawing_of_unit": {
+          "found": 2,
+          "expected": 2
+        },
+        "rename_assembly_spec": {
+          "found": 2,
+          "expected": 2
+        },
         "rename_on_drawing": {
+          "found": 2,
+          "expected": 2
+        },
+        "repeat_position": {
+          "found": 2,
+          "expected": 2
+        },
+        "second_version": {
+          "found": 4,
+          "expected": 4
+        },
+        "section_of_assembly": {
           "found": 3,
           "expected": 3
         },
-        "second_version": {
-          "found": 8,
-          "expected": 8
-        },
         "unreadable_scan": {
-          "found": 4,
-          "expected": 4
+          "found": 2,
+          "expected": 2
         }
       },
       "clean_kits": 4,
       "clean_false": [
-        {
-          "kit": "kit_005",
-          "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ТЕХМ.304125.001 СБ",
-          "cause": "скан: OCR прочитал с ошибкой"
-        },
         {
           "kit": "kit_020",
           "kind": "лишнее",
@@ -2033,32 +2328,61 @@
         }
       ],
       "problem_files": {
-        "right": 21,
-        "total": 21
+        "right": 13,
+        "total": 13
       },
-      "other_statuses": {
-        "warning": 1
-      },
+      "other_statuses": {},
       "causes": {
-        "лишнее: скан спецификации: OCR прочитал с ошибкой": 3,
+        "лишнее: скан спецификации: OCR прочитал с ошибкой": 4,
         "лишнее: такого обозначения в комплекте нет: OCR исказил его на скане": 3,
-        "лишнее: скан: OCR прочитал с ошибкой": 2,
+        "лишнее: исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано": 2,
+        "пропуск: скан: OCR прочитал с ошибкой": 1,
+        "пропуск: скан спецификации: OCR прочитал с ошибкой": 1,
         "лишнее: исполнение групповой сборочной единицы по варианту А (ГОСТ 2.113): заголовок исполнения не опознан, ядро ищет спецификацию с обозначением исполнения": 1,
-        "лишнее: растр: OCR прочитал с ошибкой": 1,
-        "пропуск: скан: OCR прочитал с ошибкой": 1
+        "лишнее: растр: OCR прочитал с ошибкой": 1
       },
       "errors": [
         {
-          "kit": "kit_005",
+          "kit": "kit_001",
           "kind": "лишнее",
-          "rule": "B1.MISSING.002",
-          "designation": "ТЕХМ.304125.001 СБ",
+          "rule": "B1.LITERA.001",
+          "designation": "ВЕДС.301411.001",
+          "cause": "скан спецификации: OCR прочитал с ошибкой"
+        },
+        {
+          "kit": "kit_004",
+          "kind": "пропуск",
+          "rule": "B1.SHEETS.001",
+          "designation": "МАШН.305312.101",
           "cause": "скан: OCR прочитал с ошибкой"
+        },
+        {
+          "kit": "kit_007",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
+          "designation": "МАШН.758411.001-01",
+          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано",
+          "preliminary": true
+        },
+        {
+          "kit": "kit_008",
+          "kind": "пропуск",
+          "rule": "B1.MISSING.002",
+          "designation": "ЛМКР.301411.002 СБ",
+          "cause": "скан спецификации: OCR прочитал с ошибкой"
         },
         {
           "kit": "kit_008",
           "kind": "лишнее",
-          "rule": "B1.NAME.001",
+          "rule": "B1.MISSING.001",
+          "designation": "ЛМКР.715211.001-01",
+          "cause": "исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано",
+          "preliminary": true
+        },
+        {
+          "kit": "kit_008",
+          "kind": "лишнее",
+          "rule": "B1.MISSING.001",
           "designation": "ЛМКР.301411.002 СБ",
           "cause": "скан спецификации: OCR прочитал с ошибкой"
         },
@@ -2105,20 +2429,6 @@
           "cause": "растр: OCR прочитал с ошибкой"
         },
         {
-          "kit": "kit_016",
-          "kind": "пропуск",
-          "rule": "B1.LITERA.002",
-          "designation": "СПРН.721411.001",
-          "cause": "скан: OCR прочитал с ошибкой"
-        },
-        {
-          "kit": "kit_016",
-          "kind": "лишнее",
-          "rule": "B1.NAME.001",
-          "designation": "СПРН.715211.002",
-          "cause": "скан: OCR прочитал с ошибкой"
-        },
-        {
           "kit": "kit_020",
           "kind": "лишнее",
           "rule": "B1.FORMAT.001",
@@ -2138,68 +2448,68 @@
           "value_accuracy": null
         },
         "captured:dimension_tolerance": {
-          "expected": 82,
-          "found": 16,
-          "extra": 17,
+          "expected": 86,
+          "found": 13,
+          "extra": 18,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.485,
-          "recall": 0.195,
+          "precision": 0.419,
+          "recall": 0.151,
           "value_accuracy": null
         },
         "captured:general_tolerance": {
-          "expected": 47,
-          "found": 42,
-          "extra": 0,
+          "expected": 49,
+          "found": 43,
+          "extra": 1,
           "valued": 0,
           "value_right": 0,
-          "precision": 1.0,
-          "recall": 0.894,
+          "precision": 0.977,
+          "recall": 0.878,
           "value_accuracy": null
         },
         "captured:geometric": {
           "expected": 49,
           "found": 19,
           "extra": 0,
-          "valued": 11,
-          "value_right": 10,
+          "valued": 12,
+          "value_right": 11,
           "precision": 1.0,
           "recall": 0.388,
-          "value_accuracy": 0.909
+          "value_accuracy": 0.917
         },
         "captured:hardness": {
-          "expected": 44,
+          "expected": 43,
           "found": 42,
           "extra": 0,
           "valued": 42,
           "value_right": 42,
           "precision": 1.0,
-          "recall": 0.955,
+          "recall": 0.977,
           "value_accuracy": 1.0
         },
         "captured:heat_treatment": {
-          "expected": 30,
-          "found": 30,
+          "expected": 29,
+          "found": 29,
           "extra": 0,
-          "valued": 18,
-          "value_right": 17,
+          "valued": 17,
+          "value_right": 16,
           "precision": 1.0,
           "recall": 1.0,
-          "value_accuracy": 0.944
+          "value_accuracy": 0.941
         },
         "captured:roughness": {
-          "expected": 126,
-          "found": 47,
+          "expected": 131,
+          "found": 51,
           "extra": 28,
-          "valued": 8,
-          "value_right": 8,
-          "precision": 0.627,
-          "recall": 0.373,
+          "valued": 9,
+          "value_right": 9,
+          "precision": 0.646,
+          "recall": 0.389,
           "value_accuracy": 1.0
         },
         "vector:coating": {
-          "expected": 169,
-          "found": 169,
+          "expected": 168,
+          "found": 168,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
@@ -2208,8 +2518,8 @@
           "value_accuracy": null
         },
         "vector:dimension_tolerance": {
-          "expected": 385,
-          "found": 385,
+          "expected": 392,
+          "found": 392,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
@@ -2218,8 +2528,8 @@
           "value_accuracy": null
         },
         "vector:general_tolerance": {
-          "expected": 274,
-          "found": 274,
+          "expected": 273,
+          "found": 273,
           "extra": 0,
           "valued": 0,
           "value_right": 0,
@@ -2228,31 +2538,31 @@
           "value_accuracy": null
         },
         "vector:geometric": {
-          "expected": 215,
-          "found": 215,
+          "expected": 213,
+          "found": 213,
           "extra": 0,
-          "valued": 56,
-          "value_right": 56,
+          "valued": 58,
+          "value_right": 58,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:hardness": {
-          "expected": 197,
-          "found": 197,
+          "expected": 193,
+          "found": 193,
           "extra": 0,
-          "valued": 197,
-          "value_right": 197,
+          "valued": 193,
+          "value_right": 193,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
         },
         "vector:heat_treatment": {
-          "expected": 146,
-          "found": 146,
+          "expected": 143,
+          "found": 143,
           "extra": 0,
-          "valued": 80,
-          "value_right": 80,
+          "valued": 74,
+          "value_right": 74,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
@@ -2261,8 +2571,8 @@
           "expected": 675,
           "found": 675,
           "extra": 0,
-          "valued": 60,
-          "value_right": 60,
+          "valued": 57,
+          "value_right": 57,
           "precision": 1.0,
           "recall": 1.0,
           "value_accuracy": 1.0
@@ -2271,62 +2581,54 @@
       "lost_requirements": {},
       "wrong_values": {
         "heat_treatment: от 2 до 3 мм → —": 1,
-        "geometric: = 0.05 мм → = 3 мм": 1
+        "geometric: = 0.04 мм → = 3 мм": 1
       },
       "regions": {
         "captured:основная надпись": {
-          "values": 583,
-          "right": 583,
+          "values": 600,
+          "right": 600,
           "share": 1.0
         },
         "captured:параметр": {
-          "values": 218,
-          "right": 207,
-          "share": 0.95
+          "values": 219,
+          "right": 203,
+          "share": 0.927
         },
         "captured:строка спецификации": {
-          "values": 132,
-          "right": 132,
+          "values": 146,
+          "right": 146,
           "share": 1.0
         },
         "vector:основная надпись": {
-          "values": 3687,
-          "right": 3687,
+          "values": 3694,
+          "right": 3694,
           "share": 1.0
         },
         "vector:параметр": {
-          "values": 2061,
-          "right": 2061,
+          "values": 2057,
+          "right": 2057,
           "share": 1.0
         },
         "vector:строка спецификации": {
-          "values": 1164,
-          "right": 1164,
+          "values": 1182,
+          "right": 1182,
           "share": 1.0
         }
       },
       "wrong_regions": {
-        "параметр, растры и сканы: захватывает другое значение": 7,
+        "параметр, растры и сканы: захватывает другое значение": 11,
+        "параметр, растры и сканы: не тот файл листа": 2,
         "параметр, растры и сканы: другая страница": 2,
-        "параметр, растры и сканы: не тот файл листа": 1,
         "параметр, растры и сканы: не там, где значение": 1
       },
       "sheet_files": {
-        "documents": 11,
+        "documents": 10,
         "files": 12,
-        "right": 11,
+        "right": 12,
         "documents_whole": 10,
-        "apart": 1,
-        "share": 0.917
+        "share": 1.0
       },
-      "sheet_files_wrong": [
-        {
-          "kit": "kit_004",
-          "file": "Чертежи/МАШН.305312.101(2).jpg",
-          "outcome": "apart",
-          "why": "Скан распознан, но основная надпись не найдена — тип документа не определён"
-        }
-      ]
+      "sheet_files_wrong": []
     }
   ]
 }

@@ -34,8 +34,17 @@ from pathlib import Path, PurePosixPath
 from synth import degrade, mutations, requirements, vocab
 from synth.model import Change, Container, Drawing, FontType, Group, Kind, Output, Quality, Row, Spec, Variant
 from synth.product import Numbering, Part, Shape, Unit, grow
-from synth.render import GROUP_NAME_WIDTH, NAME_WIDTH, Box, draw_drawing, draw_spec, text_width, wrap
-from synth.truth import CaptureRecord, DrawingTruth, ExpectedDiscrepancy, KitTruth, SpecTruth
+from synth.render import (
+    GROUP_NAME_WIDTH,
+    NAME_WIDTH,
+    Box,
+    draw_drawing,
+    draw_spec,
+    draw_text_document,
+    text_width,
+    wrap,
+)
+from synth.truth import CaptureRecord, DrawingTruth, ExpectedDiscrepancy, KitTruth, OtherTruth, SpecTruth, last_change
 from synth.vocab import Param
 
 KIT_LITERAS = ("О", "О1", "А")  # each has a stage below it, for the mutations that lower a litera
@@ -65,6 +74,8 @@ class Kit:
     scan_share: float
     raster_share: float
     specs: dict[str, Spec] = field(default_factory=dict)  # by the designation of the assembly
+    more_specs: list[Spec] = field(default_factory=list)  # another specification under a designation already used
+    texts: list[Spec] = field(default_factory=list)  # text documents on form 2, as an explanatory note «… ПЗ»
     drawings: list[Drawing] = field(default_factory=list)
     files: dict[str, bytes] = field(default_factory=dict)  # by the path in the kit, once drawn
     expected: list[ExpectedDiscrepancy] = field(default_factory=list)
@@ -368,9 +379,12 @@ class Kit:
 
     def draw(self) -> None:
         """Draw every document into ``files``; rasters and scans take their seeds from a stream of their own."""
-        for spec in self.specs.values():
+        for spec in [*self.specs.values(), *self.more_specs]:
             boxes = self.drawn.setdefault(spec.file, {})
             self.put(spec.file, draw_spec(spec, boxes=boxes), spec.output, boxes)
+        for text in self.texts:
+            boxes = self.drawn.setdefault(text.file, {})
+            self.put(text.file, draw_text_document(text, boxes=boxes), text.output, boxes)
         for drawing in self.drawings:
             boxes = self.drawn.setdefault(drawing.file, {})
             self.put(drawing.file, draw_drawing(drawing, boxes=boxes), drawing.output, boxes, drawing.dropped_sheet)
@@ -399,8 +413,13 @@ class Kit:
         return data
 
     def truth(self) -> KitTruth:
-        documents: dict[str, SpecTruth | DrawingTruth] = {}
-        docs: list[Spec | Drawing] = [*self.specs.values(), *self.drawings]
+        documents: dict[str, SpecTruth | DrawingTruth | OtherTruth] = {}
+        for text in self.texts:
+            revision = last_change(text.changes)
+            documents[text.file] = OtherTruth(
+                designation=text.designation, name=text.name, litera=text.litera, revision=revision
+            )
+        docs: list[Spec | Drawing] = [*self.specs.values(), *self.more_specs, *self.drawings]
         for doc in docs:
             if (path := doc.file) in self.unread:
                 continue

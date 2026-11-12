@@ -407,9 +407,10 @@ class DrawingTruth(Truth):
 
 
 class OtherTruth(Truth):
-    """A document of a real kit that is no specification and no drawing: a scheme, an element list, a general view.
+    """A document that is no specification and no drawing: a scheme, an element list, a general view of a real kit,
+    an explanatory note on form 2 of a synthetic one.
 
-    The report calls this kind ``other``; the generators do not make such documents.
+    The report calls this kind ``other``.
     """
 
     kind: Literal["other"] = "other"
@@ -418,6 +419,8 @@ class OtherTruth(Truth):
     litera: str = ""
     revision: str | None = None
     sheets: int = 1
+    origin: Literal["vector", "raster", "scan"] = "vector"
+    sheet_files: dict[str, int] = Field({}, description=SHEET_FILES)
 
 
 DocumentTruth = Annotated[SpecTruth | DrawingTruth | OtherTruth, Field(discriminator="kind")]
