@@ -7,11 +7,12 @@ symbols, coatings) come from ``dictionaries.yaml``; the grammars of values are t
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 
-from kdcheck.config import Dictionaries, Tolerances
+from kdcheck.config import Dictionaries, RoughnessSeries, Tolerances
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.ingest.text import Line
 from kdcheck.params.tolerances import PLACES, deviations
@@ -40,7 +41,8 @@ IT = re.compile(r"IT\s?(\d{1,2})")
 HOLE_SHAFT = re.compile(r"(?<![A-Za-z])[Hh]\s?(\d{1,2})\b")  # «H14, h14» of unspecified limit deviations
 CLASS_HALF = re.compile(r"±\s?(?P<cls>t\s?\d)\s?/\s?2")  # «±t2/2»: a class of GOST 25670 for the rest
 GENERAL_FITS = re.compile(r"\b[HhJjs]{1,2}\d{1,2}\b|±\s?(?:IT\s?\d{1,2}|t\s?\d)\s?/\s?2")
-ROUGHNESS = re.compile(rf"(?<![A-Za-zА-Яа-я])(?P<p>[RРВК][aаzг])\s?(?P<v>{NUM})")
+# a sign of roughness right before it, «√Ra 6,3», OCR reads as «V» or «У»
+ROUGHNESS = re.compile(rf"(?:(?<=[√VУ])|(?<![A-Za-zА-Яа-я]))(?P<p>[RРВК][aаzг])\s?(?P<v>{NUM})")
 
 
 # ---------------------------------------------------------------- drawing field annotations
@@ -56,14 +58,20 @@ PLUS_MINUS = re.compile(rf"(?P<prefix>Ø|⌀)?\s?(?P<nom>{NUM})\s?±\s?(?P<dev>{
 GENERAL_ROUGHNESS = re.compile(r"\(\s?[√VУ]\s?\)")
 
 
-def _roughness(m: re.Match[str], text: str, src: SourceRef | None, next_id: NextId, general: bool) -> Parameter:
+def _roughness(
+    m: re.Match[str], text: str, src: SourceRef | None, next_id: NextId, general: bool, rules: RoughnessSeries
+) -> Parameter:
     letter = m["p"][1].lower()
-    param = "Rz" if letter in ("z", "г") else "Ra"
-    value = _f(m["v"])
+    param: Literal["Ra", "Rz"] = "Rz" if letter in ("z", "г") else "Ra"
+    value, written = _f(m["v"]), m["v"].replace(".", ",")
+    series = rules.series.get(param, ())
+    if src is not None and src.method in rules.methods and value is not None and not _in(value, series):
+        if (restored := _with_sign(m["v"])) is not None and _in(_f(restored) or 0, series):
+            value, written = _f(restored), restored  # the decimal sign OCR lost, which a preferred value gives back
     return Parameter(
         id=next_id(),
         category="roughness",
-        name=f"{param} {m['v'].replace('.', ',')}",
+        name=f"{param} {written}",
         text=text,
         value=value,
         unit="мкм",
@@ -72,6 +80,18 @@ def _roughness(m: re.Match[str], text: str, src: SourceRef | None, next_id: Next
         source=src,
         confidence=src.confidence if src else None,
     )
+
+
+def _in(value: float, series: tuple[float, ...]) -> bool:
+    return any(math.isclose(value, v) for v in series)
+
+
+def _with_sign(digits: str) -> str | None:
+    """Digits read without the decimal sign they had, with it: after a leading zero, «08» → «0,8», «005» → «0,05»;
+    else before the last digit, «125» → «12,5»; None for a number read with a sign or of one digit."""
+    if not digits.isdigit() or len(digits) < 2:
+        return None
+    return f"0,{digits[1:]}" if digits.startswith("0") else f"{digits[:-1]},{digits[-1]}"
 
 
 def _size(nominal: float | None, deviation: float) -> float | None:
@@ -109,6 +129,7 @@ class Parser:
         self._geometric = [(re.compile(t.pattern), t.name) for t in words.geometric_tolerances]  # on lower case
         self._coating = re.compile("|".join(words.coating_hints), re.IGNORECASE)
         self._gdt_names = dict(words.gdt_symbols)
+        self._roughness = words.roughness
         self._gdt = re.compile(
             "(?P<sym>" + "|".join(re.escape(s) for s in words.gdt_symbols) + rf")\s?(?P<dia>Ø|⌀)?\s?(?P<v>{NUM})"
             r"(?:\s+(?P<datum>[А-ЯA-Z](?:\s?-\s?[А-ЯA-Z])?))?"
@@ -169,7 +190,7 @@ class Parser:
                 add(category="geometric", name=name, value=_f(tol["v"]) if tol else None, unit="мм" if tol else None)
                 break
         for m in ROUGHNESS.finditer(text):
-            params.append(_roughness(m, text, src, next_id, general=False))
+            params.append(_roughness(m, text, src, next_id, general=False, rules=self._roughness))
         return params
 
     def _fit_limits(self, fit: str, nominal: float | None, prefix: str) -> tuple[float, float] | None:
@@ -242,7 +263,7 @@ class Parser:
             if free(m):
                 taken.append(m.span())
                 general = general_zone or bool(GENERAL_ROUGHNESS.search(text))
-                params.append(_roughness(m, text, src, next_id, general=general))
+                params.append(_roughness(m, text, src, next_id, general=general, rules=self._roughness))
         for m in FIT.finditer(text):
             if not free(m):
                 continue

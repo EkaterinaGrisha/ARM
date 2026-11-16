@@ -438,6 +438,11 @@ class GeneralGeometric(Section):
     classes: tuple[str, ...] = Field(min_length=1)
 
 
+class RoughnessSeries(Section):
+    methods: tuple[ExtractionMethod, ...]
+    series: dict[Literal["Ra", "Rz"], tuple[float, ...]]
+
+
 class Dictionaries(Section):
     spec_sections: dict[str, NodeKind]
     needs_drawing: tuple[NodeKind, ...]
@@ -459,6 +464,7 @@ class Dictionaries(Section):
     layer_depth_marks: tuple[str, ...]
     general_tolerances: GeneralTolerances
     general_geometric: GeneralGeometric
+    roughness: RoughnessSeries
     geometric_tolerances: tuple[Term, ...]
     gdt_symbols: dict[str, str]
     coating_hints: tuple[str, ...]

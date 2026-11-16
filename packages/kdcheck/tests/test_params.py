@@ -163,6 +163,25 @@ def test_a_size_with_a_tolerance_field_gets_its_limit_deviations():
     assert found["М20-6g"].upper_deviation is None
 
 
+@pytest.mark.parametrize(
+    ("read", "method", "name", "value"),
+    [
+        ("VRa 125 (У)", "ocr", "Ra 12,5", 12.5),  # the sign read as «V», the decimal comma lost
+        ("Ra 08", "ocr", "Ra 0,8", 0.8),
+        ("Ra 16", "vlm", "Ra 1,6", 1.6),
+        ("Ra 25", "ocr", "Ra 25", 25.0),  # a preferred value as read
+        ("Ra 16", "text_layer", "Ra 16", 16.0),  # a text layer loses no sign
+        ("Rz 40", "ocr", "Rz 40", 40.0),  # neither 40 nor 4 nor 0,4 is a preferred Rz: kept as read
+    ],
+)
+def test_a_roughness_ocr_read_without_its_decimal_sign_gets_the_preferred_value(read, method, name, value):
+    parser = parameters.Parser(SETTINGS.dictionaries, SETTINGS.tolerances)
+    line = Line(text=read, bbox=(100, 100, 200, 110), size=10)
+    page = Page(number=1, width=PAGE.width, height=PAGE.height, lines=[line], method=method)
+    [found] = parser.annotation(DOC, page, line, _next_id(), general_zone=False)
+    assert (found.name, found.value, found.text) == (name, value, read)
+
+
 def _part(*texts: str) -> PartRecord:
     params = [p for t in texts for p in annotation(t)]
     return PartRecord(document_id="d1", designation="АРМ.303411.001", name="Вал", parameters=params)

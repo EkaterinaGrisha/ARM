@@ -154,6 +154,13 @@ geometric_tolerances:            # in requirement texts; the first match names t
   - {pattern: "цилиндричност", name: Допуск цилиндричности}
   - {pattern: "круглост", name: Допуск круглости}
 
+roughness:                       # GOST 2789-73: the preferred values of the parameters, µm. A reading of OCR or of a model
+                                 # outside them that a lost decimal sign explains, «Ra 125» for «Ra 12,5», «Ra 08» for
+                                 # «Ra 0,8», is taken with the sign; the text of the reading stays as read
+  methods: [ocr, vlm]
+  series:
+    Ra: [0.012, 0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.3, 12.5, 25, 50, 100]
+    Rz: [0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.3, 12.5, 25, 50, 100, 200, 400, 800, 1600]
 gdt_symbols:                     # form and position tolerance symbols on the drawing field, GOST 2.308
   "⊥": Допуск перпендикулярности
   "∥": Допуск параллельности
