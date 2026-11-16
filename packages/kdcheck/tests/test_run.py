@@ -13,8 +13,10 @@ from kdcheck import pipeline
 from kdcheck.cli import main
 from kdcheck.config import settings_sha256
 from kdcheck.extract import review
+from kdcheck.ingest.document import MM_PT, LoadedDocument, Page
+from kdcheck.ingest.text import Line
 from kdcheck.pipeline import BaselinePipeline
-from kdcheck.schemas import Extracted, Report
+from kdcheck.schemas import DocumentInfo, Extracted, Report
 from PIL import Image
 from reportlab.pdfgen.canvas import Canvas
 
@@ -248,6 +250,21 @@ def test_a_page_that_fails_to_parse_keeps_the_rest_of_the_drawing(tmp_path, sett
     assert doc.status == "warning" and doc.pages[0].problem == "ошибка разбора параметров: сбой разбора"
     assert part.title_block.designation and part.title_block.designation.value == "АРМ.303411.002"
     assert part.requirements and part.parameters  # the technical requirements were parsed before the page failed
+
+
+def test_a_vertical_dimension_on_the_field_gives_its_parameters(settings):
+    mm = MM_PT  # an A3 sheet in points, as the text layer gives it
+    lines = [
+        Line(text="Ø40H7", bbox=(200 * mm, 100 * mm, 203.5 * mm, 115 * mm), size=3.5 * mm, vertical=True),
+        Line(text="Ra 3,2", bbox=(250 * mm, 150 * mm, 253.5 * mm, 165 * mm), size=3.5 * mm, vertical=True),
+        Line(text="Ra 6,3", bbox=(14 * mm, 150 * mm, 17.5 * mm, 165 * mm), size=3.5 * mm, vertical=True),
+    ]
+    page = Page(number=1, width=420 * mm, height=297 * mm, lines=lines, method="text_layer")
+    doc = LoadedDocument(info=DocumentInfo(id="d1", file_name="a.pdf", path="a.pdf"), abs_path=Path("a.pdf"))
+    doc.pages = [page]
+    ids = iter(range(100))
+    found = BaselinePipeline(settings)._annotations(doc, lambda pg, ln: False, lambda: f"p{next(ids)}")
+    assert sorted(p.name for p in found) == ["Ra 3,2", "Ø40H7"]  # the one in the binding margin is a frame column
 
 
 @pytest.mark.parametrize(
