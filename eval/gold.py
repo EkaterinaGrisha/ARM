@@ -36,10 +36,10 @@ from kdcheck.config import load_settings
 from kdcheck.normalize.designations import Designations
 from kdcheck.pipeline import BaselinePipeline
 from kdcheck.run import ocr_available
-from kdcheck.schemas import DiscrepancyType
+from kdcheck.schemas import DiscrepancyType, ParameterCategory
 from pydantic import ValidationError
 from scoring import norm
-from synth.truth import DrawingTruth, KitTruth, OtherTruth, SpecTruth
+from synth.truth import Box, DrawingTruth, KitTruth, OtherTruth, SpecTruth
 
 EVAL = Path(__file__).resolve().parent
 ROOT = EVAL.parent
@@ -51,6 +51,7 @@ SHEETS = GOLD / "sheets.csv"
 SHEET_DIR = ROOT / "data" / "gold_sheets"
 SHEET_DPI = 300  # a sheet given as a picture is rendered as an office scanner would scan it
 OUT = EVAL / "results" / "gold-agreement.md"
+ARM = ROOT / "data" / "arm"  # the customer's kits and their labellings, outside git (eval/arm_kits.py)
 
 # Types of the report, and those the plan names for the core to find later (docs/PLAN.md, stage 4).
 TYPES = (
@@ -64,6 +65,7 @@ NOT_DOCUMENTS = ("illustration", "text")  # a picture, a title page, a process s
 TITLE = ("designation", "name", "litera", "revision", "sheets")
 DRAWING = (*TITLE, "material", "mass", "scale", "archive_number", "first_use")
 ROW = ("section", "fmt", "pos", "designation", "name", "qty", "note")
+GRADED = ("dimension_tolerance", "general_tolerance")  # the categories whose tolerance has an IT grade
 
 
 def read_registry() -> list[dict[str, str]]:
@@ -180,8 +182,48 @@ def _drafts() -> dict[str, dict[str, KitTruth]]:
     return found
 
 
+def _files(truth: KitTruth) -> list[str]:
+    """Every file a truth names: documents, later sheets of a document kept one sheet per file, problem files."""
+    sheets = [name for doc in truth.documents.values() for name in doc.sheet_files]
+    return sorted({*truth.documents, *sheets, *truth.problem_files})
+
+
+def _box_problem(box: Box, sheets: int) -> str | None:
+    x0, y0, x1, y1 = box.bbox
+    if not 1 <= box.page <= sheets:
+        return f"область на листе {box.page}, листов {sheets}"
+    if not 0 <= x0 < x1 <= 1 or not 0 <= y0 < y1 <= 1:
+        return f"область {box.bbox} не внутри листа"
+    return None
+
+
+def content_problems(truth: KitTruth) -> list[str]:
+    """Discrepancy types out of the catalog, and what is wrong with the requirements and parameters of the drawings:
+    a category the report has not, an IT grade of a parameter that has no grade, a region outside the document."""
+    problems = [f"тип расхождения {d.type} не из каталога" for d in truth.discrepancies if d.type not in TYPES]
+    categories = get_args(ParameterCategory)
+    for name, doc in truth.documents.items():
+        if not isinstance(doc, DrawingTruth):
+            continue
+        items, boxed = len(doc.requirements), len(doc.requirement_boxes)
+        if boxed and boxed != items:
+            problems.append(f"{name}: областей пунктов ТТ {boxed}, пунктов {items}")
+        boxes = [b for b in doc.requirement_boxes if b is not None] + [p.box for p in doc.parameters if p.box]
+        problems += [f"{name}: {why}" for why in (_box_problem(b, doc.sheets) for b in boxes) if why]
+        for p in doc.parameters:
+            if p.category not in categories:
+                problems.append(f"{name}: категория параметра {p.category} не из отчёта")
+            if p.it_grade is not None and (p.category not in GRADED or not 1 <= p.it_grade <= 18):
+                problems.append(f"{name}: квалитет IT{p.it_grade} у параметра {p.category} «{p.name}»")
+    return problems
+
+
 def check() -> int:
-    """Every gold file reads as a KitTruth and names known files and discrepancy types; sheets come from the corpus."""
+    """Every gold file reads as a KitTruth and names known files and discrepancy types; sheets come from the corpus.
+
+    The labellings of the customer's kits, data/arm/gold/<kit>[.<label>].json, name the files of their kit in the
+    manifest of eval/arm_kits.py; they are checked where data/arm is.
+    """
     registry = {row["path"] for row in read_registry()}
     listed = registry | {f"sheets/{row['sheet']}" for row in read_sheets()}
     problems: list[str] = []
@@ -193,21 +235,27 @@ def check() -> int:
         if row["form"] not in ("pdf", "jpg") or row["kind"] not in ("part", "assembly"):
             problems.append(f"{SHEETS.name}: {row['sheet']} — форма {row['form']}, вид {row['kind']}")
     paths = sorted(GOLD.rglob("*.json"))
-    for path in paths:
-        where = path.relative_to(EVAL.parent)
+    arm = sorted((ARM / "gold").glob("*.json"))
+    manifest = json.loads((ARM / "manifest.json").read_text(encoding="utf-8")) if arm else {}
+    for path in paths + arm:
+        where = path.relative_to(ARM.parent.parent if path in arm else ROOT)
         try:
             truth = KitTruth.read(path)
         except ValidationError as exc:
             problems.append(f"{where}: {exc}")
             continue
-        folder = _folder(path)
-        for name in [*truth.documents, *truth.problem_files]:
-            if f"{folder}/{name}" not in listed:
-                problems.append(f"{where}: {name} — нет ни в реестре в папке {folder}, ни в {SHEETS.name}")
-        for d in truth.discrepancies:
-            if d.type not in TYPES:
-                problems.append(f"{where}: тип расхождения {d.type} не из каталога")
-    print("\n".join(problems) or f"файлов эталона: {len(paths)}, ошибок нет")
+        if path in arm:
+            kit = path.name.split(".")[0]
+            unknown = [name for name in _files(truth) if name not in manifest.get(kit, {})]
+            problems += [f"{where}: {name} — нет в манифесте комплекта {kit}" for name in unknown]
+        else:
+            folder = _folder(path)
+            for name in [*truth.documents, *truth.problem_files]:
+                if f"{folder}/{name}" not in listed:
+                    problems.append(f"{where}: {name} — нет ни в реестре в папке {folder}, ни в {SHEETS.name}")
+        problems += [f"{where}: {why}" for why in content_problems(truth)]
+    done = f"файлов эталона: {len(paths) + len(arm)}, из них комплектов АРМ {len(arm)}; ошибок нет"
+    print("\n".join(problems) or done)
     return 1 if problems else 0
 
 
