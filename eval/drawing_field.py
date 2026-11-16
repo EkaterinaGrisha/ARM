@@ -16,13 +16,17 @@ core with OCR and replaces only how the lines of the field are read:
   knows «Ø», «⊥», «∥», «√» and «±» and keeps small signs Tesseract drops;
 - ``vlm-tiles``: the vision-language model of ``configs/models.yaml`` reads the sheet in four overlapping fragments
   with the prompt ``drawing_field.v1`` and writes each record with a parameter of accuracy; a record takes the region
-  of the line of OCR its text is like, and is dropped when that line lies in the title block or the technical
-  requirements; with no such line its region is the fragment;
-- ``ppocr+vlm``: the lines of ``ppocr-lines``, and of the records of the model those whose parameter they lack;
+  of the line of OCR its text is like or lies in, and is dropped when that line lies in the title block or the
+  technical requirements; with no such line its region is the fragment;
+- ``ppocr+vlm``: the lines of ``ppocr-lines``, and the records of the model. A parameter of a category its line of OCR
+  already gave is a second reading of that line: when it reads otherwise, it takes the place of the parameter of OCR
+  and keeps its region, as the model does in a cell of the title block (ADR-0019), and counts as a conflict;
 - ``dots-page`` and ``ppocr+dots``: the same with the document model dots.mocr, which reads the whole sheet with the
   prompt ``bench_ocr_dots.v1``, as in the comparison of models of 02.11.2026; it is loaded in LM Studio for the run.
 
-A fragment the server fails on is counted and left out; its drawing keeps what the other fragments gave.
+A fragment the server fails on is counted and left out; its drawing keeps what the other fragments gave. A model
+reader is scored twice: with every record, and with the records like no line of OCR left out, whose region is a
+fragment, a quarter of the sheet.
 
 For each parameter of the field the truth gives, the run says whether it is found, whether its value and its region are
 right, and, when it is missed, whether a line of the reader lies over its box at all: a missed line is a matter of
@@ -99,6 +103,27 @@ def _overlap(a: BBox, b: BBox) -> bool:
     return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
 
 
+def _alike(record: str, text: str) -> tuple[bool, float]:
+    """Whether a record of the model lies in a line of OCR, and how alike the two are."""
+    a, b = scoring.norm(record), scoring.norm(text)
+    return bool(a) and a in b, SequenceMatcher(None, a, b).ratio()
+
+
+def _ids_by_line(have: list[Parameter], pg: Page, lines: list[Line]) -> dict[int, dict[str, dict[str, str]]]:
+    """The parameters each line of the page gave, by category, as normalised name → id; the line is the one their
+    region is."""
+    found: dict[int, dict[str, dict[str, str]]] = defaultdict(lambda: defaultdict(dict))
+    boxes = [pg.norm_bbox(ln.bbox) for ln in lines]
+    for p in have:
+        if p.source is None or p.source.page != pg.number or p.source.bbox is None:
+            continue
+        centre = _centre(p.source.bbox)
+        index = next((i for i, box in enumerate(boxes) if _inside(centre, box, pad=0)), None)
+        if index is not None:
+            found[index][p.category][scoring.norm(p.name)] = p.id
+    return found
+
+
 class FieldPipeline(BaselinePipeline):
     """The core with a reader of the field of its own; it keeps the lines the reader gave, by file and page."""
 
@@ -109,6 +134,8 @@ class FieldPipeline(BaselinePipeline):
         self._raster: tuple[tuple[str, int], Image.Image, tuple[float, float], float] | None = None
         self._client: VlmClient | None = None
         self.failures: Counter[str] = Counter()  # fragments the server failed on, by why
+        self.conflicts: Counter[str] = Counter()  # second readings of a line that read otherwise
+        self.unlocated: set[str] = set()  # parameters of records like no line of OCR, by id
 
     def _annotations(
         self, doc: LoadedDocument, aside: Callable[[Page, Line], bool], next_id: Callable[[], str]
@@ -122,6 +149,7 @@ class FieldPipeline(BaselinePipeline):
         found = super()._annotations(doc, aside, next_id)
         if self.reader not in MODEL_READERS:
             return found
+        replaced: set[str] = set()
         if self.reader in ("vlm-tiles", "dots-page"):
             found = [
                 p
@@ -130,8 +158,10 @@ class FieldPipeline(BaselinePipeline):
             ]
         for pg in doc.pages:
             if pg.method == "ocr":
-                found += self._model(doc, pg, aside, next_id, found)
-        return found
+                added, by_model = self._model(doc, pg, aside, next_id, found)
+                found += added
+                replaced |= by_model
+        return [p for p in found if p.id not in replaced]
 
     def _model(
         self,
@@ -140,8 +170,10 @@ class FieldPipeline(BaselinePipeline):
         aside: Callable[[Page, Line], bool],
         next_id: Callable[[], str],
         have: list[Parameter],
-    ) -> list[Parameter]:
-        """The parameters of the records the model reads on the page, but those already in ``have``."""
+    ) -> tuple[list[Parameter], set[str]]:
+        """The parameters of the records the model reads on the page, but those in ``have``, and the ids of those in
+        ``have`` a second reading of their line replaces; the parameters of records like no line go to ``unlocated``.
+        """
         dots = self.reader in ("dots-page", "ppocr+dots")
         if self._client is None and not dots:
             vlm = self.settings.models.vlm
@@ -155,7 +187,10 @@ class FieldPipeline(BaselinePipeline):
             (p.category, scoring.norm(p.name)) for p in have if p.source is not None and p.source.page == pg.number
         }
         lines = [ln for ln in pg.lines if not ln.vertical]
+        read = _ids_by_line(have, pg, lines)
+        modelled: dict[int, set[str]] = defaultdict(set)  # line → categories the model gave on it
         found: list[Parameter] = []
+        replaced: set[str] = set()
         rects = [(0.0, 0.0, pg.width, pg.height)] if dots else _tiles(pg.width, pg.height)
         for rect in rects:
             crop = image.crop(tuple((v - o) / scale for v, o in zip(rect, (ox, oy, ox, oy), strict=True)))
@@ -173,24 +208,36 @@ class FieldPipeline(BaselinePipeline):
             for record in (r.strip(" |#*-\t") for r in answer.splitlines()):
                 if not record:
                     continue
-                near = [ln for ln in lines if _overlap(ln.bbox, rect)]
-                ratio, best = max(
-                    ((SequenceMatcher(None, scoring.norm(record), scoring.norm(ln.text)).ratio(), ln) for ln in near),
-                    default=(0.0, None),
-                    key=lambda pair: pair[0],
-                )
-                if best is not None and ratio >= LINE_MATCH and aside(pg, best):
+                near = [i for i, ln in enumerate(lines) if _overlap(ln.bbox, rect)]
+                alike, index = max(((_alike(record, lines[i].text), i) for i in near), default=((False, 0.0), -1))
+                located = index >= 0 and (alike[0] or alike[1] >= LINE_MATCH)
+                if located and aside(pg, lines[index]):
                     continue  # the title block or the technical requirements
-                bbox = best.bbox if best is not None and ratio >= LINE_MATCH else rect
-                line = Line(text=record, bbox=bbox, size=best.size if best is not None else 3.5 * pg.mm)
+                bbox = lines[index].bbox if located else rect
+                line = Line(text=record, bbox=bbox, size=lines[index].size if index >= 0 else 3.5 * pg.mm)
                 cx, cy = (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2
                 general = cy < top * pg.mm and cx > pg.width - right * pg.mm
                 for param in self.parameters.annotation(doc, pg, line, next_id, general_zone=general):
                     key = (param.category, scoring.norm(param.name))
-                    if key not in known:
-                        known.add(key)
-                        found.append(param)
-        return found
+                    if located:
+                        if param.category in modelled[index]:
+                            continue  # read already in an overlapping fragment
+                        modelled[index].add(param.category)
+                        ocr = read[index][param.category]
+                        if ocr and (key[1] in ocr or len(ocr) > 1):
+                            continue  # read alike, or several of the category on the line to tell apart
+                        if ocr:
+                            [(name, ocr_id)] = ocr.items()
+                            category = PARAMETER_CATEGORY.get(param.category, param.category)
+                            self.conflicts[f"{category}: {name} ≠ {param.name}"] += 1
+                            replaced.add(ocr_id)
+                    elif key in known:
+                        continue
+                    known.add(key)
+                    found.append(param)
+                    if not located:
+                        self.unlocated.add(param.id)
+        return found, replaced
 
     def _ppocr(self, doc: LoadedDocument, pg: Page, ln: Line) -> Line:
         """The line read again by PP-OCRv5 from the image, with a margin of a quarter of its height."""
@@ -309,12 +356,25 @@ def run(reader: str, count: int, seed: int) -> dict[str, Any]:
     tally: dict[str, Counter[str]] = defaultdict(Counter)
     misses: Counter[str] = Counter()
     extras: Counter[str] = Counter()
-    started, sheets = time.monotonic(), 0
+    located: tuple[dict[str, Counter[str]], Counter[str], Counter[str]] = (defaultdict(Counter), Counter(), Counter())
+    started, sheets, unlocated = time.monotonic(), 0, 0
     for kit, truth in truths.items():
         pipeline.lines.clear()
+        pipeline.unlocated.clear()
         report = pipeline.run(CORPUS / kit, kit_id=kit, kit_name=kit)
         sheets += sum(len(d.pages) for d in report.documents)
         score(report, truth, pipeline, tally, misses, extras)
+        if reader in MODEL_READERS:
+            unlocated += len(pipeline.unlocated)
+            score(_without(report, pipeline.unlocated), truth, pipeline, *located)
+    model = {
+        "unlocated": unlocated,
+        "conflicts": dict(pipeline.conflicts.most_common(40)),
+        "located_only": {
+            "results": {key: summary(counts) for key, counts in sorted(located[0].items())},
+            "misses": dict(located[1].most_common()),
+        },
+    }
     return {
         "reader": reader,
         "date": datetime.now(UTC).date().isoformat(),
@@ -327,7 +387,14 @@ def run(reader: str, count: int, seed: int) -> dict[str, Any]:
         "misses": dict(misses.most_common()),
         "extras": dict(extras.most_common(40)),
         "failed_fragments": dict(pipeline.failures),
+        **(model if reader in MODEL_READERS else {}),
     }
+
+
+def _without(report: Report, ids: set[str]) -> Report:
+    """The report with the parameters of ``ids`` left out."""
+    parts = [p.model_copy(update={"parameters": [x for x in p.parameters if x.id not in ids]}) for p in report.parts]
+    return report.model_copy(update={"parts": parts})
 
 
 def markdown(runs: dict[str, dict[str, Any]]) -> str:
@@ -343,24 +410,28 @@ def markdown(runs: dict[str, dict[str, Any]]) -> str:
         "",
         "Параметр поля — допуск размера, шероховатость или допуск формы и расположения, записанный на поле чертежа "
         "детали, а не в пункте технических требований. Найден, если в отчёте есть параметр той же категории с тем же "
-        "именем (правило [scoring.py](../scoring.py)); значение верно, если совпадают числа и единица; область верна, "
-        "если она указывает на значение и ни на какое другое.",
+        "именем (правило [scoring.py](../scoring.py)); область верна, если она указывает на значение и ни на какое "
+        "другое. Запись модели получает область строки OCR, на которую похожа; запись без такой строки — область "
+        "фрагмента, четверть листа. Строки «только со строкой OCR» считают способ без таких записей.",
         "",
-        "| Способ чтения | Вход | Заложено | Найдено | Лишних | Точность | Полнота | F1 | Значение верно | Область "
-        "верна | Время, с |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Способ чтения | Вход | Заложено | Найдено | Лишних | Точность | Полнота | F1 | Область верна | с на лист |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for reader, result in runs.items():
-        for key in ("raster:всего", "scan:всего"):
-            row = result["results"].get(key)
-            if row is None:
-                continue
-            what = "растр" if key.startswith("raster") else "скан"
-            lines.append(
-                f"| {reader} | {what} | {row['expected']} | {row.get('found', 0)} | {row.get('extra', 0)} | "
-                f"{row['precision']} | {row['recall']} | {row['f1']} | {row['value_share']} | {row['region_share']} | "
-                f"{result['seconds']} |"
-            )
+        per_sheet = round(result["seconds"] / result["sheets"], 2)
+        variants = [(reader, result["results"])]
+        if "located_only" in result:
+            variants.append((f"{reader}, только со строкой OCR", result["located_only"]["results"]))
+        for name, results in variants:
+            for key in ("raster:всего", "scan:всего"):
+                row = results.get(key)
+                if row is None:
+                    continue
+                what = "растр" if key.startswith("raster") else "скан"
+                lines.append(
+                    f"| {name} | {what} | {row['expected']} | {row.get('found', 0)} | {row.get('extra', 0)} | "
+                    f"{row['precision']} | {row['recall']} | {row['f1']} | {row['region_share']} | {per_sheet} |"
+                )
     for reader, result in runs.items():
         lines += ["", f"## {reader}: по категориям и классам", "", "| Где | Заложено | Найдено | Лишних | F1 |"]
         lines.append("| --- | ---: | ---: | ---: | ---: |")
@@ -371,6 +442,15 @@ def markdown(runs: dict[str, dict[str, Any]]) -> str:
             lines.append(f"| {where}, {name} | {row['expected']} | {found} | {extra} | {row['f1']} |")
         lines += ["", "| Почему пропущен | Параметров |", "| --- | ---: |"]
         lines += [f"| {why} | {n} |" for why, n in result["misses"].items()]
+        if "conflicts" in result:
+            lines += [
+                "",
+                f"Параметров из записей без строки OCR: {result['unlocated']}. Вторых прочтений строки, прочитанных "
+                f"иначе: {sum(result['conflicts'].values())}.",
+            ]
+            if result["conflicts"]:
+                lines += ["", "| OCR ≠ модель | Раз |", "| --- | ---: |"]
+                lines += [f"| {pair} | {n} |" for pair, n in list(result["conflicts"].items())[:15]]
     return "\n".join(lines) + "\n"
 
 
