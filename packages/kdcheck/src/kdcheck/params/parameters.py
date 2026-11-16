@@ -64,10 +64,12 @@ def _roughness(
     letter = m["p"][1].lower()
     param: Literal["Ra", "Rz"] = "Rz" if letter in ("z", "г") else "Ra"
     value, written = _f(m["v"]), m["v"].replace(".", ",")
-    series = rules.series.get(param, ())
-    if src is not None and src.method in rules.methods and value is not None and not _in(value, series):
-        if (restored := _with_sign(m["v"])) is not None and _in(_f(restored) or 0, series):
-            value, written = _f(restored), restored  # the decimal sign OCR lost, which a preferred value gives back
+    if src is not None and src.method in rules.methods:
+        restored = _with_sign(m["v"], rules.table.get(param, ()), rules.preferred.get(param, ()))
+        if restored is not None:
+            value, written = _f(restored), restored
+            confidence = rules.confidence if src.confidence is None else min(src.confidence, rules.confidence)
+            src = src.model_copy(update={"confidence": confidence})
     return Parameter(
         id=next_id(),
         category="roughness",
@@ -82,16 +84,31 @@ def _roughness(
     )
 
 
-def _in(value: float, series: tuple[float, ...]) -> bool:
-    return any(math.isclose(value, v) for v in series)
+def _in(value: float | None, values: tuple[float, ...]) -> bool:
+    return value is not None and any(math.isclose(value, v) for v in values)
 
 
-def _with_sign(digits: str) -> str | None:
-    """Digits read without the decimal sign they had, with it: after a leading zero, «08» → «0,8», «005» → «0,05»;
-    else before the last digit, «125» → «12,5»; None for a number read with a sign or of one digit."""
+def _with_sign(digits: str, table: tuple[float, ...], preferred: tuple[float, ...]) -> str | None:
+    """Digits read without the decimal sign of a roughness value, with the sign; None when the reading stands.
+
+    A leading zero is always a lost sign: «08» → «0,8». Otherwise the sign goes where it gives a value of the table,
+    a preferred one first: «125» → «12,5» rather than «1,25». A value of the table stays as read unless it is not
+    preferred and the sign makes it preferred: «16» → «1,6», «20» stays. A drawing never writes a trailing zero after
+    the sign, so «1000» never becomes «100,0».
+    """
     if not digits.isdigit() or len(digits) < 2:
         return None
-    return f"0,{digits[1:]}" if digits.startswith("0") else f"{digits[:-1]},{digits[-1]}"
+    if digits.startswith("0"):
+        candidate = f"0,{digits[1:]}"
+        return candidate if _in(_f(candidate), table) else None
+    value = float(digits)
+    if _in(value, preferred) or digits.endswith("0"):
+        return None
+    candidates = [f"{digits[:i]},{digits[i:]}" for i in range(1, len(digits))]
+    best = [c for c in candidates if _in(_f(c), preferred)]
+    if not best and not _in(value, table):
+        best = [c for c in candidates if _in(_f(c), table)]
+    return best[0] if len(best) == 1 else None
 
 
 def _size(nominal: float | None, deviation: float) -> float | None:

@@ -440,7 +440,9 @@ class GeneralGeometric(Section):
 
 class RoughnessSeries(Section):
     methods: tuple[ExtractionMethod, ...]
-    series: dict[Literal["Ra", "Rz"], tuple[float, ...]]
+    confidence: Share
+    table: dict[Literal["Ra", "Rz"], tuple[float, ...]]
+    preferred: dict[Literal["Ra", "Rz"], tuple[float, ...]]
 
 
 class Dictionaries(Section):
