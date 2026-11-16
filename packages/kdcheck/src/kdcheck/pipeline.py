@@ -418,7 +418,7 @@ class BaselinePipeline:
             on_page: list[Parameter] = []
             try:
                 for ln in pg.lines:
-                    if ln.vertical or aside(pg, ln):
+                    if aside(pg, ln):
                         continue
                     if ln.bbox[0] < sheet.binding_margin * pg.mm:
                         continue  # binding margin

@@ -26,6 +26,7 @@ import json
 import random
 import re
 import sys
+import zlib
 from collections import Counter
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -343,6 +344,8 @@ class Kit:
             first_use=unit.designation,
             requirements=self._wrapped(items),
             annotations=texts,
+            # a third of the drawings by designation, not by ``rng``: the rest of the kit stays as it was drawn
+            vertical=[1] if zlib.crc32(part.designation.encode()) % 3 == 0 else [],
             general_roughness=roughness,
             sketch=kind.sketch,
             output=output,

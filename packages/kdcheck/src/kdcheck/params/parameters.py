@@ -7,11 +7,12 @@ symbols, coatings) come from ``dictionaries.yaml``; the grammars of values are t
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 
-from kdcheck.config import Dictionaries, Tolerances
+from kdcheck.config import Dictionaries, RoughnessSeries, Tolerances
 from kdcheck.ingest.document import LoadedDocument, Page
 from kdcheck.ingest.text import Line
 from kdcheck.params.tolerances import PLACES, deviations
@@ -40,7 +41,8 @@ IT = re.compile(r"IT\s?(\d{1,2})")
 HOLE_SHAFT = re.compile(r"(?<![A-Za-z])[Hh]\s?(\d{1,2})\b")  # «H14, h14» of unspecified limit deviations
 CLASS_HALF = re.compile(r"±\s?(?P<cls>t\s?\d)\s?/\s?2")  # «±t2/2»: a class of GOST 25670 for the rest
 GENERAL_FITS = re.compile(r"\b[HhJjs]{1,2}\d{1,2}\b|±\s?(?:IT\s?\d{1,2}|t\s?\d)\s?/\s?2")
-ROUGHNESS = re.compile(rf"(?<![A-Za-zА-Яа-я])(?P<p>[RРВК][aаzг])\s?(?P<v>{NUM})")
+# a sign of roughness right before it, «√Ra 6,3», OCR reads as «V» or «У»
+ROUGHNESS = re.compile(rf"(?:(?<=[√VУ])|(?<![A-Za-zА-Яа-я]))(?P<p>[RРВК][aаzг])\s?(?P<v>{NUM})")
 
 
 # ---------------------------------------------------------------- drawing field annotations
@@ -56,14 +58,22 @@ PLUS_MINUS = re.compile(rf"(?P<prefix>Ø|⌀)?\s?(?P<nom>{NUM})\s?±\s?(?P<dev>{
 GENERAL_ROUGHNESS = re.compile(r"\(\s?[√VУ]\s?\)")
 
 
-def _roughness(m: re.Match[str], text: str, src: SourceRef | None, next_id: NextId, general: bool) -> Parameter:
+def _roughness(
+    m: re.Match[str], text: str, src: SourceRef | None, next_id: NextId, general: bool, rules: RoughnessSeries
+) -> Parameter:
     letter = m["p"][1].lower()
-    param = "Rz" if letter in ("z", "г") else "Ra"
-    value = _f(m["v"])
+    param: Literal["Ra", "Rz"] = "Rz" if letter in ("z", "г") else "Ra"
+    value, written = _f(m["v"]), m["v"].replace(".", ",")
+    if src is not None and src.method in rules.methods:
+        restored = _with_sign(m["v"], rules.table.get(param, ()), rules.preferred.get(param, ()))
+        if restored is not None:
+            value, written = _f(restored), restored
+            confidence = rules.confidence if src.confidence is None else min(src.confidence, rules.confidence)
+            src = src.model_copy(update={"confidence": confidence})
     return Parameter(
         id=next_id(),
         category="roughness",
-        name=f"{param} {m['v'].replace('.', ',')}",
+        name=f"{param} {written}",
         text=text,
         value=value,
         unit="мкм",
@@ -72,6 +82,33 @@ def _roughness(m: re.Match[str], text: str, src: SourceRef | None, next_id: Next
         source=src,
         confidence=src.confidence if src else None,
     )
+
+
+def _in(value: float | None, values: tuple[float, ...]) -> bool:
+    return value is not None and any(math.isclose(value, v) for v in values)
+
+
+def _with_sign(digits: str, table: tuple[float, ...], preferred: tuple[float, ...]) -> str | None:
+    """Digits read without the decimal sign of a roughness value, with the sign; None when the reading stands.
+
+    A leading zero is always a lost sign: «08» → «0,8». Otherwise the sign goes where it gives a value of the table,
+    a preferred one first: «125» → «12,5» rather than «1,25». A value of the table stays as read unless it is not
+    preferred and the sign makes it preferred: «16» → «1,6», «20» stays. A drawing never writes a trailing zero after
+    the sign, so «1000» never becomes «100,0».
+    """
+    if not digits.isdigit() or len(digits) < 2:
+        return None
+    if digits.startswith("0"):
+        candidate = f"0,{digits[1:]}"
+        return candidate if _in(_f(candidate), table) else None
+    value = float(digits)
+    if _in(value, preferred) or digits.endswith("0"):
+        return None
+    candidates = [f"{digits[:i]},{digits[i:]}" for i in range(1, len(digits))]
+    best = [c for c in candidates if _in(_f(c), preferred)]
+    if not best and not _in(value, table):
+        best = [c for c in candidates if _in(_f(c), table)]
+    return best[0] if len(best) == 1 else None
 
 
 def _size(nominal: float | None, deviation: float) -> float | None:
@@ -109,6 +146,7 @@ class Parser:
         self._geometric = [(re.compile(t.pattern), t.name) for t in words.geometric_tolerances]  # on lower case
         self._coating = re.compile("|".join(words.coating_hints), re.IGNORECASE)
         self._gdt_names = dict(words.gdt_symbols)
+        self._roughness = words.roughness
         self._gdt = re.compile(
             "(?P<sym>" + "|".join(re.escape(s) for s in words.gdt_symbols) + rf")\s?(?P<dia>Ø|⌀)?\s?(?P<v>{NUM})"
             r"(?:\s+(?P<datum>[А-ЯA-Z](?:\s?-\s?[А-ЯA-Z])?))?"
@@ -169,7 +207,7 @@ class Parser:
                 add(category="geometric", name=name, value=_f(tol["v"]) if tol else None, unit="мм" if tol else None)
                 break
         for m in ROUGHNESS.finditer(text):
-            params.append(_roughness(m, text, src, next_id, general=False))
+            params.append(_roughness(m, text, src, next_id, general=False, rules=self._roughness))
         return params
 
     def _fit_limits(self, fit: str, nominal: float | None, prefix: str) -> tuple[float, float] | None:
@@ -242,7 +280,7 @@ class Parser:
             if free(m):
                 taken.append(m.span())
                 general = general_zone or bool(GENERAL_ROUGHNESS.search(text))
-                params.append(_roughness(m, text, src, next_id, general=general))
+                params.append(_roughness(m, text, src, next_id, general=general, rules=self._roughness))
         for m in FIT.finditer(text):
             if not free(m):
                 continue

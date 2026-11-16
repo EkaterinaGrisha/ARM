@@ -163,6 +163,29 @@ def test_a_size_with_a_tolerance_field_gets_its_limit_deviations():
     assert found["М20-6g"].upper_deviation is None
 
 
+@pytest.mark.parametrize(
+    ("read", "method", "name", "value", "restored"),
+    [
+        ("VRa 125 (У)", "ocr", "Ra 12,5", 12.5, True),  # the sign read as «V»; 12,5 is preferred, 1,25 is not
+        ("Ra 08", "ocr", "Ra 0,8", 0.8, True),
+        ("Ra 063", "ocr", "Ra 0,63", 0.63, True),  # a leading zero: the sign is lost even for a value not preferred
+        ("Ra 16", "vlm", "Ra 1,6", 1.6, True),  # 16 is in the table, but not preferred, and 1,6 is
+        ("Ra 25", "ocr", "Ra 25", 25.0, False),  # preferred as read
+        ("Ra 20", "ocr", "Ra 20", 20.0, False),  # in the table, and 2,0 is not preferred
+        ("Rz 1000", "ocr", "Rz 1000", 1000.0, False),  # in the table; «100,0» is no way to write 100
+        ("Ra 7", "ocr", "Ra 7", 7.0, False),  # one digit has no place for a sign
+        ("Ra 16", "text_layer", "Ra 16", 16.0, False),  # a text layer loses no sign
+    ],
+)
+def test_roughness_restores_lost_decimal_sign(read, method, name, value, restored):
+    parser = parameters.Parser(SETTINGS.dictionaries, SETTINGS.tolerances)
+    line = Line(text=read, bbox=(100, 100, 200, 110), size=10)
+    page = Page(number=1, width=PAGE.width, height=PAGE.height, lines=[line], method=method)
+    [found] = parser.annotation(DOC, page, line, _next_id(), general_zone=False)
+    assert (found.name, found.value, found.text) == (name, value, read)
+    assert (found.confidence is not None and found.confidence < SETTINGS.ingest.review.min_confidence) == restored
+
+
 def _part(*texts: str) -> PartRecord:
     params = [p for t in texts for p in annotation(t)]
     return PartRecord(document_id="d1", designation="АРМ.303411.001", name="Вал", parameters=params)

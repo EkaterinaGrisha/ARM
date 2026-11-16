@@ -61,6 +61,7 @@ class Drawing:
     first_use: str = ""
     requirements: list[str] = field(default_factory=list)  # a long item takes several lines, split by line breaks
     annotations: list[str] = field(default_factory=list)
+    vertical: list[int] = field(default_factory=list)  # annotations written up the page, along a vertical line
     general_roughness: str = ""
     sketch: str = "disc"
     output: Output = field(default_factory=Output)
