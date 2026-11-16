@@ -623,6 +623,21 @@ def draw_spec(s: Spec, boxes: dict[str, Box] | None = None) -> bytes:
     return c.getpdfdata()
 
 
+def draw_text_document(s: Spec, boxes: dict[str, Box] | None = None) -> bytes:
+    """A text document of the kit on form 2 of GOST 2.104, as an explanatory note «… ПЗ»: its lines and its title
+    block, with no table of a specification."""
+    c = new_canvas(font=s.font_type)
+    sh = Sheet(c, "A4", boxes=boxes, font=s.font_type)
+    _frame(sh, s.archive, s.first_use)
+    y: float = 30
+    for line in s.text:
+        sh.text(30, y, line, 3.5, max_width=165)
+        y += 8
+    _title_block(sh, s, spec_form=True)
+    c.showPage()
+    return c.getpdfdata()
+
+
 def draw_foreign(root: str, name: str) -> bytes:
     """A document of another kind in the kit: the acceptance certificate of the product ``root``."""
     c = new_canvas()

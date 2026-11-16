@@ -204,10 +204,39 @@ def test_each_mutation_writes_what_it_plants(mutation_id):
         case "damage_file" | "encrypt_file" | "unreadable_scan":
             [path] = truth.problem_files
             assert expected == {("missing_drawing", "B1.MISSING.001")}
+        case "duplicate_spec":
+            [path] = added
+            twin = truth.documents[path]
+            assert twin.kind == "specification" and expected == {("duplicate_designation", "B1.DUP.003")}
+            assert sum(d.designation == twin.designation for d in truth.documents.values() if d.kind == twin.kind) == 2
+        case "part_drawing_of_unit":
+            [path] = added
+            drawing = truth.documents[path]
+            [found] = truth.discrepancies
+            assert (drawing.kind, drawing.designation, found.rule_id) == (
+                "part_drawing",
+                found.designation,
+                "B1.DUP.004",
+            )
+            assert any(
+                d.kind == "specification" and d.designation == found.designation for d in truth.documents.values()
+            )
+        case "drop_group_drawing":
+            [path] = removed
+            assert len(truth.discrepancies) >= 2 and expected == {("missing_drawing", "B1.MISSING.001")}
+            assert {d.designation for d in truth.discrepancies} == {
+                v.designation for v in clean.truth().documents[path].variants
+            }
+        case "text_document":
+            [path] = added
+            note = truth.documents[path]
+            assert note.kind == "other" and note.designation.endswith(" ПЗ") and note.designation in _referenced(kit)
         case _:
             assert not added and not removed
-    if mutation_id not in {"foreign_document", "unsupported_file", "byte_copy"}:
+    if mutation_id not in {"foreign_document", "unsupported_file", "byte_copy", "text_document"}:
         assert truth.discrepancies
+    else:
+        assert not truth.discrepancies
 
 
 def test_the_corpus_writes_kits_truths_and_a_summary(tmp_path):
