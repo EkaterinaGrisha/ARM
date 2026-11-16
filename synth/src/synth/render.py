@@ -364,7 +364,9 @@ def _title_block_2a(sh: Sheet, designation: str, sheet: int) -> None:
     sh.text_center(X + 175, X + 185, Y + 12, str(sheet), 3.5)
 
 
-def _sketch(sh: Sheet, kind: str, annotations: list[str], keys: str = "annotation") -> None:
+def _sketch(
+    sh: Sheet, kind: str, annotations: list[str], keys: str = "annotation", vertical: tuple[int, ...] = ()
+) -> None:
     cx, cy = (20 + sh.w - 5) / 2 - (40 if sh.w > 300 else 0), 95 if sh.w > 300 else 90
     if kind == "shaft":
         steps = [(-110, -80, 14), (-80, -20, 25), (-20, 30, 28), (30, 90, 25), (90, 110, 22.5)]
@@ -407,8 +409,13 @@ def _sketch(sh: Sheet, kind: str, annotations: list[str], keys: str = "annotatio
     for i, ((dx, dy), ann) in enumerate(zip(slots, annotations, strict=False)):  # at most len(slots) annotations
         if ann.isdigit() and len(ann) == 1:  # item number on an assembly drawing
             sh.circle(cx + dx + 1.8, cy + dy - 1.8, 4, width=0.25)
-        sh.text(cx + dx, cy + dy, ann, 5 if ann.isdigit() and len(ann) == 1 else 3.5, key=f"{keys}:{i}")
-        sh.line(cx + dx, cy + dy + 1, cx + dx + max(12, sh.width(ann)), cy + dy + 1, width=0.18)
+        size, length = 5 if ann.isdigit() and len(ann) == 1 else 3.5, max(12, sh.width(ann))
+        if i in vertical:
+            sh.text(cx + dx, cy + dy, ann, size, rotate=90, key=f"{keys}:{i}")
+            sh.line(cx + dx + 1, cy + dy, cx + dx + 1, cy + dy - length, width=0.18)
+        else:
+            sh.text(cx + dx, cy + dy, ann, size, key=f"{keys}:{i}")
+            sh.line(cx + dx, cy + dy + 1, cx + dx + length, cy + dy + 1, width=0.18)
 
 
 def _variant_table(sh: Sheet, variants: list[Variant]) -> None:
@@ -444,7 +451,7 @@ def draw_drawing(d: Drawing, password: str | None = None, boxes: dict[str, Box] 
     sh = Sheet(c, d.fmt, boxes=boxes, font=d.font_type)
     _frame(sh, d.archive, d.first_use)
     _title_block(sh, d, material=d.material, mass=d.mass, scale=d.scale, sheets=d.sheets)
-    _sketch(sh, d.sketch, d.annotations)
+    _sketch(sh, d.sketch, d.annotations, vertical=tuple(d.vertical))
     if d.variants:
         _variant_table(sh, d.variants)
     if d.general_roughness:
