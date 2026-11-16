@@ -1,6 +1,6 @@
 {
   "model": "qwen3.6-35b-a3b-mlx",
-  "date": "2026-11-12",
+  "date": "2026-11-16",
   "machine": "Darwin arm64, Python 3.11.15",
   "role": "dev",
   "ocr": true,
@@ -78,8 +78,8 @@
       "log": {
         "info": 1
       },
-      "seconds": 667.6,
-      "seconds_per_page": 12.6,
+      "seconds": 630.6,
+      "seconds_per_page": 11.9,
       "images": {
         "count": 53,
         "dpi": {
