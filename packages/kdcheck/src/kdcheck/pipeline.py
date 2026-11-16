@@ -27,7 +27,7 @@ from kdcheck.ingest.document import LoadedDocument, Page, kit_files, load_docume
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.ingest.text import Line
 from kdcheck.normalize import file_designation
-from kdcheck.normalize.designations import Designations, doc_code
+from kdcheck.normalize.designations import Designations, base_designation, doc_code
 from kdcheck.ocr import cells, tesseract
 from kdcheck.params import critical, parameters
 from kdcheck.schemas import (
@@ -466,10 +466,18 @@ class BaselinePipeline:
     def _text_document(self, doc: LoadedDocument, spec: Specification) -> bool:
         """Whether a document read as a specification is a text document of the kit: its designation has a code, as
         «… ПЗ» or «… ВП» has, and a specification has none (GOST 2.102). It is then of kind ``other``, with its title
-        block, and its table is no rows of a specification."""
+        block, and its table is no rows of a specification. A specification with rows whose designation has the code
+        of the assembly drawing, written there by mistake or read so, stays the specification of its assembly."""
         info = doc.info
         code = doc_code(info.designation) if info.designation else None
-        if code is None:
+        if code is None or info.designation is None:
+            return False
+        if code == self.eskd.words.assembly_drawing_code and spec.rows:
+            info.designation = base_designation(info.designation)
+            info.notes.append(
+                f"В обозначении спецификации код «{code}»: у спецификации кода нет (ГОСТ 2.102), она — спецификация "
+                f"сборочной единицы {info.designation}"
+            )
             return False
         info.kind = "other"
         info.title_block = TitleBlock(

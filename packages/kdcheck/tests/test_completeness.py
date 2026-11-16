@@ -356,27 +356,30 @@ def damaged(doc_id: str, des: str, kind: DocumentKind) -> DocumentInfo:
     )
 
 
-def test_a_file_not_read_but_named_is_the_document_of_its_position():
-    """A damaged «АБВГ.100000.001.pdf» is the drawing of its part, though not read: no missing drawing, and the node
-    says the document needs a look; a damaged file without a designation in its name still makes the others
-    preliminary."""
-    result = check([product(part_row())], [], named=[damaged("d1", PART, "part_drawing")])
-    assert result.discrepancies == []
-    [top] = result.tree
-    assert [(n.status, n.drawing_document_ids) for n in top.children] == [("warning", ["d1"])]
+def test_a_file_not_read_but_named_is_named_by_the_finding_of_its_position():
+    """A damaged «АБВГ.100000.001.pdf» is the drawing of its part, which cannot be used: the missing drawing is a sure
+    finding that names the file. It is no unknown document another position may miss; a damaged file without a
+    designation in its name still makes the others preliminary."""
+    [missing] = check([product(part_row())], [], named=[damaged("d1", PART, "part_drawing")]).discrepancies
+    assert (missing.rule_id, missing.designation, missing.preliminary) == ("B1.MISSING.001", PART, False)
+    assert f"но в комплекте не прочитан: {PART}.pdf — повреждён" in missing.message and "d1" in missing.document_ids
     stray = DocumentInfo(id="d2", file_name="архив.pdf", path="архив.pdf", status="damaged")
     two = check([product(part_row(), unit_row())], [], unread=[stray], named=[damaged("d1", PART, "part_drawing")])
-    assert {(d.rule_id, d.designation, d.preliminary) for d in two.discrepancies} == {("B1.SPEC.001", UNIT, True)}
+    assert {(d.rule_id, d.designation, d.preliminary) for d in two.discrepancies} == {
+        ("B1.MISSING.001", PART, True),
+        ("B1.SPEC.001", UNIT, True),
+    }
 
 
-def test_a_specification_not_read_but_named_is_the_specification_of_its_assembly():
+def test_a_specification_not_read_but_named_is_named_and_its_parts_are_no_sure_orphans():
     unit = damaged("s1", UNIT, "specification")
     result = check([product(unit_row())], [drawing("d1", PART, "Вал")], named=[unit])
     assert {(d.rule_id, d.designation, d.preliminary) for d in result.discrepancies} == {
-        ("B1.ORPHAN.001", PART, True)  # the unit lists the part, maybe: its rows are not read
+        ("B1.SPEC.001", UNIT, False),
+        ("B1.ORPHAN.001", PART, True),  # the unit lists the part, maybe: its rows are not read
     }
-    [top] = result.tree
-    assert [(n.status, n.spec_document_id) for n in top.children] == [("warning", "s1")]
+    spec_missing = next(d for d in result.discrepancies if d.rule_id == "B1.SPEC.001")
+    assert f"не прочитана: {UNIT}.pdf — повреждён" in spec_missing.message
 
 
 def test_all_discrepancy_types():

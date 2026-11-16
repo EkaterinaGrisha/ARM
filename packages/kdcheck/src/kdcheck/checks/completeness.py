@@ -7,7 +7,8 @@ regions they come from. A rule turned off in ``configs/checks.yaml`` reports not
 A finding that a document is missing, or that one is in no specification, is preliminary when the kit holds documents
 the core did not read and the one wanted may be among them (ADR-0027): files it could not read or tell, for a missing
 drawing, document or specification; specifications without rows read, for one in no specification. The finding names
-them and stays in the report.
+them and stays in the report. A file not read whose name gives the designation of the position is its document, which
+cannot be used: the finding names it and is no less sure for it (ADR-0029).
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from collections import defaultdict
 from kdcheck.checks.rules import ActiveRule
 from kdcheck.config import Checks
 from kdcheck.normalize.designations import Designations, base_designation, doc_code, split_variant
+from kdcheck.report.labels import DOCUMENT_STATUS
 from kdcheck.schemas import Discrepancy, DocumentInfo, SourceRef, Specification, SpecRow, TreeNode
 from kdcheck.tree.product import ProductTree, text
 
@@ -159,19 +161,20 @@ class Checker:
             row = self.tree.rows.get(node.id)
             unread = self.tree.unread
             tail = self._unread_note(unread, UNREAD_DOCUMENTS) if unread else ""
+            files = self.tree.unread_files.get(node.id, [])
             if node.kind == "assembly":
                 self.add(
                     "B1.SPEC.001",
                     node.designation,
                     f"Сборочная единица {node.designation} указана в спецификации, но её спецификация в комплекте "
-                    "отсутствует"
+                    + (f"не прочитана: {_named_files(files)}" if files else "отсутствует")
                     + (
                         "; сборочный чертёж есть, состав раскрыть невозможно"
                         if node.drawing_document_ids
                         else "; сборочного чертежа также нет"
                     )
                     + tail,
-                    docs=node.drawing_document_ids + [d.id for d in unread],
+                    docs=node.drawing_document_ids + [d.id for d in files + unread],
                     nodes=nodes,
                     sources=[row.source if row else None],
                     preliminary=bool(unread),
@@ -186,9 +189,12 @@ class Checker:
                 "B1.MISSING.002" if document else "B1.MISSING.001",
                 node.designation,
                 f"{what} {node.designation} «{node.name or '—'}» указан в спецификации {parent.designation}, "
-                "но в комплекте не найден" + tail,
+                + (f"но в комплекте не прочитан: {_named_files(files)}" if files else "но в комплекте не найден")
+                + tail,
                 expected=node.designation,
-                docs=([parent.spec_document_id] if parent.spec_document_id else []) + doubted + [d.id for d in unread],
+                docs=([parent.spec_document_id] if parent.spec_document_id else [])
+                + doubted
+                + [d.id for d in files + unread],
                 nodes=nodes,
                 sources=[row.source if row else None],
                 preliminary=bool(unread) or why is not None,
@@ -653,6 +659,11 @@ def _same_variants(a: SpecRow, b: SpecRow) -> bool:
     if not a.quantities or not b.quantities:
         return True
     return bool(set(a.quantities) & set(b.quantities))
+
+
+def _named_files(files: list[DocumentInfo]) -> str:
+    """The files of a document that the core could not read, with what is wrong with each: «А.pdf — повреждён»."""
+    return ", ".join(f"{d.path} — {DOCUMENT_STATUS.get(d.status, d.status).lower()}" for d in files)
 
 
 def _name_source(row: SpecRow) -> SourceRef | None:

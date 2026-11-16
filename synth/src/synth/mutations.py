@@ -346,7 +346,8 @@ def byte_copy(kit: Kit) -> bool:
 
 @_mutation("files", "Положить файл неподдерживаемого формата")
 def unsupported_file(kit: Kit) -> bool:
-    name, head = kit.rng.choice((("Thumbs.db", b"\xd0\xcf\x11\xe0"), ("Сборка.dwg", b"AC1027")))
+    # a CAD file of the kit; a service file of the system, as «Thumbs.db», is no document of the kit at all
+    name, head = kit.rng.choice((("Сборка.step", b"ISO-10303-21;"), ("Сборка.dwg", b"AC1027")))
     if name in kit.files:
         return False
     kit.files[name] = head + kit.rng.randbytes(2000)

@@ -1,6 +1,6 @@
 {
   "model": null,
-  "date": "2026-11-11",
+  "date": "2026-11-12",
   "machine": "Darwin arm64, Python 3.11.15",
   "role": "dev",
   "ocr": true,
@@ -74,8 +74,8 @@
       "log": {
         "info": 2
       },
-      "seconds": 90.1,
-      "seconds_per_page": 1.7,
+      "seconds": 91.5,
+      "seconds_per_page": 1.73,
       "images": {
         "count": 53,
         "dpi": {
