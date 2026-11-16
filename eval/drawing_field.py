@@ -333,10 +333,11 @@ def run(reader: str, count: int, seed: int) -> dict[str, Any]:
 def markdown(runs: dict[str, dict[str, Any]]) -> str:
     any_run = next(iter(runs.values()))
     corpus = any_run["corpus"]
+    dates = ", ".join(sorted({run["date"] for run in runs.values()}))
     lines = [
         "# Поле чертежа растров и сканов",
         "",
-        f"Получено `uv run python eval/drawing_field.py` {any_run['date']}; {any_run['machine']}. Корпус: "
+        f"Получено `uv run python eval/drawing_field.py` {dates}; {any_run['machine']}. Корпус: "
         f"{corpus['kits']} чистых комплектов `synth.kits`, сид {corpus['seed']}, сканов {corpus['scan_share']:.0%}, "
         f"растров {corpus['raster_share']:.0%}. Полностью — в [drawing-field.json](drawing-field.json).",
         "",
