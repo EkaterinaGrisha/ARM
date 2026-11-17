@@ -3,8 +3,8 @@
 The rule in words is in eval/gold/README.md, «Что считается верным извлечением». Text values are equal when they are
 equal after :func:`norm`. A parameter of the truth is found when the core gives a parameter of the same category whose
 name, qualifier or source text holds the name of the truth, one found parameter to one of the truth
-(:func:`match_parameters`); its value is right when every number and the unit the truth gives are the same
-(:func:`value_right`). The region of a value is right when it points to the box of the truth and to no other
+(:func:`match_parameters`); its value is right when every number, the unit and the IT grade the truth gives are the
+same (:func:`value_right`). The region of a value is right when it points to the box of the truth and to no other
 (:func:`region_right`).
 """
 
@@ -44,6 +44,7 @@ class Wanted(Protocol):
     value_min: float | None
     value_max: float | None
     unit: str | None
+    it_grade: int | None
 
 
 class Found(Wanted, Protocol):
@@ -73,8 +74,8 @@ def match_parameters(wanted: Sequence[Wanted], got: Sequence[Found]) -> list[int
 
 
 def has_value(want: Wanted) -> bool:
-    """Whether the truth gives a number or a unit to check: the template of the item writes one."""
-    return any(v is not None for v in (want.value, want.value_min, want.value_max, want.unit))
+    """Whether the truth gives a number, a unit or an IT grade to check."""
+    return any(v is not None for v in (want.value, want.value_min, want.value_max, want.unit, want.it_grade))
 
 
 def _same(a: float | None, b: float | None) -> bool:
@@ -82,12 +83,13 @@ def _same(a: float | None, b: float | None) -> bool:
 
 
 def value_right(want: Wanted, got: Found) -> bool:
-    """Whether the numbers and the unit of ``got`` are those of the truth; those the truth leaves out do not
-    count."""
+    """Whether the numbers, the unit and the IT grade of ``got`` are those of the truth; those the truth leaves out
+    do not count."""
     pairs = [(want.value, got.value), (want.value_min, got.value_min), (want.value_max, got.value_max)]
     numbers = all(_same(g, w) for w, g in pairs if w is not None)
     unit = want.unit is None or norm(want.unit) == norm(got.unit)
-    return numbers and unit
+    grade = want.it_grade is None or want.it_grade == got.it_grade
+    return numbers and unit and grade
 
 
 Region = tuple[int, tuple[float, float, float, float]]  # the page from 1 and x0, y0, x1, y1 as shares of the page
