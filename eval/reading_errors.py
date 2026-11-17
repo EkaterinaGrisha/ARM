@@ -159,6 +159,7 @@ class Record:
     right: bool
     read_region: tuple[float, float, float, float] | None = None
     kind: str | None = None
+    colour: str | None = None  # of the value in the report (contract 1.11); none for a value the report lacks
 
     @property
     def input(self) -> str:
@@ -308,6 +309,7 @@ class Scorer:
             engine=_engine(got),
             confidence=_confidence(got),
             status=(got.status or "") if got is not None else "",
+            colour=getattr(got, "colour", None),
             right=right,
             read_region=got.source.bbox if got is not None and got.source is not None else None,
         )
@@ -332,7 +334,9 @@ class Scorer:
         for i, (want, box) in enumerate(zip(doc.requirements, doc.requirement_boxes, strict=True)):
             others = everything - {scoring.norm(want)}
             if pairs[i] is not None:
-                self.value("requirement", want, got[pairs[i]], box, line=True, others=others)
+                item = got[pairs[i]]
+                neighbours = [w for w in doc.requirements if w != want and covered(w, item.value) >= 0.7]
+                self.value("requirement", want, item, box, line=True, others=others, merged=bool(neighbours))
                 continue
             holder = max(got, key=lambda item: covered(want, item.value), default=None)
             if holder is not None and covered(want, holder.value) >= 0.7:
@@ -556,6 +560,8 @@ def run(vlm: bool, cache: bool, stress: bool, rescore: bool, suffix: str) -> dic
             print(f"{corpus}/{folder.name}: {sum(r.kind is not None for r in records)} ошибок нарастающим итогом")
     if not rescore:
         info["seconds"] = round(time.monotonic() - started, 1)
+        if cache:
+            info["cache_note"] = read_cache.summary() or "обращений не было"
         (saved / f"run{suffix}.json").write_text(json.dumps(info, ensure_ascii=False), encoding="utf-8")
     return info | {
         "corpus": {
@@ -565,6 +571,24 @@ def run(vlm: bool, cache: bool, stress: bool, rescore: bool, suffix: str) -> dic
         "sheet_seconds": {k: round(statistics.mean(v), 3) for k, v in sorted(sheets.items())},
         "records": records,
     }
+
+
+COLOURS = {"green": "зелёный", "yellow": "жёлтый", "red": "красный", None: "нет значения"}
+
+
+def colours(records: list[Record]) -> dict[str, dict[str, dict[str, int]]]:
+    """Right and wrong values of the truth by the colour of the report, by input and by what the value is; empty for
+    a run without colours."""
+    if not any(r.colour for r in records):
+        return {}
+    found: dict[str, dict[str, Counter[str]]] = defaultdict(lambda: defaultdict(Counter))
+    for r in records:
+        if not r.truth:
+            continue
+        what = "title_block" if r.field.split(".")[0] in ("drawing", "spec") else r.field.split(".")[0]
+        for key in {r.input, "all", f"{what}:all", f"{what}:{r.input}"}:
+            found[key][str(r.colour)]["right" if r.right else "wrong"] += 1
+    return {k: {c: dict(v) for c, v in by.items()} for k, by in sorted(found.items())}
 
 
 def blocks_missed(records: list[Record]) -> dict[str, int]:
@@ -618,6 +642,7 @@ def summarize(records: list[Record]) -> dict[str, Any]:
                 e: dict(Counter(r.kind for r in errors if r.engine == e)) for e in sorted({r.engine for r in errors})
             },
             "twins": dict(twin_pairs.most_common(30)),
+            "colours": colours(mine),
             "changes": {k: dict(v.most_common()) for k, v in changed.items()},
         }
     return by_corpus
@@ -639,6 +664,7 @@ COLUMNS = (
     ("status", "статус"),
     ("read_region", "область прочитанного"),
     ("right", "верно"),
+    ("colour", "цвет"),
 )
 
 
@@ -678,7 +704,7 @@ def markdown(result: dict[str, Any], summary: dict[str, Any], command: str) -> s
         + ", ".join(f"{k} {v}".strip() for k, v in result["engines"].items())
         + "."
         + (f" Настройки — sha256 {result['config_sha256'][:12]}." if result.get("config_sha256") else "")
-        + (" Прочтения модели хранятся в кэше: время — время первого чтения." if result["cache"] else ""),
+        + (f" Кэш прочтений: {result['cache_note']}." if result.get("cache_note") else ""),
         "",
         f"Корпус заморожен манифестом [{MANIFEST.name}](../{MANIFEST.name}): "
         "чистые комплекты `synth.kits` с долями растров и сканов, как у `scan_quality.py`. Запись — значение разметки: "
@@ -738,6 +764,28 @@ def markdown(result: dict[str, Any], summary: dict[str, Any], command: str) -> s
         lines += _table(["Поле", "Значений", "Ошибок", "Самый частый вид"], rows) + ["", "### По движку", ""]
         rows = [[e or "нет значения", sum(v.values()), max(v, key=v.get)] for e, v in s["by_engine"].items()]
         lines += _table(["Движок", "Ошибок", "Самый частый вид"], rows) + [""]
+        if s["colours"]:
+            lines += [
+                "### Цвет уверенности",
+                "",
+                "Значения разметки по цвету значения в отчёте (пороги — `review` в `configs/ingest.yaml`, ADR-0031): "
+                "верно и неверно, в скобках — доля неверных. «Нет значения» — значение, которого в отчёте нет.",
+                "",
+            ]
+            keys = [k for k in ("all", *INPUTS) if k in s["colours"]]
+            what = (("title_block", "основная надпись"), ("requirement", "пункты ТТ"), ("row", "строки спецификаций"))
+            keys += [f"{w}:all" for w, _ in what if f"{w}:all" in s["colours"]]
+            labels = {"all": "все", **INPUTS, **{f"{w}:all": t for w, t in what}}
+            rows = []
+            for colour, name in COLOURS.items():
+                cells = []
+                for key in keys:
+                    got = s["colours"][key].get(str(colour), {})
+                    right, wrong = got.get("right", 0), got.get("wrong", 0)
+                    share = f" ({wrong / (right + wrong):.2f})".replace(".", ",") if right + wrong else ""
+                    cells.append(f"{right} / {wrong}{share}" if right + wrong else "—")
+                rows.append([name, *cells])
+            lines += _table(["Цвет", *(labels[k] for k in keys)], rows) + [""]
         if s["changes"]:
             lines += [
                 "### Изменения символов",

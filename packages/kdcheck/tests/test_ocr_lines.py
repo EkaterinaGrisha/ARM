@@ -28,6 +28,12 @@ def test_the_weighed_reading_takes_no_letter_only_tesseract_read():
     assert lines.weigh("Размеры для спрабок", "Размеры для справок") == "Размеры для справок"
 
 
+def test_the_number_of_an_item_comes_from_tesseract_when_ppocr_reads_it_as_a_letter():
+    assert lines.weigh("3. Маркиробать обозначение", "В. Маркировать обозначение") == "3. Маркировать обозначение"
+    assert lines.weigh("3. Маркиробать", "3. Маркировать") == "3. Маркировать"
+    assert lines.weigh("Маркиробать обозначение", "В. Маркировать обозначение") == "В. Маркировать обозначение"
+
+
 def test_a_digit_between_cyrillic_letters_is_its_letter():
     twins = SETTINGS.dictionaries.letter_lookalikes
     assert lines.letters_for_digits("Подшипник 205 Г0СТ 8338-75", twins) == "Подшипник 205 ГОСТ 8338-75"

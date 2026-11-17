@@ -21,11 +21,18 @@ from kdcheck.ingest.text import Line
 from kdcheck.layout.raster import Placement
 
 CYRILLIC = re.compile(r"[А-Яа-яЁё]")
+ITEM_NUMBER = re.compile(r"^\s*\d{1,2}\s?[.)]\s")  # «3. », the start of an item of technical requirements
 
 
 def weigh(tesseract: str, ppocr: str) -> str:
-    """The reading of PP-OCRv5 with the signs it left out where Tesseract read them: a sign is neither a letter nor a
-    digit."""
+    """The reading of PP-OCRv5 with the signs it left out where Tesseract read them, a sign being neither a letter nor
+    a digit, and with the number of an item Tesseract read: PP-OCRv5 reads «3.» at the start of a line as «В.», and
+    the item would run into the one before it."""
+    number = ITEM_NUMBER.match(tesseract)
+    if number and not ITEM_NUMBER.match(ppocr):
+        first, _, rest = ppocr.strip().partition(" ")
+        ppocr = number.group(0) + (rest if len(first) <= 3 else ppocr.strip())
+        tesseract = number.group(0) + tesseract[number.end() :]
     out = []
     for tag, i1, i2, j1, j2 in SequenceMatcher(None, tesseract, ppocr, autojunk=False).get_opcodes():
         cut = tesseract[i1:i2]

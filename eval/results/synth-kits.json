@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-16",
+  "date": "2026-11-17",
   "machine": "Darwin arm64, Python 3.11.15",
   "tesseract": "5.5.2",
   "corpus": {
@@ -1824,72 +1824,72 @@
       "parameters": {
         "captured:coating": {
           "expected": 26,
-          "found": 12,
+          "found": 18,
           "extra": 5,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.706,
-          "recall": 0.462,
+          "precision": 0.783,
+          "recall": 0.692,
           "value_accuracy": null
         },
         "captured:dimension_tolerance": {
           "expected": 86,
-          "found": 13,
-          "extra": 20,
+          "found": 44,
+          "extra": 8,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.394,
-          "recall": 0.151,
+          "precision": 0.846,
+          "recall": 0.512,
           "value_accuracy": null
         },
         "captured:general_tolerance": {
           "expected": 49,
-          "found": 9,
-          "extra": 1,
+          "found": 22,
+          "extra": 8,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.9,
-          "recall": 0.184,
+          "precision": 0.733,
+          "recall": 0.449,
           "value_accuracy": null
         },
         "captured:geometric": {
           "expected": 49,
-          "found": 9,
+          "found": 13,
           "extra": 0,
-          "valued": 4,
-          "value_right": 2,
+          "valued": 7,
+          "value_right": 4,
           "precision": 1.0,
-          "recall": 0.184,
-          "value_accuracy": 0.5
+          "recall": 0.265,
+          "value_accuracy": 0.571
         },
         "captured:hardness": {
           "expected": 43,
-          "found": 13,
-          "extra": 7,
-          "valued": 13,
-          "value_right": 12,
-          "precision": 0.65,
-          "recall": 0.302,
-          "value_accuracy": 0.923
+          "found": 17,
+          "extra": 0,
+          "valued": 17,
+          "value_right": 14,
+          "precision": 1.0,
+          "recall": 0.395,
+          "value_accuracy": 0.824
         },
         "captured:heat_treatment": {
           "expected": 29,
-          "found": 17,
-          "extra": 0,
-          "valued": 12,
-          "value_right": 8,
-          "precision": 1.0,
-          "recall": 0.586,
-          "value_accuracy": 0.667
+          "found": 24,
+          "extra": 1,
+          "valued": 14,
+          "value_right": 5,
+          "precision": 0.96,
+          "recall": 0.828,
+          "value_accuracy": 0.357
         },
         "captured:roughness": {
           "expected": 131,
-          "found": 111,
-          "extra": 2,
-          "valued": 6,
-          "value_right": 6,
-          "precision": 0.982,
-          "recall": 0.847,
+          "found": 116,
+          "extra": 1,
+          "valued": 8,
+          "value_right": 8,
+          "precision": 0.991,
+          "recall": 0.885,
           "value_accuracy": 1.0
         },
         "vector:coating": {
@@ -1965,13 +1965,15 @@
       },
       "lost_requirements": {},
       "wrong_values": {
-        "hardness: от 241 до 285 HB → от 48 до 52 HB": 1,
-        "heat_treatment: от 1.5 до 2 мм → от 15 до 2 мм": 1,
-        "heat_treatment: от 1 до 1.4 мм → —": 1,
-        "geometric: = 0.03 мм → = 20.03 мм": 1,
-        "geometric: = 0.05 мм → = 3 мм": 1,
+        "heat_treatment: от 0.8 до 1.2 мм → —": 4,
+        "heat_treatment: от 1 до 1.4 мм → —": 2,
+        "hardness: от 58 до 62 HRCэ → от 58 до 62 HRC": 2,
+        "geometric: = 0.03 мм → —": 2,
+        "heat_treatment: от 1.5 до 2 мм → —": 1,
         "heat_treatment: от 2 до 3 мм → —": 1,
-        "heat_treatment: от 2 до 3 мм → от 20 до 30 мм": 1
+        "geometric: = 0.05 мм → = 3 мм": 1,
+        "heat_treatment: от 1.2 до 1.6 мм → —": 1,
+        "hardness: от 56 до 62 HRCэ → от 56 до 62 HRC": 1
       },
       "regions": {
         "captured:основная надпись": {
@@ -1980,9 +1982,9 @@
           "share": 1.0
         },
         "captured:параметр": {
-          "values": 184,
-          "right": 156,
-          "share": 0.848
+          "values": 254,
+          "right": 214,
+          "share": 0.843
         },
         "captured:строка спецификации": {
           "values": 128,
@@ -2006,9 +2008,10 @@
         }
       },
       "wrong_regions": {
-        "параметр, растры и сканы: захватывает другое значение": 24,
+        "параметр, растры и сканы: захватывает другое значение": 34,
+        "параметр, растры и сканы: не тот файл листа": 3,
         "параметр, растры и сканы: не там, где значение": 2,
-        "параметр, растры и сканы: не тот файл листа": 2
+        "параметр, растры и сканы: другая страница": 1
       },
       "sheet_files": {
         "documents": 10,
@@ -2448,12 +2451,12 @@
         },
         "captured:dimension_tolerance": {
           "expected": 86,
-          "found": 13,
-          "extra": 18,
+          "found": 44,
+          "extra": 5,
           "valued": 0,
           "value_right": 0,
-          "precision": 0.419,
-          "recall": 0.151,
+          "precision": 0.898,
+          "recall": 0.512,
           "value_accuracy": null
         },
         "captured:general_tolerance": {
@@ -2498,12 +2501,12 @@
         },
         "captured:roughness": {
           "expected": 131,
-          "found": 114,
-          "extra": 2,
+          "found": 117,
+          "extra": 1,
           "valued": 9,
           "value_right": 9,
-          "precision": 0.983,
-          "recall": 0.87,
+          "precision": 0.992,
+          "recall": 0.893,
           "value_accuracy": 1.0
         },
         "vector:coating": {
@@ -2589,9 +2592,9 @@
           "share": 1.0
         },
         "captured:параметр": {
-          "values": 282,
-          "right": 268,
-          "share": 0.95
+          "values": 316,
+          "right": 300,
+          "share": 0.949
         },
         "captured:строка спецификации": {
           "values": 146,
@@ -2616,7 +2619,8 @@
       },
       "wrong_regions": {
         "параметр, растры и сканы: захватывает другое значение": 11,
-        "параметр, растры и сканы: не тот файл листа": 2,
+        "параметр, растры и сканы: не тот файл листа": 3,
+        "параметр, растры и сканы: другая страница": 1,
         "параметр, растры и сканы: не там, где значение": 1
       },
       "sheet_files": {

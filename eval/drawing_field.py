@@ -10,7 +10,8 @@ The corpus is clean kits of :mod:`synth.kits`, most documents captured as raster
 ``scan_quality.py``, built from a seed into ``data/synth/field_kits`` (outside git). Each reader of the field runs the
 core with OCR and replaces only how the lines of the field are read:
 
-- ``tesseract``: the lines Tesseract finds on the whole page, as the core reads them now;
+- ``tesseract``: the lines Tesseract finds on the whole page, as the core read them before ADR-0030;
+- ``weighed``: those lines read again by PP-OCRv5 and weighed with Tesseract, as the core reads them now (ADR-0030);
 - ``tesseract-raw``: the same without the rules of GOST 2789 that give a roughness read by OCR its decimal sign back;
 - ``ppocr-lines``: the lines Tesseract finds, each read again by PP-OCRv5 from its cut of the image (ADR-0024), which
   knows «Ø», «⊥», «∥», «√» and «±» and keeps small signs Tesseract drops;
@@ -348,6 +349,11 @@ def build_corpus(count: int, seed: int) -> dict[str, KitTruth]:
 def run(reader: str, count: int, seed: int) -> dict[str, Any]:
     truths = build_corpus(count, seed)
     settings = load_settings(use_ocr=True)
+    if reader != "weighed":  # each of the others reads the lines its own way, from the lines of Tesseract
+        ocr = settings.models.ocr.model_copy(
+            update={"lines": settings.models.ocr.lines.model_copy(update={"engine": "tesseract"})}
+        )
+        settings = settings.model_copy(update={"models": settings.models.model_copy(update={"ocr": ocr})})
     if reader == "tesseract-raw":
         words = settings.dictionaries
         raw = words.roughness.model_copy(update={"methods": ()})
@@ -457,7 +463,9 @@ def markdown(runs: dict[str, dict[str, Any]]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument(
-        "--reader", default="tesseract", choices=("tesseract", "tesseract-raw", "ppocr-lines", *MODEL_READERS)
+        "--reader",
+        default="weighed",
+        choices=("weighed", "tesseract", "tesseract-raw", "ppocr-lines", *MODEL_READERS),
     )
     parser.add_argument("--kits", type=int, default=6)
     parser.add_argument("--seed", type=int, default=3)

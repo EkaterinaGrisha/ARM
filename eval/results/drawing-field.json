@@ -1621,5 +1621,159 @@
         "Допуск формы/расположения: строка не найдена": 1
       }
     }
+  },
+  "weighed": {
+    "reader": "weighed",
+    "date": "2026-11-17",
+    "machine": "Darwin arm64, Python 3.11.15",
+    "corpus": {
+      "kits": 6,
+      "seed": 3,
+      "scan_share": 0.45,
+      "raster_share": 0.3
+    },
+    "engines": [
+      "pdfium 156.0.8076.0",
+      "pypdfium2 5.14.0",
+      "tesseract 5.5.2",
+      "eslav_PP-OCRv5_mobile_rec onnx sha256:984c0413f06b, onnxruntime 1.31.0",
+      "pillow 13.0.0"
+    ],
+    "seconds": 209.6,
+    "sheets": 226,
+    "results": {
+      "raster:dimension_tolerance": {
+        "expected": 43,
+        "found": 21,
+        "region_right": 21,
+        "extra": 2,
+        "precision": 0.913,
+        "recall": 0.488,
+        "f1": 0.636,
+        "value_share": null,
+        "region_share": 1.0
+      },
+      "raster:geometric": {
+        "expected": 12,
+        "found": 1,
+        "region_right": 1,
+        "precision": 1.0,
+        "recall": 0.083,
+        "f1": 0.153,
+        "value_share": null,
+        "region_share": 1.0
+      },
+      "raster:roughness": {
+        "expected": 68,
+        "found": 63,
+        "region_right": 62,
+        "precision": 1.0,
+        "recall": 0.926,
+        "f1": 0.962,
+        "value_share": null,
+        "region_share": 0.984
+      },
+      "raster:всего": {
+        "expected": 123,
+        "found": 85,
+        "region_right": 84,
+        "extra": 2,
+        "precision": 0.977,
+        "recall": 0.691,
+        "f1": 0.809,
+        "value_share": null,
+        "region_share": 0.988
+      },
+      "scan:dimension_tolerance": {
+        "expected": 69,
+        "found": 38,
+        "region_right": 37,
+        "extra": 3,
+        "precision": 0.927,
+        "recall": 0.551,
+        "f1": 0.691,
+        "value_share": null,
+        "region_share": 0.974
+      },
+      "scan:geometric": {
+        "expected": 19,
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0,
+        "value_share": null,
+        "region_share": null
+      },
+      "scan:roughness": {
+        "expected": 119,
+        "found": 103,
+        "region_right": 103,
+        "extra": 1,
+        "precision": 0.99,
+        "recall": 0.866,
+        "f1": 0.924,
+        "value_share": null,
+        "region_share": 1.0
+      },
+      "scan:всего": {
+        "expected": 207,
+        "found": 141,
+        "region_right": 140,
+        "extra": 4,
+        "precision": 0.972,
+        "recall": 0.681,
+        "f1": 0.801,
+        "value_share": null,
+        "region_share": 0.993
+      },
+      "класс fair:всего": {
+        "expected": 88,
+        "found": 66,
+        "region_right": 65,
+        "extra": 1,
+        "precision": 0.985,
+        "recall": 0.75,
+        "f1": 0.852,
+        "value_share": null,
+        "region_share": 0.985
+      },
+      "класс good:всего": {
+        "expected": 139,
+        "found": 97,
+        "region_right": 96,
+        "extra": 3,
+        "precision": 0.97,
+        "recall": 0.698,
+        "f1": 0.812,
+        "value_share": null,
+        "region_share": 0.99
+      },
+      "класс poor:всего": {
+        "expected": 103,
+        "found": 63,
+        "region_right": 63,
+        "extra": 2,
+        "precision": 0.969,
+        "recall": 0.612,
+        "f1": 0.75,
+        "value_share": null,
+        "region_share": 1.0
+      }
+    },
+    "misses": {
+      "Допуск размера: строка не найдена": 45,
+      "Допуск формы/расположения: строка прочитана, параметр не разобран": 29,
+      "Шероховатость: строка прочитана, параметр не разобран": 13,
+      "Допуск размера: строка прочитана, параметр не разобран": 8,
+      "Шероховатость: строка не найдена": 8,
+      "Допуск формы/расположения: строка не найдена": 1
+    },
+    "extras": {
+      "Допуск размера: M4.8×1,5-6H ← «M4.8×1,5-6H»": 2,
+      "Допуск размера: M48×15-6H ← «M48×15-6H»": 1,
+      "Допуск размера: 04.0k6 ← «04.0k6»": 1,
+      "Допуск размера: 9K3 ← «9K3. N»": 1,
+      "Шероховатость: Ra 12 ← «VRa 12, (V)»": 1
+    },
+    "failed_fragments": {}
   }
 }
