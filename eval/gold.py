@@ -71,6 +71,7 @@ ROW = ("section", "fmt", "pos", "designation", "name", "qty", "note", "variant",
 VARIANT = ("designation", "written", "mass")
 PARAMETER = ("name", "value", "value_min", "value_max", "unit", "it_grade", "box")
 PARTS = ("документы", "строки спецификаций", "пункты ТТ", "параметры", "области", "расхождения")
+KINDS = {"specification": "specification", "assembly": "assembly_drawing", "part": "part_drawing"}  # registry → truth
 GRADED = ("dimension_tolerance", "general_tolerance")  # the categories whose tolerance has an IT grade
 T = TypeVar("T")
 Compared = tuple[str, str, str, str, bool]  # part, where, the value of each labelling as shown, whether they agree
@@ -101,6 +102,17 @@ def _listed(folder: str) -> list[tuple[str, str, str, int]]:
     ]
 
 
+def blank(kind: str, origin: str, sheets: int = 1) -> SpecTruth | DrawingTruth | OtherTruth:
+    """A document of ``kind`` with every value empty, for a labeller to fill; a cell the blank has not is the
+    labeller's None."""
+    if kind == "specification":
+        return SpecTruth(designation="", name="", litera="", revision="", rows=[], sheets=sheets, origin=origin)
+    if kind == "other":
+        return OtherTruth(designation="", name="", revision="", sheets=sheets, origin=origin)
+    empty = dict.fromkeys(DRAWING, "") | {"sheets": sheets}
+    return DrawingTruth(kind=kind, origin=origin, requirements=[], parameters=[], **empty)
+
+
 def template(folder: str, labeller: str, only: list[str] | None = None) -> int:
     """A draft for ``labeller``: every file of the kit, or those in ``only``, with empty values and the kind given."""
     folder = folder.strip("/")
@@ -120,27 +132,9 @@ def template(folder: str, labeller: str, only: list[str] | None = None) -> int:
             continue
         if kinds[0] in NOT_DOCUMENTS:
             truth.problem_files[name] = "foreign"
-        elif kinds[0] == "specification":
-            truth.documents[name] = SpecTruth(designation="", name="", litera="", revision=None, rows=[], sheets=sheets)
-        elif kinds[0] in ("assembly", "part"):
-            truth.documents[name] = DrawingTruth(
-                kind="assembly_drawing" if kinds[0] == "assembly" else "part_drawing",
-                origin="vector" if quality == "vector" else "scan",
-                designation="",
-                name="",
-                material=None,
-                mass=None,
-                scale="",
-                litera="",
-                revision=None,
-                archive_number=None,
-                first_use=None,
-                requirements=[],
-                parameters=[],
-                sheets=sheets,
-            )
         else:
-            truth.documents[name] = OtherTruth(designation="", name="", sheets=sheets)
+            kind = KINDS.get(kinds[0], "other")
+            truth.documents[name] = blank(kind, "vector" if quality == "vector" else "scan", sheets)
     if not truth.documents and not truth.problem_files:
         return 1
     target.parent.mkdir(parents=True, exist_ok=True)

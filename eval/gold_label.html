@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Разметка комплекта</title>
+<style>
+  :root {
+    --bg: #f4f4f1; --panel: #fff; --line: #d8d8d2; --text: #1c1c1a; --muted: #6d6d67;
+    --accent: #2b63c9; --req: #2b63c9; --par: #c9621a; --sel: #d12f2a; --bad: #c62828; --ok: #2e7d32;
+    --form: max(560px, 46vw);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; display: grid; grid-template-rows: auto 1fr;
+    font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--text); background: var(--bg);
+  }
+  header { display: flex; gap: 14px; align-items: center; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header b { font-size: 14px; }
+  #status { color: var(--muted); }
+  #status.bad { color: var(--bad); }
+  #problems { margin-left: auto; position: relative; }
+  #problems summary { cursor: pointer; color: var(--muted); }
+  #problems ul { position: absolute; right: 0; z-index: 10; width: 520px; max-height: 60vh; overflow: auto; margin: 4px 0 0;
+    padding: 8px 8px 8px 24px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 4px 14px #0002; }
+  main { display: grid; grid-template-columns: 240px 1fr 6px var(--form); min-height: 0; }
+  #docs { overflow: auto; background: var(--panel); border-right: 1px solid var(--line); }
+  #docs div { padding: 4px 10px; cursor: pointer; border-bottom: 1px solid #eee; }
+  #docs div:hover { background: #f0f3fa; }
+  #docs div.on { background: #dfe8fb; }
+  #docs small { display: block; color: var(--muted); }
+  #docs .kind { display: inline-block; min-width: 26px; color: var(--accent); font-weight: 600; }
+  #docs .foreign { color: var(--muted); text-decoration: line-through; }
+  #view { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #tools { display: flex; gap: 6px; align-items: center; padding: 4px 8px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  #tools .tab.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #hint { color: var(--sel); font-weight: 600; }
+  #viewer { flex: 1; overflow: auto; background: #8a8a86; cursor: grab; }
+  #viewer.drawing { cursor: crosshair; }
+  #stage { position: relative; }
+  #stage img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+  .box { position: absolute; border: 2px solid var(--req); background: #2b63c912; }
+  .box.par { border-color: var(--par); background: #c9621a12; }
+  .box.sel { border: 3px solid var(--sel); background: #d12f2a14; }
+  .box span { position: absolute; left: -2px; top: -15px; padding: 0 3px; font-size: 10px; line-height: 13px; color: #fff; background: var(--req); }
+  .box.par span { background: var(--par); }
+  .box.sel span { background: var(--sel); }
+  #viewer.drawing .box { pointer-events: none; }
+  #rubber { position: absolute; border: 2px dashed var(--sel); pointer-events: none; }
+  #split { cursor: col-resize; background: var(--line); }
+  #form { overflow: auto; padding: 10px 12px 40px; background: var(--panel); }
+  h2 { font-size: 15px; margin: 0 0 8px; word-break: break-all; }
+  h3 { font-size: 13px; margin: 16px 0 6px; padding-top: 8px; border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: center; }
+  h3 small { color: var(--muted); font-weight: 400; }
+  .grid { display: grid; grid-template-columns: 150px 1fr; gap: 4px 8px; align-items: center; }
+  .grid > label { color: var(--muted); }
+  input, select, textarea, button { font: inherit; }
+  input, textarea { width: 100%; padding: 2px 4px; border: 1px solid #c8c8c2; border-radius: 3px; }
+  input:disabled { background: #eee; }
+  input.bad { border-color: var(--bad); background: #fdecec; }
+  textarea { resize: vertical; min-height: 38px; }
+  button { padding: 1px 7px; border: 1px solid #c8c8c2; border-radius: 3px; background: #fafaf8; cursor: pointer; }
+  button:hover { background: #eef1f8; }
+  button.mark { border-color: var(--sel); color: var(--sel); }
+  .nullable { display: flex; gap: 6px; align-items: center; }
+  .none { white-space: nowrap; color: var(--muted); font-size: 11px; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { padding: 1px 2px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 400; text-align: left; font-size: 11px; }
+  .rows input { width: auto; }
+  td.n { color: var(--muted); text-align: right; width: 24px; padding-top: 4px; }
+  tr.sel td, .item.sel { background: #fde9e8; }
+  .item { display: grid; grid-template-columns: 28px 1fr auto; gap: 4px; padding: 4px 2px; border-bottom: 1px solid #eee; }
+  .item .n { color: var(--muted); padding-top: 3px; text-align: right; }
+  .item .acts { display: flex; gap: 3px; align-items: start; flex-wrap: wrap; justify-content: end; }
+  .param { display: grid; grid-template-columns: 150px 1fr; gap: 3px; }
+  .numbers { display: grid; grid-template-columns: repeat(3, 1fr) 70px 48px; gap: 3px; margin-top: 3px; }
+  .where { color: var(--muted); font-size: 11px; white-space: nowrap; padding-top: 3px; }
+  .where.no { color: var(--bad); }
+  .row-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <b id="title">Разметка</b>
+  <span id="status">загрузка…</span>
+  <details id="problems"><summary></summary><ul></ul></details>
+</header>
+<main>
+  <nav id="docs"></nav>
+  <section id="view">
+    <div id="tools">
+      <button id="fit" title="лист по ширине">по ширине</button>
+      <button id="out">−</button>
+      <button id="in">+</button>
+      <span id="tabs"></span>
+      <span id="hint"></span>
+    </div>
+    <div id="viewer"><div id="stage"><img id="sheet" alt=""></div></div>
+  </section>
+  <div id="split"></div>
+  <section id="form"></section>
+</main>
+<script>
+const KINDS = [
+  ["specification", "спецификация"], ["assembly_drawing", "сборочный чертёж"], ["part_drawing", "чертёж детали"],
+  ["other", "другой документ"], ["foreign", "не документ комплекта"],
+];
+const SHORT = {specification: "СП", assembly_drawing: "СБ", part_drawing: "Д", other: "др", foreign: "—"};
+const ORIGINS = [["raster", "растр"], ["scan", "скан"], ["vector", "вектор"]];
+const TITLE = [
+  ["designation", "Обозначение"], ["name", "Наименование"], ["litera", "Литера"],
+  ["revision", "Изм. (номер последнего)"], ["sheets", "Листов"],
+];
+const DRAWING = [
+  ["material", "Материал"], ["mass", "Масса"], ["scale", "Масштаб"],
+  ["archive_number", "Инв. № подл."], ["first_use", "Перв. примен."],
+];
+const NULLABLE = {
+  part_drawing: ["material", "mass", "scale", "litera", "revision", "archive_number", "first_use"],
+  specification: ["revision"], other: ["revision"],
+};
+NULLABLE.assembly_drawing = NULLABLE.part_drawing;
+const SECTIONS = ["Документация", "Комплексы", "Сборочные единицы", "Детали", "Стандартные изделия", "Прочие изделия", "Материалы", "Комплекты"];
+
+let K, T;
+let current = "";
+let page = 1;
+let scale = 0.2;
+let drawing = null;
+let selected = null;
+let timer = null;
+
+const $ = (id) => document.getElementById(id);
+const viewer = $("viewer"), stage = $("stage"), img = $("sheet");
+
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "class") el.className = v;
+    else if (v !== undefined && v !== null && v !== false) el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid);
+  return el;
+}
+
+function blank(kind, origin, sheets) {
+  if (kind === "specification") return {kind, designation: "", name: "", litera: "", revision: "", rows: [], sheets, origin};
+  if (kind === "other") return {kind, designation: "", name: "", litera: "", revision: "", sheets, origin};
+  return {
+    kind, origin, designation: "", name: "", material: "", mass: "", scale: "", litera: "", revision: "",
+    archive_number: "", first_use: "", requirements: [], requirement_boxes: [], parameters: [], sheets,
+  };
+}
+
+const isDrawing = (doc) => doc && (doc.kind === "assembly_drawing" || doc.kind === "part_drawing");
+
+function names() {
+  return [...Object.keys(T.documents), ...Object.keys(T.problem_files)]
+    .sort((a, b) => a.localeCompare(b, "ru", {numeric: true}));
+}
+
+function pages(name) {
+  const doc = T.documents[name];
+  const files = doc && Object.keys(doc.sheet_files || {}).length ? doc.sheet_files : {[name]: null};
+  return K.sheets.flatMap((s, index) => (s.file in files ? [{index, page: files[s.file] ?? s.page, sheet: s}] : []))
+    .sort((a, b) => a.page - b.page);
+}
+
+function changed() {
+  $("status").textContent = "изменено…";
+  $("status").className = "";
+  clearTimeout(timer);
+  timer = setTimeout(save, 700);
+  renderDocs();
+}
+
+async function save() {
+  timer = null;
+  const response = await fetch("/save", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(T)});
+  const answer = await response.json();
+  if (!response.ok) {
+    $("status").textContent = "не сохранено: " + answer.error.split("\n").slice(0, 3).join(" ");
+    $("status").className = "bad";
+    return;
+  }
+  $("status").textContent = "сохранено " + new Date().toLocaleTimeString("ru");
+  showProblems(answer.problems);
+}
+
+function showProblems(list) {
+  const all = [...K.unmasked.map((f) => `${f} — нет маскированной копии`), ...list];
+  $("problems").querySelector("summary").textContent = all.length ? `замечаний проверки: ${all.length}` : "проверка: замечаний нет";
+  $("problems").querySelector("ul").replaceChildren(...all.map((p) => h("li", {}, p)));
+}
+
+function summary(name) {
+  const doc = T.documents[name];
+  if (!doc) return "не документ комплекта";
+  const parts = [doc.designation || "без обозначения"];
+  if (doc.kind === "specification") parts.push(`строк ${doc.rows.length}`);
+  if (isDrawing(doc)) parts.push(`ТТ ${doc.requirements.length}`, `парам. ${doc.parameters.length}`);
+  const later = Object.keys(doc.sheet_files || {}).length;
+  if (later) parts.push(`файлов ${later}`);
+  return parts.join(" · ");
+}
+
+function renderDocs() {
+  const list = [h("div", {class: current === "" ? "on" : "", onclick: () => open("")}, h("b", {}, "Комплект"),
+    h("small", {}, `корень, расхождения: ${T.discrepancies.length}, заметки`))];
+  for (const name of names()) {
+    const doc = T.documents[name];
+    const kind = doc ? doc.kind : "foreign";
+    list.push(h("div", {class: name === current ? "on" : "", onclick: () => open(name)},
+      h("span", {class: "kind"}, SHORT[kind]), h("span", {class: doc ? "" : "foreign"}, name),
+      h("small", {}, summary(name))));
+  }
+  $("docs").replaceChildren(...list);
+}
+
+function open(name) {
+  current = name;
+  selected = null;
+  stopDrawing();
+  page = 1;
+  location.hash = encodeURIComponent(name);
+  renderDocs();
+  renderForm();
+  showSheet(true);
+}
+
+function showSheet(fit = false) {
+  const list = current === "" ? [] : pages(current);
+  $("tabs").replaceChildren(...(list.length > 1 ? list.map((p) =>
+    h("button", {class: "tab" + (p.page === page ? " on" : ""), title: p.sheet.file, onclick: () => { page = p.page; showSheet(); }}, `лист ${p.page}`)) : []));
+  const shown = list.find((p) => p.page === page) || list[0];
+  stage.hidden = !shown;
+  if (!shown) return;
+  page = shown.page;
+  if (img.dataset.index !== String(shown.index)) {
+    img.src = `/sheet/${shown.index}`;
+    img.dataset.index = shown.index;
+  }
+  stage.dataset.width = shown.sheet.width;
+  stage.dataset.height = shown.sheet.height;
+  if (fit) scale = (viewer.clientWidth - 4) / shown.sheet.width;
+  size();
+  drawBoxes();
+}
+
+function size() {
+  stage.style.width = `${stage.dataset.width * scale}px`;
+  stage.style.height = `${stage.dataset.height * scale}px`;
+}
+
+function zoom(factor, cx = viewer.clientWidth / 2, cy = viewer.clientHeight / 2) {
+  const x = (viewer.scrollLeft + cx) / scale, y = (viewer.scrollTop + cy) / scale;
+  scale = Math.min(2, Math.max(0.03, scale * factor));
+  size();
+  viewer.scrollLeft = x * scale - cx;
+  viewer.scrollTop = y * scale - cy;
+}
+
+function regions() {
+  const doc = T.documents[current];
+  if (!isDrawing(doc)) return [];
+  const out = [];
+  doc.requirement_boxes.forEach((box, i) => box && out.push({box, kind: "req", i, label: `ТТ ${i + 1}`}));
+  doc.parameters.forEach((p, i) => p.box && out.push({box: p.box, kind: "par", i, label: `П ${i + 1}`}));
+  return out;
+}
+
+function drawBoxes() {
+  stage.querySelectorAll(".box").forEach((el) => el.remove());
+  for (const r of regions()) {
+    if (r.box.page !== page) continue;
+    const [x0, y0, x1, y1] = r.box.bbox;
+    const on = selected && selected.kind === r.kind && selected.i === r.i;
+    const el = h("div", {class: `box ${r.kind}${on ? " sel" : ""}`, title: r.label}, h("span", {}, r.label));
+    Object.assign(el.style, {left: `${x0 * 100}%`, top: `${y0 * 100}%`, width: `${(x1 - x0) * 100}%`, height: `${(y1 - y0) * 100}%`});
+    el.addEventListener("mousedown", (e) => e.stopPropagation());
+    el.addEventListener("click", () => select(r.kind, r.i, true));
+    stage.append(el);
+  }
+}
+
+function select(kind, i, scroll = false) {
+  selected = {kind, i};
+  const doc = T.documents[current];
+  const box = kind === "req" ? doc.requirement_boxes[i] : doc.parameters[i].box;
+  if (box && box.page !== page) { page = box.page; showSheet(); }
+  document.querySelectorAll("#form .sel").forEach((el) => el.classList.remove("sel"));
+  const row = $(`${kind}-${i}`);
+  if (row) {
+    row.classList.add("sel");
+    if (scroll) row.scrollIntoView({block: "center"});
+  }
+  drawBoxes();
+}
+
+function startDrawing(assign) {
+  drawing = {assign};
+  viewer.classList.add("drawing");
+  $("hint").textContent = "обведите область на листе мышью; Esc — отмена";
+}
+
+function stopDrawing() {
+  drawing = null;
+  viewer.classList.remove("drawing");
+  $("hint").textContent = "";
+  $("rubber")?.remove();
+}
+
+function fraction(e) {
+  const r = stage.getBoundingClientRect();
+  return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))];
+}
+
+viewer.addEventListener("mousedown", (e) => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  if (!drawing) {
+    const start = {x: e.clientX, y: e.clientY, left: viewer.scrollLeft, top: viewer.scrollTop};
+    const move = (m) => { viewer.scrollLeft = start.left - (m.clientX - start.x); viewer.scrollTop = start.top - (m.clientY - start.y); };
+    const up = () => { removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
+    addEventListener("mousemove", move);
+    addEventListener("mouseup", up);
+    return;
+  }
+  const [x0, y0] = fraction(e);
+  const rubber = h("div", {id: "rubber"});
+  stage.append(rubber);
+  const move = (m) => {
+    const [x1, y1] = fraction(m);
+    Object.assign(rubber.style, {
+      left: `${Math.min(x0, x1) * 100}%`, top: `${Math.min(y0, y1) * 100}%`,
+      width: `${Math.abs(x1 - x0) * 100}%`, height: `${Math.abs(y1 - y0) * 100}%`,
+    });
+  };
+  const up = (m) => {
+    removeEventListener("mousemove", move);
+    removeEventListener("mouseup", up);
+    const [x1, y1] = fraction(m);
+    const round = (v) => Math.round(v * 10000) / 10000;
+    const bbox = [Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)].map(round);
+    const assign = drawing.assign;
+    stopDrawing();
+    if (bbox[2] - bbox[0] < 0.002 || bbox[3] - bbox[1] < 0.001) return;
+    assign({page, bbox});
+    changed();
+    renderForm();
+    drawBoxes();
+  };
+  addEventListener("mousemove", move);
+  addEventListener("mouseup", up);
+});
+
+viewer.addEventListener("wheel", (e) => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  const r = viewer.getBoundingClientRect();
+  zoom(Math.exp(-e.deltaY / 300), e.clientX - r.left, e.clientY - r.top);
+}, {passive: false});
+
+addEventListener("keydown", (e) => { if (e.key === "Escape") stopDrawing(); });
+addEventListener("beforeunload", () => {
+  if (timer) navigator.sendBeacon("/save", new Blob([JSON.stringify(T)], {type: "application/json"}));
+});
+$("fit").onclick = () => showSheet(true);
+$("in").onclick = () => zoom(1.25);
+$("out").onclick = () => zoom(0.8);
+
+$("split").addEventListener("mousedown", (e) => {
+  e.preventDefault();
+  const move = (m) => document.documentElement.style.setProperty("--form", `${Math.max(380, innerWidth - m.clientX)}px`);
+  const up = () => {
+    removeEventListener("mousemove", move);
+    removeEventListener("mouseup", up);
+    try { localStorage.setItem("form", document.documentElement.style.getPropertyValue("--form")); } catch {}
+  };
+  addEventListener("mousemove", move);
+  addEventListener("mouseup", up);
+});
+
+function text(obj, key, {nullable = false, area = false, onEnter = null, size = null, optional = false, placeholder = null} = {}) {
+  const input = h(area ? "textarea" : "input", {rows: area ? 2 : undefined, size, placeholder, title: placeholder});
+  input.value = obj[key] ?? "";
+  input.disabled = nullable && obj[key] === null;
+  input.addEventListener("input", () => {
+    const value = area ? input.value.replace(/\s+/g, " ").trim() : input.value;
+    obj[key] = optional && value.trim() === "" ? null : value;
+    changed();
+  });
+  if (onEnter) input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEnter(); } });
+  if (!nullable) return input;
+  const none = h("input", {type: "checkbox", style: "width:auto"});
+  none.checked = obj[key] === null;
+  none.addEventListener("change", () => { obj[key] = none.checked ? null : input.value; input.disabled = none.checked; changed(); });
+  return h("span", {class: "nullable"}, input, h("label", {class: "none", title: "графы нет на бланке: null"}, none, "нет графы"));
+}
+
+function number(obj, key, {int = false, placeholder = ""} = {}) {
+  const input = h("input", {placeholder, title: placeholder});
+  input.value = obj[key] == null ? "" : String(obj[key]).replace(".", ",");
+  input.addEventListener("input", () => {
+    const raw = input.value.trim().replace(",", ".");
+    const value = raw === "" ? null : Number(raw);
+    const bad = value !== null && (!Number.isFinite(value) || (int && !Number.isInteger(value)));
+    input.classList.toggle("bad", bad);
+    if (bad) return;
+    if (value === null) delete obj[key]; else obj[key] = value;
+    changed();
+  });
+  return input;
+}
+
+function choice(options, value, onchange) {
+  const select = h("select", {}, options.map(([v, label]) => h("option", {value: v}, label)));
+  select.value = value ?? "";
+  select.addEventListener("change", () => onchange(select.value));
+  return select;
+}
+
+function where(box, draw, clear) {
+  const label = box ? h("span", {class: "where", title: box.bbox.join(" ")}, `лист ${box.page}`) : h("span", {class: "where no"}, "нет рамки");
+  return [label, h("button", {title: "обвести на листе", onclick: draw}, "рамка"),
+    box && h("button", {title: "убрать рамку", onclick: clear}, "×")];
+}
+
+function move(list, i, step, ...more) {
+  const j = i + step;
+  if (j < 0 || j >= list.length) return;
+  for (const l of [list, ...more]) [l[i], l[j]] = [l[j], l[i]];
+  changed();
+  renderForm();
+}
+
+function setKind(name, kind) {
+  const old = T.documents[name];
+  if (kind === "foreign") {
+    if (old && Object.keys(old.sheet_files || {}).length) return alert("Сначала отделите листы документа.");
+    delete T.documents[name];
+    T.problem_files[name] = "foreign";
+  } else {
+    const sheets = old ? old.sheets : 1;
+    const doc = blank(kind, old ? old.origin : "raster", sheets);
+    if (old) for (const key of ["designation", "name", "litera", "revision", "sheet_files"]) if (key in old) doc[key] = old[key] ?? "";
+    delete T.problem_files[name];
+    T.documents[name] = doc;
+  }
+  changed();
+  renderForm();
+  showSheet();
+}
+
+function detach(name, file) {
+  const doc = T.documents[name];
+  delete doc.sheet_files[file];
+  const left = Object.keys(doc.sheet_files);
+  if (left.length < 2) doc.sheet_files = {};
+  doc.sheets = Math.max(1, left.length);
+  T.documents[file] = blank(doc.kind, doc.origin, 1);
+  changed();
+  renderForm();
+  showSheet();
+}
+
+function attach(name, target) {
+  const doc = T.documents[name], to = T.documents[target];
+  const labelled = doc.designation || doc.rows?.length || doc.requirements?.length || doc.parameters?.length;
+  if (labelled && !confirm("У документа уже есть значения; после присоединения останутся только его файлы. Присоединить?")) return;
+  if (!to.sheet_files || !Object.keys(to.sheet_files).length) to.sheet_files = {[target]: 1};
+  const files = Object.keys(doc.sheet_files || {}).length ? Object.entries(doc.sheet_files).sort((a, b) => a[1] - b[1]).map(([f]) => f) : [name];
+  let next = Math.max(...Object.values(to.sheet_files));
+  for (const file of files) to.sheet_files[file] = ++next;
+  to.sheets = next;
+  delete T.documents[name];
+  open(target);
+  changed();
+}
+
+function renderForm() {
+  const form = $("form"), top = form.scrollTop;
+  form.replaceChildren(...(current === "" ? kitForm() : documentForm(current)));
+  form.scrollTop = top;
+  if (selected) $(`${selected.kind}-${selected.i}`)?.classList.add("sel");
+}
+
+function kitForm() {
+  const out = [h("h2", {}, `Комплект ${K.kit}, разметка ${K.label}`)];
+  out.push(h("div", {class: "grid"}, h("label", {}, "Корень"), text(T, "root")));
+  out.push(h("p", {class: "muted"}, "Обозначение изделия верхнего уровня без кода документа; пусто, если его нет."));
+  out.push(h("h3", {}, "Расхождения Блока 1", h("small", {}, "что технолог вернул бы конструктору")));
+  const rows = T.discrepancies.map((d, i) => h("tr", {},
+    h("td", {class: "n"}, i + 1),
+    h("td", {}, choice(K.types.map((t) => [t, t]), d.type, (v) => { d.type = v; changed(); })),
+    h("td", {}, text(d, "designation")),
+    h("td", {}, text(d, "name", {optional: true})),
+    h("td", {}, text(d, "comment", {area: true, optional: true})),
+    h("td", {}, h("button", {onclick: () => { T.discrepancies.splice(i, 1); changed(); renderForm(); }}, "×"))));
+  out.push(h("table", {}, h("tr", {}, h("th"), h("th", {}, "тип"), h("th", {}, "обозначение"), h("th", {}, "наименование, если обозначения нет"), h("th", {}, "почему"), h("th")), rows));
+  out.push(h("div", {class: "row-actions"}, h("button", {onclick: () => {
+    T.discrepancies.push({type: K.types[0], designation: "", name: null, comment: null});
+    changed(); renderForm();
+  }}, "+ расхождение")));
+  out.push(h("h3", {}, "Спорные случаи", h("small", {}, "по строке на случай")));
+  const notes = h("textarea", {rows: 10});
+  notes.value = T.notes.join("\n");
+  notes.addEventListener("input", () => { T.notes = notes.value.split("\n").filter((l) => l.trim()); changed(); });
+  out.push(notes);
+  return out;
+}
+
+function documentForm(name) {
+  const doc = T.documents[name];
+  const kind = doc ? doc.kind : "foreign";
+  const out = [h("h2", {}, name)];
+  const head = [h("label", {}, "Вид"), choice(KINDS, kind, (v) => setKind(name, v))];
+  if (doc) head.push(h("label", {}, "Вход"), choice(ORIGINS, doc.origin, (v) => { doc.origin = v; changed(); }));
+  out.push(h("div", {class: "grid"}, head));
+  if (!doc) return out;
+
+  const fields = [...TITLE, ...(isDrawing(doc) ? DRAWING : [])];
+  out.push(h("h3", {}, "Основная надпись и графы левого поля"));
+  out.push(h("div", {class: "grid"}, fields.flatMap(([key, label]) => [
+    h("label", {}, label),
+    key === "sheets" ? number(doc, key, {int: true}) : text(doc, key, {nullable: (NULLABLE[kind] || []).includes(key), area: key === "name"}),
+  ])));
+
+  const later = Object.entries(doc.sheet_files || {}).sort((a, b) => a[1] - b[1]);
+  out.push(h("h3", {}, "Файлы документа", h("small", {}, later.length ? "лист — файл" : "один файл")));
+  if (later.length) {
+    out.push(h("table", {}, later.map(([file, n], i) => h("tr", {},
+      h("td", {class: "n"}, n), h("td", {}, file),
+      h("td", {}, i > 0 && h("button", {title: "сделать отдельным документом", onclick: () => detach(name, file)}, "отделить"))))));
+  }
+  const others = Object.keys(T.documents).filter((n) => n !== name).sort((a, b) => a.localeCompare(b, "ru", {numeric: true}));
+  out.push(h("div", {class: "row-actions"}, h("span", {class: "muted"}, "Присоединить как следующий лист к"),
+    choice([["", "—"], ...others.map((n) => [n, n])], "", (v) => v && attach(name, v))));
+
+  if (doc.kind === "specification") out.push(...specForm(doc));
+  if (isDrawing(doc)) out.push(...drawingForm(doc));
+  return out;
+}
+
+function specForm(doc) {
+  const out = [h("h3", {}, "Групповая спецификация", h("small", {}, "ГОСТ 2.113"))];
+  const variants = h("input", {placeholder: "обозначения исполнений через пробел, базовое первым"});
+  variants.value = (doc.variants || []).join(" ");
+  variants.addEventListener("input", () => { doc.variants = variants.value.split(/\s+/).filter(Boolean); changed(); });
+  variants.addEventListener("change", renderForm);
+  out.push(h("div", {class: "grid"},
+    h("label", {}, "Вариант"), choice([["", "не групповая"], ["A", "вариант А"], ["B", "вариант Б"]], doc.group, (v) => { doc.group = v || null; changed(); renderForm(); }),
+    h("label", {}, "Исполнения"), variants));
+
+  out.push(h("h3", {}, `Строки (${doc.rows.length})`, h("small", {}, "Enter — новая строка ниже")));
+  const byVariant = doc.group === "B" ? doc.variants || [] : [];
+  const addAfter = (i) => {
+    const prev = doc.rows[i];
+    doc.rows.splice(i + 1, 0, {section: prev ? prev.section : "", fmt: "", pos: "", designation: "", name: "", qty: "", note: ""});
+    changed();
+    renderForm();
+    $(`row-${i + 1}`)?.querySelectorAll("input")[1]?.focus();
+  };
+  const head = h("tr", {}, h("th"), h("th", {}, "раздел"), h("th", {}, "ф."), h("th", {}, "поз."), h("th", {}, "обозначение"), h("th", {}, "наименование"),
+    byVariant.length ? byVariant.map((v) => h("th", {title: v}, `кол. ${v.split(/[-.]/).pop()}`)) : h("th", {}, "кол."),
+    h("th", {}, "прим."), doc.group === "A" && h("th", {}, "исп."), h("th", {}, "как записано"), h("th"));
+  const rows = doc.rows.map((row, i) => {
+    const enter = {onEnter: () => addAfter(i)};
+    row.quantities ??= {};
+    return h("tr", {id: `row-${i}`},
+      h("td", {class: "n"}, i + 1),
+      h("td", {}, text(row, "section", {...enter, size: 14})),
+      h("td", {}, text(row, "fmt", {...enter, size: 3})),
+      h("td", {}, text(row, "pos", {...enter, size: 3})),
+      h("td", {}, text(row, "designation", {...enter, size: 20})),
+      h("td", {}, text(row, "name", {...enter, size: 30})),
+      byVariant.length ? byVariant.map((v) => h("td", {}, text(row.quantities, v, {...enter, size: 3}))) : h("td", {}, text(row, "qty", {...enter, size: 3})),
+      h("td", {}, text(row, "note", {...enter, size: 10})),
+      doc.group === "A" && h("td", {}, text(row, "variant", {...enter, size: 8})),
+      h("td", {}, text(row, "written", {...enter, size: 6, optional: true})),
+      h("td", {style: "white-space:nowrap"},
+        h("button", {title: "строка ниже", onclick: () => addAfter(i)}, "+"),
+        h("button", {title: "выше", onclick: () => move(doc.rows, i, -1)}, "↑"),
+        h("button", {title: "удалить", onclick: () => { doc.rows.splice(i, 1); changed(); renderForm(); }}, "×")));
+  });
+  const list = h("datalist", {id: "sections"}, SECTIONS.map((s) => h("option", {value: s})));
+  rows.forEach((r) => r.querySelector("td:nth-child(2) input").setAttribute("list", "sections"));
+  out.push(list, h("div", {style: "overflow-x:auto"}, h("table", {class: "rows"}, head, rows)));
+  out.push(h("div", {class: "row-actions"}, h("button", {onclick: () => addAfter(doc.rows.length - 1)}, "+ строка")));
+  return out;
+}
+
+function drawingForm(doc) {
+  const out = [];
+  while (doc.requirement_boxes.length < doc.requirements.length) doc.requirement_boxes.push(null);
+  out.push(h("h3", {}, `Технические требования (${doc.requirements.length})`, h("small", {}, "пункт без номера, строки через пробел")));
+  doc.requirements.forEach((item, i) => {
+    const box = doc.requirement_boxes[i];
+    const area = text(doc.requirements, i, {area: true});
+    out.push(h("div", {class: "item", id: `req-${i}`, onclick: () => select("req", i)},
+      h("span", {class: "n"}, i + 1), area,
+      h("span", {class: "acts"},
+        where(box, () => startDrawing((b) => { doc.requirement_boxes[i] = b; selected = {kind: "req", i}; }), () => { doc.requirement_boxes[i] = null; changed(); renderForm(); drawBoxes(); }),
+        h("button", {title: "выше", onclick: () => move(doc.requirements, i, -1, doc.requirement_boxes)}, "↑"),
+        h("button", {title: "удалить пункт", onclick: () => { doc.requirements.splice(i, 1); doc.requirement_boxes.splice(i, 1); changed(); renderForm(); drawBoxes(); }}, "×"))));
+  });
+  out.push(h("div", {class: "row-actions"},
+    h("button", {onclick: () => { doc.requirements.push(""); doc.requirement_boxes.push(null); changed(); renderForm(); $(`req-${doc.requirements.length - 1}`)?.querySelector("textarea").focus(); }}, "+ пункт"),
+    h("button", {onclick: () => {
+      doc.requirements.push(""); doc.requirement_boxes.push(null);
+      const i = doc.requirements.length - 1;
+      renderForm();
+      startDrawing((b) => { doc.requirement_boxes[i] = b; selected = {kind: "req", i}; });
+    }}, "+ пункт и рамка")));
+
+  out.push(h("h3", {}, `Параметры (${doc.parameters.length})`, h("small", {}, "из ТТ — рамка пункта; с поля — рамка надписи")));
+  const items = doc.requirements.map((_, i) => i).filter((i) => doc.requirement_boxes[i]);
+  doc.parameters.forEach((p, i) => {
+    const fromItem = choice([["", "рамка пункта ТТ…"], ...items.map((k) => [String(k), `пункт ${k + 1}`])], "", (v) => {
+      if (v === "") return;
+      p.box = structuredClone(doc.requirement_boxes[Number(v)]);
+      changed(); renderForm(); drawBoxes();
+    });
+    out.push(h("div", {class: "item", id: `par-${i}`, onclick: () => select("par", i)},
+      h("span", {class: "n"}, i + 1),
+      h("div", {},
+        h("div", {class: "param"},
+          choice(K.categories.map((c) => [c, c]), p.category, (v) => { p.category = v; changed(); }),
+          text(p, "name", {placeholder: "имя, как на листе: Ø40+0,025, Ra 1,6, ⊥"})),
+        h("div", {class: "numbers"},
+          number(p, "value", {placeholder: "значение"}), number(p, "value_min", {placeholder: "от"}),
+          number(p, "value_max", {placeholder: "до"}), text(p, "unit", {optional: true, placeholder: "ед."}),
+          number(p, "it_grade", {int: true, placeholder: "IT"})),
+        h("div", {class: "row-actions", style: "margin-top:3px"},
+          where(p.box, () => startDrawing((b) => { p.box = b; selected = {kind: "par", i}; }), () => { p.box = null; changed(); renderForm(); drawBoxes(); }),
+          items.length ? fromItem : null)),
+      h("span", {class: "acts"},
+        h("button", {title: "выше", onclick: () => move(doc.parameters, i, -1)}, "↑"),
+        h("button", {title: "удалить параметр", onclick: () => { doc.parameters.splice(i, 1); selected = null; changed(); renderForm(); drawBoxes(); }}, "×"))));
+  });
+  const last = doc.parameters.at(-1);
+  const add = () => { doc.parameters.push({category: last ? last.category : "dimension_tolerance", name: "", box: null}); return doc.parameters.length - 1; };
+  out.push(h("div", {class: "row-actions"},
+    h("button", {onclick: () => { const i = add(); selected = {kind: "par", i}; changed(); renderForm(); $(`par-${i}`)?.querySelectorAll("input")[0]?.focus(); }}, "+ параметр"),
+    h("button", {onclick: () => { const i = add(); renderForm(); startDrawing((b) => { doc.parameters[i].box = b; selected = {kind: "par", i}; }); }}, "+ параметр и рамка")));
+
+  doc.variants ??= [];
+  out.push(h("h3", {}, `Таблица исполнений (${doc.variants.length})`, h("small", {}, "групповой чертёж; графы — «L=120; B=40»")));
+  doc.variants.forEach((v, i) => {
+    const data = h("input", {placeholder: "L=120; B=40"});
+    data.value = Object.entries(v.data || {}).map(([k, x]) => `${k}=${x}`).join("; ");
+    data.addEventListener("input", () => {
+      v.data = Object.fromEntries(data.value.split(";").map((s) => s.split("=").map((x) => x.trim())).filter(([k, x]) => k && x !== undefined));
+      changed();
+    });
+    out.push(h("div", {class: "item"}, h("span", {class: "n"}, i + 1),
+      h("div", {class: "grid"}, h("label", {}, "Обозначение полностью"), text(v, "designation"), h("label", {}, "Как записано"), text(v, "written", {optional: true}),
+        h("label", {}, "Масса"), text(v, "mass", {optional: true}), h("label", {}, "Графы"), data),
+      h("span", {class: "acts"}, h("button", {onclick: () => { doc.variants.splice(i, 1); changed(); renderForm(); }}, "×"))));
+  });
+  out.push(h("div", {class: "row-actions"}, h("button", {onclick: () => { doc.variants.push({designation: "", written: null, mass: null, data: {}}); changed(); renderForm(); }}, "+ исполнение")));
+  return out;
+}
+
+(async () => {
+  try { const width = localStorage.getItem("form"); if (width) document.documentElement.style.setProperty("--form", width); } catch {}
+  K = await (await fetch("/kit")).json();
+  T = K.truth;
+  document.title = `${K.kit}.${K.label} — разметка`;
+  $("title").textContent = `${K.kit}, разметка ${K.label}`;
+  $("status").textContent = K.saved ? "открыта сохранённая разметка" : "новая разметка: пока только имена файлов";
+  showProblems(K.problems);
+  const start = decodeURIComponent(location.hash.slice(1));
+  open(start in T.documents || start in T.problem_files ? start : "");
+})();
+</script>
+</body>
+</html>
