@@ -88,7 +88,7 @@
 | [vlm-title-block.md](../eval/results/vlm-title-block.md) | Основная надпись сканов с OCR и с OCR и моделью, режимы при расхождении | `uv run python eval/vlm_title_block.py --verify МОДЕЛЬ` | Генерируются по сиду, нужен сервер модели |
 | [vlm-bench.md](../eval/results/vlm-bench.md) | Модели на одних и тех же изображениях, то есть на реальных листах эталона, блоках технических требований и ячейках | `uv run python eval/vlm_bench.py --score --model=МОДЕЛЬ` | Листы эталона из открытого корпуса, нужен сервер модели |
 | [gold-kits.md](../eval/results/gold-kits.md) | Блок 1 на учебных комплектах с независимой разметкой | `uv run python eval/gold.py kits` | Открытый корпус, скачивается `eval/open_drawings.py fetch` |
-| [gold-agreement.md](../eval/results/gold-agreement.md) | Согласие двух разметок эталона | `uv run python eval/gold.py agree` | Разметка в `eval/gold/` |
+| [gold-agreement.md](../eval/results/gold-agreement.md) | Согласие двух разметок эталона | `uv run python eval/gold.py agree` | Разметка в `eval/gold/` и `data/arm/gold` |
 | [arm-kits-dev.md](../eval/results/arm-kits-dev.md), [arm-kits-dev-vlm.md](../eval/results/arm-kits-dev-vlm.md) | Числа по настроечному комплекту заказчика | `uv run python eval/arm_kits.py run --role dev`, то же с `--vlm МОДЕЛЬ` | Данные заказчика вне репозитория |
 | [pdf-backends.md](../eval/results/pdf-backends.md) | Движки PDF на демо-комплекте | `uv run python eval/pdf_backends.py` | `samples/`, PyMuPDF ставится отдельно для сравнения |
 | [blank-sheets.md](../eval/results/blank-sheets.md) | Распознавание пустых листов | `uv run python eval/blank_sheets.py --pages 40` | Генерируются по сиду, открытый корпус |
