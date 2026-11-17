@@ -27,6 +27,13 @@ ocr:
       designation: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789.-  # GOST 2.201
       changes: "0123456789"
       material: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя0123456789.,-/
+    letters: [name, material, note]  # cells whose digit between Cyrillic letters is a letter (dictionaries.yaml,
+                                 # letter_lookalikes): not a designation, a quantity or a mass
+  lines:                         # lines of a drawing that Tesseract finds on the page outside its title block (ADR-0030)
+    engine: ppocr                # ppocr — PP-OCRv5 reads each line again and the two readings are weighed: its letters
+                                 # and digits, the signs it lost from Tesseract; tesseract — the lines as Tesseract
+                                 # read them. Without the files of ppocr the lines stay as Tesseract read them
+    margin: 0.25                 # of the line height: paper kept around the line cut from the page
   ppocr:                         # the PP-OCRv5 text line recognizer for East Slavic languages (ADR-0024), Apache-2.0:
                                  # 8 MB, about 4 ms a cell on the CPU through onnxruntime. scripts/fetch_ppocr.sh takes
                                  # the files of the revision from Hugging Face, checks them and makes models/ppocr

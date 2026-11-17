@@ -236,7 +236,7 @@ class Parser:
     ) -> list[Parameter]:
         """Parameters of one text line on the drawing field."""
         text = line.text.strip()
-        src = doc.source(page, line.bbox, text, line.confidence)
+        src = doc.source(page, line.bbox, text, line.confidence, line.engine)
         params: list[Parameter] = []
         taken: list[tuple[int, int]] = []
 

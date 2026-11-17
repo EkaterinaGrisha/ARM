@@ -15,7 +15,7 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 from PIL import Image, ImageDraw, ImageOps
@@ -24,6 +24,7 @@ from kdcheck.config import RegionRules, Settings
 from kdcheck.ingest.text import Line, Word
 from kdcheck.layout import raster
 from kdcheck.ocr import tesseract
+from kdcheck.ocr.lines import letters_for_digits
 
 if TYPE_CHECKING:
     from kdcheck.ocr.ppocr import Recognizer
@@ -151,7 +152,7 @@ def read_cell(
     if (reader := ppocr_reader(settings)) is not None:  # reads the grey image, cut to the lines of the mask (ADR-0024)
         from kdcheck.ocr import ppocr
 
-        return ppocr.read(
+        found = ppocr.read(
             reader,
             ImageOps.expand(image, border=pad, fill=raster.WHITE),
             ImageOps.expand(mask, border=pad, fill=0),
@@ -163,14 +164,26 @@ def read_cell(
             characters=cells.characters.get(field),
             lookalikes=settings.dictionaries.latin_lookalikes,
         )
-    return tesseract.words(
-        ImageOps.expand(mask.point(lambda v: raster.WHITE - v), border=pad, fill=raster.WHITE),
-        cells.languages,
-        cells.page_segmentation,
-        cells.min_word_confidence,
-        to_page,
-        cells.characters.get(field),
-    )
+    else:
+        found = tesseract.words(
+            ImageOps.expand(mask.point(lambda v: raster.WHITE - v), border=pad, fill=raster.WHITE),
+            cells.languages,
+            cells.page_segmentation,
+            cells.min_word_confidence,
+            to_page,
+            cells.characters.get(field),
+        )
+    if field not in cells.letters:
+        return found
+    twins = settings.dictionaries.letter_lookalikes
+    return [
+        replace(
+            ln,
+            text=letters_for_digits(ln.text, twins),
+            words=[replace(w, text=letters_for_digits(w.text, twins)) for w in ln.words],
+        )
+        for ln in found
+    ]
 
 
 def ppocr_reader(settings: Settings) -> Recognizer | None:

@@ -116,5 +116,6 @@ def requirement_items(
         )
         raw = " ".join(ln.text for ln in lns)
         conf = lines_confidence(lns)
-        result.append(Extracted(value=text.strip(), raw=raw, confidence=conf, source=doc.source(page, bbox, raw, conf)))
+        source = doc.source(page, bbox, raw, conf, lns[0].engine)
+        result.append(Extracted(value=text.strip(), raw=raw, confidence=conf, source=source))
     return result
