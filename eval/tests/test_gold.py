@@ -3,7 +3,7 @@
 import json
 
 import gold
-from synth.truth import Box, DrawingTruth, KitTruth, ParameterTruth
+from synth.truth import Box, DrawingTruth, ExpectedDiscrepancy, KitTruth, ParameterTruth
 
 
 def _drawing(**fields) -> DrawingTruth:
@@ -116,3 +116,20 @@ def test_the_agreement_of_a_customer_kit_gives_numbers_and_leaves_its_disagreeme
     assert "| a.jpg: material | Сталь 45 ГОСТ 1050-2013 | Сталь 40Х ГОСТ 4543-2016 |" in (
         tmp_path / "gold" / "arm-9.a-b.md"
     ).read_text(encoding="utf-8")
+
+
+def test_the_contents_count_on_the_sample_only_and_discrepancies_when_both_label_them():
+    parameter = ParameterTruth(category="roughness", name="Ra 3,2", value=3.2, unit="мкм")
+    a = KitTruth(root="", documents={"a.jpg": _drawing(), "b.jpg": _drawing()})
+    b = KitTruth(
+        root="",
+        documents={"a.jpg": _drawing(parameters=[parameter]), "b.jpg": _drawing(parameters=[parameter])},
+        discrepancies=[ExpectedDiscrepancy(type="missing_drawing", designation="АБВГ.301411.002")],
+    )
+    differ = [where for _, where, *_, same in gold.compare(a, b, {"a.jpg"}, discrepancies=False) if not same]
+    assert differ == [
+        "a.jpg: параметр —/1 roughness, name",
+        "a.jpg: параметр —/1 roughness, value",
+        "a.jpg: параметр —/1 roughness, unit",
+    ]
+    assert len([c for c in gold.compare(a, b) if not c[-1]]) == 7

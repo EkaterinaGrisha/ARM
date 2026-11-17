@@ -83,6 +83,8 @@ class Kit:
                     }
                 )
         self.path = arm / "gold" / f"{kit}.{label}.json"
+        samples = arm / gold.SAMPLES
+        self.sample = json.loads(samples.read_text(encoding="utf-8")).get(kit, {}) if samples.exists() else {}
 
     def state(self) -> dict[str, Any]:
         truth = KitTruth.read(self.path) if self.path.exists() else template(sorted(self.names))
@@ -92,6 +94,7 @@ class Kit:
             "saved": self.path.exists(),
             "sheets": [{k: v for k, v in s.items() if k != "path"} for s in self.sheets],
             "unmasked": self.unmasked,
+            "sample": self.sample.get("documents", []),
             "truth": truth.model_dump(mode="json"),
             "categories": list(get_args(ParameterCategory)),
             "types": list(gold.TYPES),

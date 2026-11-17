@@ -27,7 +27,7 @@ import json
 import platform
 import sys
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from itertools import combinations, zip_longest
@@ -55,6 +55,7 @@ SHEET_DIR = ROOT / "data" / "gold_sheets"
 SHEET_DPI = 300  # a sheet given as a picture is rendered as an office scanner would scan it
 OUT = EVAL / "results" / "gold-agreement.md"
 ARM = ROOT / "data" / "arm"  # the customer's kits and their labellings, outside git (eval/arm_kits.py)
+SAMPLES = "samples.json"  # in ARM: by kit, the documents whose contents both labellings hold
 
 # Types of the report, and those the plan names for the core to find later (docs/PLAN.md, stage 4).
 TYPES = (
@@ -380,12 +381,16 @@ def _drawing(name: str, x: DocumentTruth, y: DocumentTruth) -> list[Compared]:
     return out
 
 
-def compare(a: KitTruth, b: KitTruth) -> list[Compared]:
+def compare(
+    a: KitTruth, b: KitTruth, contents: Collection[str] | None = None, discrepancies: bool = True
+) -> list[Compared]:
     """Every value filled in either labelling: its part, where it is, the value of each, whether they agree.
 
-    Only the documents both drafts hold are compared: a set of sheets may be labelled twice in part. Specification
-    rows, items of the technical requirements and variants are paired by :func:`_align`, parameters by
-    :func:`_pair_parameters`; regions agree by :func:`_same_region`.
+    Only the documents both drafts hold are compared: a set of sheets may be labelled twice in part. The rows, items,
+    parameters and variants of a document count only for the documents in ``contents``, when a sample of them was
+    labelled twice, and the discrepancies only with ``discrepancies``. Specification rows, items of the technical
+    requirements and variants are paired by :func:`_align`, parameters by :func:`_pair_parameters`; regions agree by
+    :func:`_same_region`.
     """
     out = _compared("документы", "", {"корень": a.root}, {"корень": b.root})
     for name in sorted(a.documents.keys() & b.documents.keys()):
@@ -393,15 +398,19 @@ def compare(a: KitTruth, b: KitTruth) -> list[Compared]:
         fx, fy = (
             {"вид": d.kind}
             | {f: getattr(d, f) for f in (DRAWING if isinstance(d, DrawingTruth) else TITLE)}
-            | (
-                {"group": d.group, "variants": " ".join(d.variants), "строк": len(d.rows)}
-                if isinstance(d, SpecTruth)
-                else {}
-            )
             | {f"лист файла {file}": sheet for file, sheet in d.sheet_files.items()}
             for d in (x, y)
         )
         out += _compared("документы", f"{name}:", fx, fy)
+        if contents is not None and name not in contents:
+            continue
+        fx, fy = (
+            {"group": d.group, "variants": " ".join(d.variants), "строк": len(d.rows)}
+            if isinstance(d, SpecTruth)
+            else {}
+            for d in (x, y)
+        )
+        out += _compared("строки спецификаций", f"{name}:", fx, fy)
         rows = [d.rows if isinstance(d, SpecTruth) else [] for d in (x, y)]
         for number, rx, ry in _align(*rows, key=lambda r: norm(r.designation + r.name)):
             fx, fy = (
@@ -414,6 +423,8 @@ def compare(a: KitTruth, b: KitTruth) -> list[Compared]:
         out += _drawing(name, x, y)
     for name in sorted(a.problem_files.keys() | b.problem_files.keys()):
         out += _compared("документы", f"{name}:", *({"статус файла": t.problem_files.get(name)} for t in (a, b)))
+    if not discrepancies:
+        return out
     da, db = ({f"{d.type} {d.designation or d.name or ''}".strip() for d in t.discrepancies} for t in (a, b))
     for d in sorted(da | db):
         out += _compared("расхождения", "расхождение", {"": d} if d in da else None, {"": d} if d in db else None)
@@ -424,7 +435,8 @@ def agree() -> int:
     """Compare the two drafts of each kit or set labelled twice; write the result to eval/results/gold-agreement.md.
 
     A kit of the customer gives its numbers there, and its disagreements go next to its drafts in data/arm/gold,
-    <kit>.<a>-<b>.md, outside git: they name its documents.
+    <kit>.<a>-<b>.md, outside git: they name its documents. When data/arm/samples.json gives a sample of the kit, the
+    contents of the documents count on the sample only.
     """
 
     def share(agreed: int, total: int) -> str:
@@ -443,12 +455,17 @@ def agree() -> int:
         "",
     ]
     pairs = 0
+    samples = json.loads((ARM / SAMPLES).read_text(encoding="utf-8")) if (ARM / SAMPLES).exists() else {}
     drafts = [(kit, d, False) for kit, d in _drafts(DRAFTS).items()]
     drafts += [(kit, d, True) for kit, d in _drafts(ARM / "gold").items()]
     for kit, labelled, arm in drafts:
         for (wa, a), (wb, b) in combinations(sorted(labelled.items()), 2):
             pairs += 1
-            compared = compare(a, b)
+            sample = samples.get(kit) if arm else None
+            if sample:
+                compared = compare(a, b, set(sample["documents"]), sample["discrepancies"])
+            else:
+                compared = compare(a, b)
             agreed = sum(same for *_, same in compared)
             both = len(a.documents.keys() & b.documents.keys())
             lines += [
@@ -465,6 +482,13 @@ def agree() -> int:
                 if of:
                     lines.append(f"| {part} | {sum(of)} | {len(of)} | {share(sum(of), len(of))} |")
             lines.append("")
+            if sample:
+                lines += [
+                    f"Основные надписи — у всех документов; строки, пункты ТТ, параметры и исполнения — у выборки из "
+                    f"{len(sample['documents'])} документов, по видам, случайно; расхождения "
+                    f"{'размечены дважды' if sample['discrepancies'] else 'дважды не размечены'}.",
+                    "",
+                ]
             differ = [f"| {where} | {x} | {y} |" for _, where, x, y, same in compared if not same]
             if not differ:
                 continue

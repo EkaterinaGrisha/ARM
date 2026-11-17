@@ -52,9 +52,11 @@ def test_files_of_one_name_numbered_in_brackets_are_sheets_of_one_document_and_t
 
 
 def test_the_page_shows_masked_sheets_only_and_saves_a_checked_labelling_keeping_the_last_one(arm):
+    (arm / "samples.json").write_text(json.dumps({"arm-9": {"documents": [NAMES[3]]}}), encoding="utf-8")
     kit = gold_label.Kit(arm, "arm-9", "a")
     state = kit.state()
     assert [s["file"] for s in state["sheets"]] == NAMES[:3] and state["unmasked"] == [NAMES[3]]
+    assert state["sample"] == [NAMES[3]]
     assert not state["saved"] and state["problems"] == []
     truth = state["truth"]
     truth["documents"]["ШСМГ.01.062 Втулка.jpg"]["parameters"] = [
