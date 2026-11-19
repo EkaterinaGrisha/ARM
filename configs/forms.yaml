@@ -147,6 +147,11 @@ title_block:                     # GOST 2.104
     value_reach: 9               # a value starts within this distance right of its label
     label_slack: 1               # page units: and no further left of the label's right edge than this
     min_overlap: 0.4             # the label and the value share this part of the shorter one along the column
+    columns: [5, 7]              # on a page image: the label and the value columns left of the frame, mm
+    bottom: 145                  # columns 19–23 go up from the bottom line of the frame: 25, 35, 25, 25 and 35 mm
+    archive_rows: [0, 25]        # column 19, mm above the bottom line
+    first_use_rows: [0, 60]      # column 24, mm under the top line; columns 24–25 only on the first sheet of a drawing
+    reach: 1                     # mm: a line of the field lies this near where GOST 2.104 puts it
 
 specification:                   # GOST 2.106, form 1
   columns:                       # left and right edges from the left edge of the table

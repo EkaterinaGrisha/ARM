@@ -32,7 +32,7 @@
     "version": "13.0.0"
    }
   ],
-  "config_sha256": "3a0e6817577324889fe9cf58ac22aae6c2ad666a65dc0a185f6bfc41bebbf3bd"
+  "config_sha256": "fab2eb2c8068adbc8d6fd658080e157e6705c3a7957d20ec35a6bb9e46082567"
  },
  "summary": {
   "documents_total": 23,
@@ -6233,8 +6233,48 @@
      }
     },
     "revision": null,
-    "archive_number": null,
-    "first_use": null,
+    "archive_number": {
+     "value": "3411-003",
+     "raw": "3411-003",
+     "confidence": 0.99,
+     "status": "low_confidence",
+     "source": {
+      "document_id": "d84e62831ff",
+      "page": 1,
+      "bbox": [
+       0.0647,
+       0.9237,
+       0.0829,
+       0.9739
+      ],
+      "text": "3411-003",
+      "method": "ocr",
+      "confidence": 0.99,
+      "engine": "eslav_PP-OCRv5_mobile_rec",
+      "engine_version": "onnx sha256:984c0413f06b, onnxruntime 1.31.0"
+     }
+    },
+    "first_use": {
+     "value": "АРМ.303411.000",
+     "raw": "АРМ.303411.000",
+     "confidence": 1.0,
+     "status": "low_confidence",
+     "source": {
+      "document_id": "d84e62831ff",
+      "page": 1,
+      "bbox": [
+       0.07,
+       0.1219,
+       0.0885,
+       0.2107
+      ],
+      "text": "АРМ.303411.000",
+      "method": "ocr",
+      "confidence": 1.0,
+      "engine": "eslav_PP-OCRv5_mobile_rec",
+      "engine_version": "onnx sha256:984c0413f06b, onnxruntime 1.31.0"
+     }
+    },
     "sheet": {
      "value": 1,
      "raw": "Луcm 1",
@@ -9777,8 +9817,48 @@
      }
     },
     "revision": null,
-    "archive_number": null,
-    "first_use": null,
+    "archive_number": {
+     "value": "3411-203",
+     "raw": "3411-203",
+     "confidence": 1.0,
+     "status": "low_confidence",
+     "source": {
+      "document_id": "d88f2f263a2",
+      "page": 1,
+      "bbox": [
+       0.0612,
+       0.9223,
+       0.0801,
+       0.9727
+      ],
+      "text": "3411-203",
+      "method": "ocr",
+      "confidence": 1.0,
+      "engine": "eslav_PP-OCRv5_mobile_rec",
+      "engine_version": "onnx sha256:984c0413f06b, onnxruntime 1.31.0"
+     }
+    },
+    "first_use": {
+     "value": "АРМ.303411.200",
+     "raw": "АРМ.303411.200",
+     "confidence": 1.0,
+     "status": "low_confidence",
+     "source": {
+      "document_id": "d88f2f263a2",
+      "page": 1,
+      "bbox": [
+       0.0718,
+       0.1198,
+       0.0908,
+       0.2087
+      ],
+      "text": "АРМ.303411.200",
+      "method": "ocr",
+      "confidence": 1.0,
+      "engine": "eslav_PP-OCRv5_mobile_rec",
+      "engine_version": "onnx sha256:984c0413f06b, onnxruntime 1.31.0"
+     }
+    },
     "sheet": {
      "value": 1,
      "raw": "Лиcm 1",

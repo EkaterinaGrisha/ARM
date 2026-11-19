@@ -26,6 +26,8 @@ ocr:
                                  # PP-OCRv5 reads only these too, a Latin lookalike counting for its Cyrillic letter
       designation: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789.-  # GOST 2.201
       changes: "0123456789"
+      archive_number: "0123456789-./"  # an inventory number
+      first_use: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789.-  # a designation
       material: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя0123456789.,-/
     letters: [name, material, note]  # cells whose digit between Cyrillic letters is a letter (dictionaries.yaml,
                                  # letter_lookalikes): not a designation, a quantity or a mass

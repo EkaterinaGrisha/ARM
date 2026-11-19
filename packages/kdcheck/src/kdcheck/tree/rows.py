@@ -1,4 +1,5 @@
-"""Stage 8a: designations of specification rows read by OCR checked against the designations of the kit (ADR-0020).
+"""Stage 8a: designations of specification rows read by OCR checked against the designations of the kit (ADR-0020),
+and «Перв. примен.» of title blocks by the same rules.
 
 OCR loses the letters of a designation on a raster, the code of the maker most of all, and drops a digit of a thin
 «1» now and then, while the digits mostly stay. The designations of the documents of the kit, from their title blocks
@@ -16,7 +17,7 @@ from collections import defaultdict
 
 from kdcheck.config import RowDesignations
 from kdcheck.normalize.designations import Designations, base_designation, digits, doc_code, one_digit_apart
-from kdcheck.schemas import DocumentInfo, Specification
+from kdcheck.schemas import DocumentInfo, Extracted, Specification
 
 _SEPARATORS = re.compile(r"[\s.,\-–—_]+")
 
@@ -26,10 +27,7 @@ def check_rows(
 ) -> int:
     """Give the rows of ``specs`` the designations of ``kit`` they were read for; return how many rows changed."""
     known = kit | {base_designation(d) for d in kit}
-    by_digits: dict[str, set[str]] = defaultdict(set)
-    for designation in known:
-        if (found := digits(base_designation(designation))) and len(found) >= rules.min_digits:
-            by_digits[found].add(base_designation(designation))
+    by_digits = _by_digits(known, rules)
     changed = 0
     for info, spec in specs:
         for row in spec.rows:
@@ -48,6 +46,36 @@ def check_rows(
             info.notes.append(f"Спецификация, строка {position}: прочитано «{reading}», в комплекте «{target}»")
             changed += 1
     return changed
+
+
+def check_first_uses(
+    read: list[tuple[DocumentInfo, Extracted]], kit: set[str], eskd: Designations, rules: RowDesignations
+) -> int:
+    """Give «Перв. примен.» of a title block the designation of ``kit`` it was read for, as a row gets one; return how
+    many changed. The item it names is mostly an assembly of the same kit; one of another product has other digits and
+    keeps its reading."""
+    known = kit | {base_designation(d) for d in kit}
+    by_digits = _by_digits(known, rules)
+    changed = 0
+    for info, ex in read:
+        if ex.source is None or ex.source.method not in rules.methods or str(ex.value) in known:
+            continue
+        target = _target(str(ex.value), False, known, by_digits, eskd, rules)
+        if target is None or target == str(ex.value):
+            continue
+        reading = ex.raw or str(ex.value)
+        ex.value, ex.status = target, "conflict"
+        info.notes.append(f"Перв. примен.: прочитано «{reading}», в комплекте «{target}»")
+        changed += 1
+    return changed
+
+
+def _by_digits(known: set[str], rules: RowDesignations) -> dict[str, set[str]]:
+    found: dict[str, set[str]] = defaultdict(set)
+    for designation in known:
+        if (number := digits(base_designation(designation))) and len(number) >= rules.min_digits:
+            found[number].add(base_designation(designation))
+    return found
 
 
 def _target(

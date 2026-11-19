@@ -50,7 +50,7 @@ from kdcheck.schemas import (
 )
 from kdcheck.tree.documents import DRAWINGS, Assembly, assemble
 from kdcheck.tree.product import DrawingRef, build_tree
-from kdcheck.tree.rows import check_rows
+from kdcheck.tree.rows import check_first_uses, check_rows
 from kdcheck.vlm import spec_rows as vlm_spec_rows
 from kdcheck.vlm import tech_requirements as vlm_tech_requirements
 from kdcheck.vlm import title_block as vlm_title_block
@@ -170,6 +170,20 @@ class BaselinePipeline:
             report_log.append(
                 LogEntry(level="info", message=f"Обозначения строк спецификаций сверены с комплектом: {changed}")
             )
+        by_id = {d.info.id: d.info for d in docs}
+        first_uses = [(info, s.first_use) for info, s in assembly.specs if s.first_use is not None]
+        first_uses += [
+            (by_id[p.document_id], p.title_block.first_use)
+            for p in parts
+            if p.title_block is not None and p.title_block.first_use is not None and p.document_id in by_id
+        ]
+        if changed := _stage(
+            "сверка первичного применения с комплектом",
+            report_log,
+            lambda: check_first_uses(first_uses, designations, self.eskd, row_rules),
+            None,
+        ):
+            report_log.append(LogEntry(level="info", message=f"«Перв. примен.» сверено с комплектом: {changed}"))
         # the documents a position of a specification may name: drawings, and text documents as «… ПЗ»
         drawing_refs = [
             DrawingRef(doc=d.info, part=next((p for p in parts if p.document_id == d.id), None))
