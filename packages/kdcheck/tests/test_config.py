@@ -14,6 +14,7 @@ CORE = ROOT / "packages" / "kdcheck" / "src" / "kdcheck"
 # Numbers that stay in code: facts of file formats, units, PDF and Tesseract, rounding and display.
 # Any other number tunes the results and belongs in configs/*.yaml.
 KEPT: dict[str, dict[float, str]] = {
+    "checks/completeness.py": {0.5: "half a unit of the last digit a mass is written to", 10.0: "decimal digits"},
     "cli.py": {12: "length of a random kit id", 70: "width of the progress line in the terminal"},
     "config.py": {
         4: "depth of this file below the repository root",

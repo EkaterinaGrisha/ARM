@@ -531,12 +531,17 @@ class Preliminary(Section):
     listed: int = Field(ge=1)
 
 
+class MassCheck(Section):
+    methods: tuple[ExtractionMethod, ...]
+
+
 class Checks(Section):
     rules: dict[str, RuleSettings]  # by rule id; kdcheck.checks.rules checks that every rule has its settings
     names: NameMatch
     sheets: SheetCount
     positions: PositionCheck
     preliminary: Preliminary
+    mass: MassCheck
 
 
 # ---------------------------------------------------------------- criticality.yaml

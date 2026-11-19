@@ -33,7 +33,20 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
 from synth import degrade, mutations, requirements, vocab
-from synth.model import Change, Container, Drawing, FontType, Group, Kind, Output, Quality, Row, Spec, Variant
+from synth.model import (
+    SEE_TABLE,
+    Change,
+    Container,
+    Drawing,
+    FontType,
+    Group,
+    Kind,
+    Output,
+    Quality,
+    Row,
+    Spec,
+    Variant,
+)
 from synth.product import Numbering, Part, Shape, Unit, grow
 from synth.render import (
     GROUP_NAME_WIDTH,
@@ -171,6 +184,24 @@ class Kit:
                     self.drawings.append(self.part_drawing(unit, part, formats[part.designation]))
             for members in groups.values():
                 self.drawings.append(self.part_drawing(unit, members[0], "A3", variants=members))
+
+    def weigh(self) -> None:
+        """Each assembly drawing gets the mass of what its specification lists (GOST 2.104, column 5): its parts and
+        assemblies, each mass times its quantity, and a twentieth of the mass it was drawn with for its standard and
+        purchased items. A group drawing keeps «См. табл.»; a row without a drawing or a mass adds nothing. Runs
+        after the mutations of the documents, so a row they add or drop is weighed too."""
+        for unit in reversed(list(self.root.walk())):
+            spec, sb = self.specs.get(unit.designation), self.drawing(f"{unit.designation} СБ")
+            if spec is None or sb is None or unit.variants or sb.mass == SEE_TABLE:
+                continue
+            total = _kg(sb.mass) / 20
+            for row in spec.rows:
+                if row.section not in ("Детали", "Сборочные единицы") or not row.designation or not row.qty.isdigit():
+                    continue
+                drawn = self.drawing(f"{row.designation} СБ") or self.drawing(row.designation)
+                if drawn is not None and drawn.mass and drawn.mass != SEE_TABLE:
+                    total += int(row.qty) * _kg(drawn.mass)
+            sb.mass = f"{total:.2f}".replace(".", ",")
 
     def _spec(self, unit: Unit, sb_format: str, formats: dict[str, str]) -> Spec:
         """The specification of ``unit``; of a group assembly, a group one by variant A or B of GOST 2.113."""
@@ -453,9 +484,6 @@ class Kit:
         return truth
 
 
-SEE_TABLE = "См. табл."  # what a group drawing writes for a mass that changes from variant to variant, GOST 2.113
-
-
 def _suffix(designation: str, base: str) -> str:
     """How a table of variants writes ``designation`` below the base one: «-01»; the base one in full."""
     return designation.removeprefix(base) if designation != base else ""
@@ -503,6 +531,10 @@ def _archive(designation: str) -> str:
 
 def _mass(rng: random.Random, low: float, high: float) -> str:
     return f"{rng.uniform(low, high):.2f}".replace(".", ",")
+
+
+def _kg(mass: str) -> float:
+    return float(mass.replace(",", "."))
 
 
 def build(
@@ -554,6 +586,10 @@ def build(
     for mutation in planned:
         if mutation.stage == "documents" and mutation.plant(kit):
             kit.mutations.append(mutation.id)
+    kit.weigh()
+    for mutation in planned:
+        if mutation.stage == "masses" and mutation.plant(kit):
+            kit.mutations.append(mutation.id)
     kit.draw()
     for mutation in planned:
         if mutation.stage == "files" and mutation.plant(kit):
@@ -572,12 +608,15 @@ def corpus(
     raster_share: float = 0.05,
     capture: degrade.Capturer = degrade.capture,
     sheet_files_share: float = 0.0,
+    apart_share: float = 0.3,
 ) -> list[KitTruth]:
     """``kits`` kits from ``seed``: every ``clean_every``-th one clean, the others with mutations in turn.
 
     The mutations come from the catalog shuffled and taken in turn, so each one is planted about as often. The
     rasters and scans are made by ``capture``; the kits and the seeds of their documents do not depend on it. A share
     ``sheet_files_share`` of the kits keeps rasters and scans of several sheets one sheet per file (:func:`build`).
+    A mutation of ``mutations.APART`` goes into a kit with mutations with the chance ``apart_share``, drawn apart, so
+    the others go where they went before it came.
     """
     rng = random.Random(seed)
     queue: list[str] = []
@@ -588,10 +627,12 @@ def corpus(
         if index % clean_every:
             for _ in range(rng.randint(*per_kit)):
                 if not queue:
-                    queue = list(mutations.CATALOG)
+                    queue = [m for m in mutations.CATALOG if m not in mutations.APART]
                     rng.shuffle(queue)
                 if (candidate := queue.pop()) not in ids:
                     ids.append(candidate)
+            chance = random.Random(f"apart {seed} {index}")
+            ids += [m for m in mutations.APART if chance.random() < apart_share]
         kit = build(
             seed * 1000 + index,
             ids,

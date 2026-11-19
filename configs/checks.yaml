@@ -22,6 +22,7 @@ rules:
   B1.POS.002: {enabled: true, severity: medium}      # a component row of a specification without a quantity
   B1.POS.003: {enabled: true, severity: medium}      # a position of an assembly or a part without a designation
   B1.FIRSTUSE.001: {enabled: true, severity: low}    # «Перв. примен.» names an assembly of the kit that does not list it
+  B1.MASS.001: {enabled: true, severity: medium}     # an assembly weighs less than its own parts with their quantities
 
 sheets:                          # B1.SHEETS.001 (ADR-0017)
   count_methods: [text_layer]    # «Листов» read this way counts the sheets of a document; OCR reads the 1 of the GOST
@@ -39,3 +40,7 @@ names:                           # a misread letter is not another name
   methods: [ocr, vlm]            # when either of two names was read this way they may differ a little
   min_similarity: 0.75           # 0–1, the share of letters in common: at this or more they are one name. Names of as
                                  # many words are compared word by word, so «правый» and «левый» stay two names
+
+mass:                            # B1.MASS.001
+  methods: [text_layer]          # masses read this way are compared: OCR loses the comma of a mass, «1,85» read «185»,
+                                 # and on arm-1 all four findings from masses read by OCR were such

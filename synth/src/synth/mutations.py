@@ -1,32 +1,34 @@
 """Mutations: errors planted into a synthetic kit, each with the discrepancies and problem files it should cause.
 
-A mutation of the ``documents`` stage changes the documents before they are drawn, one of the ``files`` stage changes
-the drawn files. Each picks a target no other mutation has used and writes into the truth what a correct check
-reports: the discrepancy type of the report, the designation, the Block 1 rule when the core has one, and the
-consequences, such as the drawings a lost specification leaves outside every specification. The rule ids are text,
-since synth does not import the core (ADR-0010); a mutation with no rule yet measures a gap of the check. Group
-documents of GOST 2.113 are no targets, but for the group drawing of a part with its variant, which goes whole: one of
-them covers several designations, and a mutation plants an error in one. A mutation may plant no discrepancy at all
-and test that the check stays quiet: an explanatory note of the kit is no specification without rows.
+A mutation of the ``documents`` stage changes the documents before they are drawn, one of the ``masses`` stage the
+masses of assembly drawings once the kit has weighed them, one of the ``files`` stage the drawn files. Each picks a
+target no other mutation has used and writes into the truth what a correct check reports: the discrepancy type of
+the report, the designation, the Block 1 rule when the core has one, and the consequences, such as the drawings a
+lost specification leaves outside every specification. The rule ids are text, since synth does not import the core
+(ADR-0010); a mutation with no rule yet measures a gap of the check. Group documents of GOST 2.113 are no targets,
+but for the group drawing of a part with its variant, which goes whole: one of them covers several designations, and
+a mutation plants an error in one. A mutation may plant no discrepancy at all and test that the check stays quiet: an
+explanatory note of the kit is no specification without rows.
 """
 
 from __future__ import annotations
 
 import dataclasses
+import random
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Literal
 
 from synth import degrade, vocab
-from synth.model import Change, Container, Drawing, Output, Row
+from synth.model import SEE_TABLE, Change, Container, Drawing, Output, Row
 from synth.product import Part, Unit
 from synth.render import draw_drawing, draw_foreign
 
 if TYPE_CHECKING:
     from synth.kits import Kit
 
-Stage = Literal["documents", "files"]
+Stage = Literal["documents", "masses", "files"]
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,9 @@ class Mutation:
 
 
 CATALOG: dict[str, Mutation] = {}
+# planted by a chance of their own (synth.kits.corpus), not in turn with the rest: the kits of a corpus built before
+# they came keep their mutations
+APART = ("lighter_assembly",)
 
 
 def _mutation(stage: Stage, title: str) -> Callable[[Callable[[Kit], bool]], Callable[[Kit], bool]]:
@@ -285,6 +290,36 @@ def _vector_units(kit: Kit) -> list[Unit]:
 def _rows_touched(kit: Kit, unit: Unit) -> bool:
     """Whether a mutation has used a row of the specification of ``unit``."""
     return any(r.designation in kit.touched for r in kit.specs[unit.designation].rows if r.designation)
+
+
+@_mutation("masses", "Масса сборочной единицы меньше массы её частей")
+def lighter_assembly(kit: Kit) -> bool:
+    """The assembly drawing of an assembly weighs less than its parts and assemblies with their quantities, as when a
+    part was added or made heavier and the assembly not weighed again. Its drawing and those parts are vector: the
+    core compares masses of a text layer only (``mass.methods``). The target is chosen by a stream of its own, so the
+    rest of the kit is drawn as without the mutation."""
+    rng = random.Random(f"lighter assembly {kit.seed}")
+    found = []
+    for unit in kit.free_units():
+        sb = kit.drawing(f"{unit.designation} СБ")
+        if sb is None or sb.output.kind != "vector" or sb.mass in ("", SEE_TABLE):
+            continue
+        weight = 0.0
+        for row in kit.specs[unit.designation].rows:
+            if not row.designation or not row.qty.isdigit():
+                continue
+            drawn = kit.drawing(f"{row.designation} СБ") or kit.drawing(row.designation)
+            if drawn is not None and drawn.output.kind == "vector" and drawn.mass not in ("", SEE_TABLE):
+                weight += int(row.qty) * float(drawn.mass.replace(",", "."))
+        if weight >= 1:
+            found.append((unit, sb, weight))
+    if not found:
+        return False
+    unit, sb, weight = rng.choice(found)
+    sb.mass = f"{weight * 0.6:.2f}".replace(".", ",")
+    kit.touched.add(unit.designation)
+    kit.expect("mass_mismatch", unit.designation, "B1.MASS.001", "lighter_assembly")
+    return True
 
 
 @_mutation("documents", "Записать сборочную единицу в раздел «Детали»")

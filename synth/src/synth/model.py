@@ -14,6 +14,9 @@ FontType = Literal["A", "B"]  # the drafting lettering of GOST 2.304: type A or 
 Group = Literal["", "A", "B"]  # a group specification of GOST 2.113 by variant A or B; empty for a single one
 
 
+SEE_TABLE = "См. табл."  # what a group drawing writes for a mass that changes from variant to variant, GOST 2.113
+
+
 @dataclass
 class Change:
     number: int

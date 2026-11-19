@@ -7,6 +7,7 @@ from pathlib import PurePosixPath
 
 import pytest
 from synth.kits import Kit
+from synth.model import SEE_TABLE
 from synth.truth import DrawingTruth
 
 from synth import degrade, kits, mutations
@@ -237,6 +238,37 @@ def test_each_mutation_writes_what_it_plants(mutation_id):
         assert truth.discrepancies
     else:
         assert not truth.discrepancies
+
+
+def _kg(mass: str) -> float:
+    return float(mass.replace(",", "."))
+
+
+def _components(kit: Kit, unit: str) -> float:
+    """The parts and assemblies the specification of ``unit`` lists, each mass times its quantity."""
+    total = 0.0
+    for row in kit.specs[unit].rows:
+        if row.section in ("Детали", "Сборочные единицы") and row.designation and row.qty.isdigit():
+            drawn = kit.drawing(f"{row.designation} СБ") or kit.drawing(row.designation)
+            if drawn is not None and drawn.mass not in ("", SEE_TABLE):
+                total += int(row.qty) * _kg(drawn.mass)
+    return total
+
+
+@pytest.mark.parametrize("seed", [1, 2, 3, 4])
+def test_an_assembly_weighs_no_less_than_its_parts(seed):
+    kit = _build(seed, [])
+    weighed = [u for u in kit.root.walk() if u.designation in kit.specs and not u.variants]
+    for unit in weighed:
+        sb = kit.drawing(f"{unit.designation} СБ")
+        assert sb is not None and _kg(sb.mass) >= _components(kit, unit.designation)
+
+
+def test_a_lighter_assembly_weighs_less_than_its_parts():
+    kit = _first_kit_with("lighter_assembly")
+    [found] = kit.truth().discrepancies
+    sb = kit.drawing(f"{found.designation} СБ")
+    assert sb is not None and _kg(sb.mass) < _components(kit, found.designation)
 
 
 def test_the_corpus_writes_kits_truths_and_a_summary(tmp_path):
