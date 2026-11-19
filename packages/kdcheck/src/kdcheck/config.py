@@ -462,6 +462,8 @@ class Dictionaries(Section):
     see_table: Term
     latin_lookalikes: dict[str, str]
     digit_lookalikes: dict[str, str]
+    letter_lookalikes: dict[str, str]
+    range_dots: str
     heat_treatments: tuple[Term, ...]
     layer_depth_marks: tuple[str, ...]
     general_tolerances: GeneralTolerances
@@ -473,7 +475,7 @@ class Dictionaries(Section):
     row_designations: RowDesignations
     file_designations: FileDesignations
 
-    @field_validator("latin_lookalikes", "digit_lookalikes")
+    @field_validator("latin_lookalikes", "digit_lookalikes", "letter_lookalikes")
     @classmethod
     def _single_characters(cls, value: dict[str, str]) -> dict[str, str]:
         if any(len(k) != 1 or len(v) != 1 for k, v in value.items()):
@@ -484,6 +486,12 @@ class Dictionaries(Section):
     @classmethod
     def _hints_compile(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         re.compile("|".join(value))
+        return value
+
+    @field_validator("range_dots")
+    @classmethod
+    def _pattern_compiles(cls, value: str) -> str:
+        re.compile(value)
         return value
 
     @model_validator(mode="after")
@@ -601,6 +609,14 @@ class OcrCells(Section):
     min_ink: float = Field(ge=0)  # mm²
     min_word_confidence: float = Field(ge=0, le=100)
     characters: dict[str, str]  # what the cells of a field or a column may hold
+    letters: tuple[str, ...]  # cells whose digit between Cyrillic letters is a letter (ADR-0030)
+
+
+class OcrLines(Section):
+    """Lines Tesseract finds on a drawing outside its title block, read again by PP-OCRv5 (ADR-0030)."""
+
+    engine: Literal["ppocr", "tesseract"]
+    margin: float = Field(ge=0)  # of the line height
 
 
 class OcrPpocr(Section):
@@ -624,6 +640,7 @@ class OcrEngine(Section):
     page_segmentation: int
     min_word_confidence: float = Field(ge=0, le=100)
     cells: OcrCells
+    lines: OcrLines
     ppocr: OcrPpocr
 
 

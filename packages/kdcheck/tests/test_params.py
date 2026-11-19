@@ -133,6 +133,9 @@ def test_the_depth_of_a_layer_as_ocr_reads_it(text, method, depth):
         ("Ra 0,8", [("roughness", "Ra 0,8", 0.8, None, None, None)]),
         ("⊥ 0,02 А", [("geometric", "⊥ перпендикулярности", 0.02, None, None, None)]),
         ("М48×1,5-6H", [("dimension_tolerance", "М48×1,5-6H", 48.0, None, None, None)]),
+        ("М48x1,5-6H", [("dimension_tolerance", "М48×1,5-6H", 48.0, None, None, None)]),  # a model writes Latin x
+        ("М48 х 1,5 - 6H", [("dimension_tolerance", "М48×1,5-6H", 48.0, None, None, None)]),
+        ("М20-6g", [("dimension_tolerance", "М20-6g", 20.0, None, None, None)]),
         ("Ø50±0,1", [("dimension_tolerance", "Ø50±0,1", 50.0, 49.9, 50.1, None)]),
         ("120", []),
         ("Ø12js6", [("dimension_tolerance", "Ø12js6", 12.0, None, None, 6)]),

@@ -116,6 +116,13 @@ digit_lookalikes:                # Cyrillic letters recognized instead of digits
   "З": "3"
   "б": "6"
 
+letter_lookalikes:               # digits recognized instead of a Cyrillic letter between two Cyrillic letters, «Г0СТ»,
+  "0": "О"                       # in the cells of models.yaml ocr.cells.letters and the lines read again (ADR-0030).
+                                 # Not «3», «4», «6»: a grade of steel writes «Ст3сп», a designation «С4М02»
+
+range_dots: '(?<=\d)\s?(?:\.\.|…)\s?(?=\d)'  # a range «45...50» read with two dots or as «…», in the lines read
+                                 # again: three dots. One dot stays, «ГОСТ 30893.1» writes it
+
 heat_treatments:                 # the first match names the treatment, so a compound one comes before its part
   - {pattern: "нитроцемент", name: Нитроцементация}
   - {pattern: "цементир|цементац", name: Цементация}

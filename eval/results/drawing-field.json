@@ -1,7 +1,7 @@
 {
   "tesseract-raw": {
     "reader": "tesseract-raw",
-    "date": "2026-11-16",
+    "date": "2026-11-19",
     "machine": "Darwin arm64, Python 3.11.15",
     "corpus": {
       "kits": 6,
@@ -16,17 +16,17 @@
       "eslav_PP-OCRv5_mobile_rec onnx sha256:984c0413f06b, onnxruntime 1.31.0",
       "pillow 13.0.0"
     ],
-    "seconds": 202.5,
+    "seconds": 204.4,
     "sheets": 226,
     "results": {
       "raster:dimension_tolerance": {
         "expected": 43,
-        "found": 11,
-        "region_right": 11,
-        "extra": 6,
-        "precision": 0.647,
-        "recall": 0.256,
-        "f1": 0.367,
+        "found": 15,
+        "region_right": 15,
+        "extra": 2,
+        "precision": 0.882,
+        "recall": 0.349,
+        "f1": 0.5,
         "value_share": null,
         "region_share": 1.0
       },
@@ -51,25 +51,25 @@
       },
       "raster:всего": {
         "expected": 123,
-        "extra": 39,
-        "found": 40,
-        "region_right": 39,
-        "precision": 0.506,
-        "recall": 0.325,
-        "f1": 0.396,
+        "extra": 35,
+        "found": 44,
+        "region_right": 43,
+        "precision": 0.557,
+        "recall": 0.358,
+        "f1": 0.436,
         "value_share": null,
-        "region_share": 0.975
+        "region_share": 0.977
       },
       "scan:dimension_tolerance": {
         "expected": 69,
-        "found": 17,
-        "region_right": 16,
-        "extra": 11,
-        "precision": 0.607,
-        "recall": 0.246,
-        "f1": 0.35,
+        "found": 24,
+        "region_right": 23,
+        "extra": 4,
+        "precision": 0.857,
+        "recall": 0.348,
+        "f1": 0.495,
         "value_share": null,
-        "region_share": 0.941
+        "region_share": 0.958
       },
       "scan:geometric": {
         "expected": 19,
@@ -92,45 +92,45 @@
       },
       "scan:всего": {
         "expected": 207,
-        "found": 71,
-        "region_right": 70,
-        "extra": 55,
-        "precision": 0.563,
-        "recall": 0.343,
-        "f1": 0.426,
+        "found": 78,
+        "region_right": 77,
+        "extra": 48,
+        "precision": 0.619,
+        "recall": 0.377,
+        "f1": 0.469,
         "value_share": null,
-        "region_share": 0.986
+        "region_share": 0.987
       },
       "класс fair:всего": {
         "expected": 88,
-        "found": 39,
-        "region_right": 38,
-        "extra": 18,
-        "precision": 0.684,
-        "recall": 0.443,
-        "f1": 0.538,
+        "found": 41,
+        "region_right": 40,
+        "extra": 16,
+        "precision": 0.719,
+        "recall": 0.466,
+        "f1": 0.565,
         "value_share": null,
-        "region_share": 0.974
+        "region_share": 0.976
       },
       "класс good:всего": {
         "expected": 139,
-        "extra": 54,
-        "found": 37,
-        "region_right": 36,
-        "precision": 0.407,
-        "recall": 0.266,
-        "f1": 0.322,
+        "extra": 48,
+        "found": 43,
+        "region_right": 42,
+        "precision": 0.473,
+        "recall": 0.309,
+        "f1": 0.374,
         "value_share": null,
-        "region_share": 0.973
+        "region_share": 0.977
       },
       "класс poor:всего": {
         "expected": 103,
-        "found": 35,
-        "region_right": 35,
-        "extra": 22,
-        "precision": 0.614,
-        "recall": 0.34,
-        "f1": 0.438,
+        "found": 38,
+        "region_right": 38,
+        "extra": 19,
+        "precision": 0.667,
+        "recall": 0.369,
+        "f1": 0.475,
         "value_share": null,
         "region_share": 1.0
       }
@@ -138,15 +138,14 @@
     "misses": {
       "Шероховатость: строка прочитана, параметр не разобран": 96,
       "Допуск размера: строка не найдена": 45,
-      "Допуск размера: строка прочитана, параметр не разобран": 39,
       "Допуск формы/расположения: строка прочитана, параметр не разобран": 30,
+      "Допуск размера: строка прочитана, параметр не разобран": 28,
       "Шероховатость: строка не найдена": 8,
       "Допуск формы/расположения: строка не найдена": 1
     },
     "extras": {
       "Шероховатость: Ra 125 ← «VRa 125 (У)»": 17,
       "Шероховатость: Ra 125 ← «VRa 125 (y)»": 15,
-      "Допуск размера: M48x1,5-6H ← «M48x1,5-6H»": 11,
       "Шероховатость: Ra 16 ← «Ra 16»": 5,
       "Шероховатость: Ra 125 ← «/Ва 125 (У)»": 5,
       "Шероховатость: Ra 63 ← «VRa 63 (y)»": 4,
@@ -159,7 +158,7 @@
       "Шероховатость: Ra 125 ← «VRa 125»": 2,
       "Шероховатость: Ra 63 ← «VRa 63 (У)»": 1,
       "Шероховатость: Ra 125 ← «VRa 125 ty»": 1,
-      "Допуск размера: M48x15-6H ← «M48x15-6H»": 1,
+      "Допуск размера: M48×15-6H ← «M48x15-6H»": 1,
       "Шероховатость: Ra 125 ← «VRa 125 (М)»": 1,
       "Шероховатость: Ra 63 ← «УВа 63 (У)»": 1,
       "Допуск размера: 4.0k6 ← «B4.0k6»": 1,
@@ -171,8 +170,8 @@
       "Шероховатость: Ra 125 ← «УВа 125 (У)»": 1,
       "Шероховатость: Ra 16 ← «Ка 16»": 1,
       "Шероховатость: Ra 08 ← «. Ва 08»": 1,
-      "Допуск размера: M4.8x1,5-6H ← «M4.8x1,5-6H»": 1,
-      "Допуск размера: M4.8x15-6H ← «M4.8x15-6H»": 1,
+      "Допуск размера: M4.8×1,5-6H ← «M4.8x1,5-6H»": 1,
+      "Допуск размера: M4.8×15-6H ← «M4.8x15-6H»": 1,
       "Шероховатость: Ra 12 ← «VRa 12 5»": 1,
       "Шероховатость: Ra 63 ← «/Ва 63 (y)»": 1,
       "Шероховатость: Ra 63 ← «VRa 63 (у)»": 1,
@@ -182,7 +181,7 @@
   },
   "tesseract": {
     "reader": "tesseract",
-    "date": "2026-11-16",
+    "date": "2026-11-19",
     "machine": "Darwin arm64, Python 3.11.15",
     "corpus": {
       "kits": 6,
@@ -197,17 +196,17 @@
       "eslav_PP-OCRv5_mobile_rec onnx sha256:984c0413f06b, onnxruntime 1.31.0",
       "pillow 13.0.0"
     ],
-    "seconds": 202.0,
+    "seconds": 203.5,
     "sheets": 226,
     "results": {
       "raster:dimension_tolerance": {
         "expected": 43,
-        "found": 11,
-        "region_right": 11,
-        "extra": 6,
-        "precision": 0.647,
-        "recall": 0.256,
-        "f1": 0.367,
+        "found": 15,
+        "region_right": 15,
+        "extra": 2,
+        "precision": 0.882,
+        "recall": 0.349,
+        "f1": 0.5,
         "value_share": null,
         "region_share": 1.0
       },
@@ -231,25 +230,25 @@
       },
       "raster:всего": {
         "expected": 123,
-        "found": 73,
-        "region_right": 72,
-        "extra": 6,
-        "precision": 0.924,
-        "recall": 0.593,
-        "f1": 0.722,
+        "found": 77,
+        "region_right": 76,
+        "extra": 2,
+        "precision": 0.975,
+        "recall": 0.626,
+        "f1": 0.762,
         "value_share": null,
-        "region_share": 0.986
+        "region_share": 0.987
       },
       "scan:dimension_tolerance": {
         "expected": 69,
-        "found": 17,
-        "region_right": 16,
-        "extra": 11,
-        "precision": 0.607,
-        "recall": 0.246,
-        "f1": 0.35,
+        "found": 24,
+        "region_right": 23,
+        "extra": 4,
+        "precision": 0.857,
+        "recall": 0.348,
+        "f1": 0.495,
         "value_share": null,
-        "region_share": 0.941
+        "region_share": 0.958
       },
       "scan:geometric": {
         "expected": 19,
@@ -272,65 +271,64 @@
       },
       "scan:всего": {
         "expected": 207,
-        "found": 113,
-        "region_right": 112,
-        "extra": 13,
-        "precision": 0.897,
-        "recall": 0.546,
-        "f1": 0.679,
+        "found": 120,
+        "region_right": 119,
+        "extra": 6,
+        "precision": 0.952,
+        "recall": 0.58,
+        "f1": 0.721,
         "value_share": null,
-        "region_share": 0.991
+        "region_share": 0.992
       },
       "класс fair:всего": {
         "expected": 88,
-        "found": 54,
-        "region_right": 53,
-        "extra": 3,
-        "precision": 0.947,
-        "recall": 0.614,
-        "f1": 0.745,
+        "found": 56,
+        "region_right": 55,
+        "extra": 1,
+        "precision": 0.982,
+        "recall": 0.636,
+        "f1": 0.772,
         "value_share": null,
-        "region_share": 0.981
+        "region_share": 0.982
       },
       "класс good:всего": {
         "expected": 139,
-        "found": 79,
-        "region_right": 78,
-        "extra": 12,
-        "precision": 0.868,
-        "recall": 0.568,
-        "f1": 0.687,
+        "found": 85,
+        "region_right": 84,
+        "extra": 6,
+        "precision": 0.934,
+        "recall": 0.612,
+        "f1": 0.739,
         "value_share": null,
-        "region_share": 0.987
+        "region_share": 0.988
       },
       "класс poor:всего": {
         "expected": 103,
-        "found": 53,
-        "region_right": 53,
-        "extra": 4,
-        "precision": 0.93,
-        "recall": 0.515,
-        "f1": 0.663,
+        "found": 56,
+        "region_right": 56,
+        "extra": 1,
+        "precision": 0.982,
+        "recall": 0.544,
+        "f1": 0.7,
         "value_share": null,
         "region_share": 1.0
       }
     },
     "misses": {
       "Допуск размера: строка не найдена": 45,
-      "Допуск размера: строка прочитана, параметр не разобран": 39,
       "Допуск формы/расположения: строка прочитана, параметр не разобран": 30,
+      "Допуск размера: строка прочитана, параметр не разобран": 28,
       "Шероховатость: строка прочитана, параметр не разобран": 21,
       "Шероховатость: строка не найдена": 8,
       "Допуск формы/расположения: строка не найдена": 1
     },
     "extras": {
-      "Допуск размера: M48x1,5-6H ← «M48x1,5-6H»": 11,
-      "Допуск размера: M48x15-6H ← «M48x15-6H»": 1,
+      "Допуск размера: M48×15-6H ← «M48x15-6H»": 1,
       "Допуск размера: 4.0k6 ← «B4.0k6»": 1,
       "Допуск размера: 8H12 ← «BI8H12»": 1,
       "Допуск размера: 0H8 ← «Z9I0H8»": 1,
-      "Допуск размера: M4.8x1,5-6H ← «M4.8x1,5-6H»": 1,
-      "Допуск размера: M4.8x15-6H ← «M4.8x15-6H»": 1,
+      "Допуск размера: M4.8×1,5-6H ← «M4.8x1,5-6H»": 1,
+      "Допуск размера: M4.8×15-6H ← «M4.8x15-6H»": 1,
       "Шероховатость: Ra 12 ← «VRa 12 5»": 1,
       "Шероховатость: Ra 37 ← «Ra 37»": 1
     },
@@ -1621,5 +1619,159 @@
         "Допуск формы/расположения: строка не найдена": 1
       }
     }
+  },
+  "weighed": {
+    "reader": "weighed",
+    "date": "2026-11-19",
+    "machine": "Darwin arm64, Python 3.11.15",
+    "corpus": {
+      "kits": 6,
+      "seed": 3,
+      "scan_share": 0.45,
+      "raster_share": 0.3
+    },
+    "engines": [
+      "pdfium 156.0.8076.0",
+      "pypdfium2 5.14.0",
+      "tesseract 5.5.2",
+      "eslav_PP-OCRv5_mobile_rec onnx sha256:984c0413f06b, onnxruntime 1.31.0",
+      "pillow 13.0.0"
+    ],
+    "seconds": 209.1,
+    "sheets": 226,
+    "results": {
+      "raster:dimension_tolerance": {
+        "expected": 43,
+        "found": 21,
+        "region_right": 21,
+        "extra": 2,
+        "precision": 0.913,
+        "recall": 0.488,
+        "f1": 0.636,
+        "value_share": null,
+        "region_share": 1.0
+      },
+      "raster:geometric": {
+        "expected": 12,
+        "found": 1,
+        "region_right": 1,
+        "precision": 1.0,
+        "recall": 0.083,
+        "f1": 0.153,
+        "value_share": null,
+        "region_share": 1.0
+      },
+      "raster:roughness": {
+        "expected": 68,
+        "found": 63,
+        "region_right": 62,
+        "precision": 1.0,
+        "recall": 0.926,
+        "f1": 0.962,
+        "value_share": null,
+        "region_share": 0.984
+      },
+      "raster:всего": {
+        "expected": 123,
+        "found": 85,
+        "region_right": 84,
+        "extra": 2,
+        "precision": 0.977,
+        "recall": 0.691,
+        "f1": 0.809,
+        "value_share": null,
+        "region_share": 0.988
+      },
+      "scan:dimension_tolerance": {
+        "expected": 69,
+        "found": 38,
+        "region_right": 37,
+        "extra": 3,
+        "precision": 0.927,
+        "recall": 0.551,
+        "f1": 0.691,
+        "value_share": null,
+        "region_share": 0.974
+      },
+      "scan:geometric": {
+        "expected": 19,
+        "precision": null,
+        "recall": 0.0,
+        "f1": 0.0,
+        "value_share": null,
+        "region_share": null
+      },
+      "scan:roughness": {
+        "expected": 119,
+        "found": 103,
+        "region_right": 103,
+        "extra": 1,
+        "precision": 0.99,
+        "recall": 0.866,
+        "f1": 0.924,
+        "value_share": null,
+        "region_share": 1.0
+      },
+      "scan:всего": {
+        "expected": 207,
+        "found": 141,
+        "region_right": 140,
+        "extra": 4,
+        "precision": 0.972,
+        "recall": 0.681,
+        "f1": 0.801,
+        "value_share": null,
+        "region_share": 0.993
+      },
+      "класс fair:всего": {
+        "expected": 88,
+        "found": 66,
+        "region_right": 65,
+        "extra": 1,
+        "precision": 0.985,
+        "recall": 0.75,
+        "f1": 0.852,
+        "value_share": null,
+        "region_share": 0.985
+      },
+      "класс good:всего": {
+        "expected": 139,
+        "found": 97,
+        "region_right": 96,
+        "extra": 3,
+        "precision": 0.97,
+        "recall": 0.698,
+        "f1": 0.812,
+        "value_share": null,
+        "region_share": 0.99
+      },
+      "класс poor:всего": {
+        "expected": 103,
+        "found": 63,
+        "region_right": 63,
+        "extra": 2,
+        "precision": 0.969,
+        "recall": 0.612,
+        "f1": 0.75,
+        "value_share": null,
+        "region_share": 1.0
+      }
+    },
+    "misses": {
+      "Допуск размера: строка не найдена": 45,
+      "Допуск формы/расположения: строка прочитана, параметр не разобран": 29,
+      "Шероховатость: строка прочитана, параметр не разобран": 13,
+      "Допуск размера: строка прочитана, параметр не разобран": 8,
+      "Шероховатость: строка не найдена": 8,
+      "Допуск формы/расположения: строка не найдена": 1
+    },
+    "extras": {
+      "Допуск размера: M4.8×1,5-6H ← «M4.8×1,5-6H»": 2,
+      "Допуск размера: M48×15-6H ← «M48×15-6H»": 1,
+      "Допуск размера: 04.0k6 ← «04.0k6»": 1,
+      "Допуск размера: 9K3 ← «9K3. N»": 1,
+      "Шероховатость: Ra 12 ← «VRa 12, (V)»": 1
+    },
+    "failed_fragments": {}
   }
 }

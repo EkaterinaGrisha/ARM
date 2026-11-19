@@ -26,6 +26,7 @@ from kdcheck.ingest.pdf import EncryptedPdfError, PdfBackend, PdfPage, get_backe
 from kdcheck.ingest.text import BBox, Engine, Line
 from kdcheck.layout import raster
 from kdcheck.ocr import cells, tesseract
+from kdcheck.ocr import lines as ocr_lines
 from kdcheck.schemas import DocumentInfo, PageInfo, SourceRef
 
 log = logging.getLogger(__name__)
@@ -267,6 +268,9 @@ def _ocr(page: Page, image: Image.Image, settings: Settings, scale: float, origi
             raise
         except Exception:  # the page keeps the text read from the whole of it
             log.warning("Страница %s: области по линиям не найдены из-за ошибки", page.number, exc_info=True)
+        regions = page.regions
+        if regions is not None and regions.table is None and ocr.lines.engine == "ppocr":
+            page.lines = ocr_lines.reread(page.lines, image, scale, origin, regions.block.placement, settings)
 
 
 def _pages_to_read(doc: LoadedDocument, count: int, max_pages: int) -> int:

@@ -236,7 +236,7 @@ class Parser:
     ) -> list[Parameter]:
         """Parameters of one text line on the drawing field."""
         text = line.text.strip()
-        src = doc.source(page, line.bbox, text, line.confidence)
+        src = doc.source(page, line.bbox, text, line.confidence, line.engine)
         params: list[Parameter] = []
         taken: list[tuple[int, int]] = []
 
@@ -245,7 +245,8 @@ class Parser:
 
         for m in THREAD.finditer(text):
             taken.append(m.span())
-            name = m.group(0).replace(" ", "")
+            pitch = f"×{m['pitch']}" if m["pitch"] else ""
+            name = f"{m['prefix']}{m['nom']}{pitch}-{m['cls']}"
             params.append(
                 Parameter(
                     id=next_id(),
