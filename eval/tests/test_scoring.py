@@ -38,6 +38,15 @@ def test_a_value_is_right_only_with_the_numbers_and_unit_of_the_truth():
     assert not scoring.has_value(plain) and scoring.value_right(plain, _found(category="coating"))
 
 
+def test_the_it_grade_of_the_truth_is_part_of_the_value():
+    want = ParameterTruth(category="dimension_tolerance", name="Ø39+0,025", value=39, value_max=39.025, it_grade=7)
+    size = {"category": "dimension_tolerance", "name": "Ø39+0,025", "value": 39, "value_max": 39.025}
+    assert scoring.has_value(ParameterTruth(category="general_tolerance", name="IT14", it_grade=14))
+    assert scoring.value_right(want, _found(**size, it_grade=7))
+    assert not scoring.value_right(want, _found(**size))
+    assert scoring.value_right(want.model_copy(update={"it_grade": None}), _found(**size))
+
+
 CELL = (1, (0.70, 0.90, 0.80, 0.92))
 NEXT = (1, (0.70, 0.93, 0.80, 0.95))
 

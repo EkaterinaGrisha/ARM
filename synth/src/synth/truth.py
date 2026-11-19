@@ -286,9 +286,10 @@ class ParameterTruth(Truth):
 
     The value, or the range, and the unit are given where the template of the item writes them: the depth of a layer
     and the hardness of a heat treatment, a roughness, a tolerance of form; none for a parameter written by hand.
+    A size with a tolerance gives its limit sizes, and ``it_grade`` the grade of GOST 25346 the tolerance is.
     """
 
-    _sparse: ClassVar[tuple[str, ...]] = ("value", "value_min", "value_max", "unit")
+    _sparse: ClassVar[tuple[str, ...]] = ("value", "value_min", "value_max", "unit", "it_grade")
 
     category: str
     name: str
@@ -297,6 +298,7 @@ class ParameterTruth(Truth):
     value_min: float | None = None
     value_max: float | None = None
     unit: str | None = None
+    it_grade: int | None = None
 
 
 class VariantTruth(Truth):
