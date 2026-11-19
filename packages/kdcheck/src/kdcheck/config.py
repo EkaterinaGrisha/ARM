@@ -121,6 +121,11 @@ class MarginColumns(Section):
     value_reach: float
     label_slack: float
     min_overlap: Share
+    columns: tuple[float, float]
+    bottom: float
+    archive_rows: Span
+    first_use_rows: Span
+    reach: float
 
 
 class PeopleCells(Section):

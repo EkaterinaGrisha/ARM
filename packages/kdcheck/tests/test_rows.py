@@ -5,7 +5,7 @@ The designations are invented ones of the look of the synthetic kits, never the 
 
 import pytest
 from kdcheck.schemas import DocumentInfo, Extracted, SourceRef, Specification, SpecRow
-from kdcheck.tree.rows import check_rows
+from kdcheck.tree.rows import check_first_uses, check_rows
 
 KIT = {"ВЕДС.732211.001", "ВЕДС.711141.001", "ТЕХМ.305312.000 СБ", "ТЕХМ.305312.100", "ТЕХМ.305312.100-01"}
 
@@ -84,3 +84,31 @@ def test_a_row_of_documentation_without_its_document_in_the_kit_is_left_alone(se
     assert (ex.status, notes, changed) == (None, [], 0)
     ex, notes, changed = _check(settings, eskd, "ПМЛС303411002СБ", section="Документация", kit=kit)
     assert (ex.value, ex.status, changed) == ("ПМЛС.303411.002 СБ", None, 0)  # the code the grammar found stays
+
+
+def _first_use(settings, eskd, reading: str, *, method: str = "ocr"):
+    source = SourceRef(document_id="d", page=1, bbox=(0.02, 0.1, 0.04, 0.3), text=reading, method=method)
+    ex = Extracted(value=eskd.normalize_designation(reading) or reading, raw=reading, source=source)
+    info = DocumentInfo(id="d", file_name="d.jpg", path="d.jpg", kind="part_drawing")
+    changed = check_first_uses([(info, ex)], set(KIT), eskd, settings.dictionaries.row_designations)
+    return ex, info.notes, changed
+
+
+def test_first_use_read_with_other_letters_gets_the_assembly_of_the_kit(settings, eskd):
+    """A small «П» of the binding field turned on its side PP-OCRv5 reads «Р»; the digits stay."""
+    ex, notes, changed = _first_use(settings, eskd, "РЕХМ.305312.100")
+    assert (ex.value, ex.status, changed) == ("ТЕХМ.305312.100", "conflict", 1)
+    assert notes == ["Перв. примен.: прочитано «РЕХМ.305312.100», в комплекте «ТЕХМ.305312.100»"]
+
+
+@pytest.mark.parametrize(
+    ("reading", "method"),
+    [
+        ("АБВГ.123456.001", "ocr"),  # an item of another product
+        ("РЕХМ.305312.100", "text_layer"),  # the text layer is read as written
+        ("ТЕХМ.305312.103", "ocr"),  # a digit read as another is never forgiven
+    ],
+)
+def test_first_use_left_as_read(settings, eskd, reading, method):
+    ex, notes, changed = _first_use(settings, eskd, reading, method=method)
+    assert (ex.status, notes, changed) == (None, [], 0)

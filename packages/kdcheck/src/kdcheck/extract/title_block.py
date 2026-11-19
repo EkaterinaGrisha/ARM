@@ -271,8 +271,14 @@ def parse(doc: LoadedDocument, page: Page, geom: Geometry, forms: Forms, eskd: D
 
     tb.revision = _revision(doc, page, geom, template.changes, row)
     margin = template.margin
-    tb.archive_number = _margin_value(doc, page, margin.archive_label, margin, eskd)
-    tb.first_use = _margin_value(doc, page, margin.first_use_label, margin, eskd)
+    read = page.regions.cells if page.regions is not None else {}
+    for key, label in (("archive_number", margin.archive_label), ("first_use", margin.first_use_label)):
+        if lines := read.get(key):
+            text = " ".join(ln.text for ln in lines)
+            found = eskd.find_designations(text)
+            setattr(tb, key, _extracted(doc, page, lines, found[0][0] if found else text.strip()))
+        else:
+            setattr(tb, key, _margin_value(doc, page, label, margin, eskd))
     return tb
 
 

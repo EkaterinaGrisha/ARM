@@ -82,6 +82,8 @@ def find(
     for name, (u0, v0, u1, v1) in shape.cells.model_dump(exclude_none=True).items():
         box = (block.x0 + u0 * block.s, block.y0 + v0 * block.s, block.x0 + u1 * block.s, block.y0 + v1 * block.s)
         found.cells[name] = read_cell(gray, corner, box, settings, place, name)
+    for name, box in raster.find_margin(gray, corner, template.margin, settings.ingest.regions).items():
+        found.cells[name] = read_cell(gray, corner, box, settings, place, name, upward=True)
     table = raster.find_table(gray, corner, forms, settings.ingest.regions)
     if table is not None:
         found.table = FoundTable()
@@ -123,17 +125,28 @@ def _read_row(
 
 
 def read_cell(
-    gray: Image.Image, corner: raster.Corner, box: raster.Box, settings: Settings, place: Place, field: str
+    gray: Image.Image,
+    corner: raster.Corner,
+    box: raster.Box,
+    settings: Settings,
+    place: Place,
+    field: str,
+    *,
+    upward: bool = False,
 ) -> list[Line]:
     """The lines of the cell ``field`` at ``box`` of the straightened image; none when it holds less ink than a digit.
 
     The cell is cut inside its ruled lines, the lines across it are wiped, and its tallest line of text is brought to
-    the height the recognizer reads best, in black on white.
+    the height the recognizer reads best, in black on white. The text of an ``upward`` cell, a column of the binding
+    field, runs up the sheet: the cell is turned a quarter clockwise to be read.
     """
     cells, s, level = settings.models.ocr.cells, corner.block.s, corner.level
     m = cells.margin * s
     x0, y0, x1, y1 = box[0] + m, box[1] + m, box[2] - m, box[3] - m
     image = wipe_lines(corner.turn.crop(gray, (x0, y0, x1, y1)), level, s, settings.ingest.regions)
+    height = image.height
+    if upward:
+        image = image.transpose(Image.Transpose.ROTATE_270)
     ink = raster.ink_mask(image, level)
     edge = settings.ingest.regions.line_band * s  # the edge of a ruled line may still lie along the cell: not text
     middle = raster.crop(ink, (edge, edge, ink.width - edge, ink.height - edge), fill=0)
@@ -147,7 +160,10 @@ def read_cell(
     pad = round(cells.pixels_per_mm)  # a millimetre of paper around the text
 
     def to_page(x: float, y: float) -> tuple[float, float]:
-        return place((x - pad) / f + x0, (y - pad) / f + y0)
+        u, v = (x - pad) / f, (y - pad) / f
+        if upward:  # back from the quarter turn clockwise
+            u, v = v, height - u
+        return place(u + x0, v + y0)
 
     if (reader := ppocr_reader(settings)) is not None:  # reads the grey image, cut to the lines of the mask (ADR-0024)
         from kdcheck.ocr import ppocr

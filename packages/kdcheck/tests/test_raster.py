@@ -37,11 +37,13 @@ def _sheet(
     frame=(20.0, 5.0),
     short=(),
     end=0.0,
+    binding=(),
 ) -> Image.Image:
     """A sheet with its frame and the main lines of a title block form (None: form 2a); with ``columns`` also the top
     of a specification table ``table`` mm wide that ends at the right edge of the block, and its column lines, mm from
     its left line. The lines ``short`` end ``end`` mm above the block. The frame is ``frame`` mm from the left and the
-    top edge. Then turned ``angle`` degrees and shifted ``shift`` mm."""
+    top edge. ``binding`` draws the columns of the binding field: «bottom» 19–23, «top» 24–25. Then turned ``angle``
+    degrees and shifted ``shift`` mm."""
     w, h = size
     image = Image.new("L", (round(w * PX), round(h * PX)), 255)
     draw = ImageDraw.Draw(image)
@@ -57,6 +59,13 @@ def _sheet(
         (w - 5, fy, w - 5, h - 5),
     ):
         line(x0, y0, x1, y1)
+    spans = [(h - 5 - top, h - 5 - bottom) for bottom, top in ((0, 25), (25, 60), (60, 85), (85, 110), (110, 145))]
+    spans = (spans if "bottom" in binding else []) + ([(fy, fy + 60), (fy + 60, fy + 120)] if "top" in binding else [])
+    for top, bottom in spans:
+        for left in (fx - 12, fx - 7):
+            line(left, top, left, bottom)
+        line(fx - 12, top, fx, top)
+        line(fx - 12, bottom, fx, bottom)
     template = settings.forms.title_block
     shape = template.forms[form] if form is not None else template.continuation
     x, y = w - 5 - template.width, h - 5 - shape.height
@@ -357,6 +366,48 @@ def test_only_cells_with_ink_are_read_each_with_its_characters(settings, monkeyp
     assert (x0 / PX, y0 / PX, x1 / PX, y1 / PX) == pytest.approx((x + 65.5, y + 0.5, x + 184.5, y + 14.5), abs=1.1)
 
 
+@pytest.mark.parametrize(
+    ("binding", "found"),
+    [
+        (("bottom", "top"), {"archive_number", "first_use"}),
+        (("bottom",), {"archive_number"}),  # a later sheet: columns 24–25 only on the first one
+        ((), set()),
+    ],
+)
+@pytest.mark.parametrize(("form", "size"), [(1, (420, 297)), (2, (210, 297))])
+def test_columns_of_the_binding_field_are_found_by_their_lines(settings, binding, found, form, size):
+    w, h = size
+    image = _sheet(settings, form, size, binding=binding)
+    corner = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
+    margin = raster.find_margin(image, corner, settings.forms.title_block.margin, settings.ingest.regions)
+    assert set(margin) == found
+    if "archive_number" in found:
+        assert tuple(v / PX for v in margin["archive_number"]) == pytest.approx((13, h - 30, 20, h - 5), abs=0.5)
+    if "first_use" in found:
+        assert tuple(v / PX for v in margin["first_use"]) == pytest.approx((13, 5, 20, 65), abs=0.5)
+
+
+def test_the_binding_field_of_a_turned_sheet(settings):
+    image = _sheet(settings, 1, binding=("bottom", "top"), angle=1.0)
+    corner = raster.find_corner(image, PX, settings.forms, settings.ingest.regions)
+    margin = raster.find_margin(image, corner, settings.forms.title_block.margin, settings.ingest.regions)
+    assert set(margin) == {"archive_number", "first_use"}
+
+
+def test_a_column_of_the_binding_field_is_read_turned_upright(settings, monkeypatch):
+    image = _sheet(settings, 1, binding=("bottom", "top"))
+    _ink(image, 15, 297 - 5 - 20)  # in column 19; column 24 is empty
+    archive = settings.models.ocr.cells.characters["archive_number"]
+    read = _reader({archive: "3014-001"})
+    monkeypatch.setattr(tesseract, "words", read)
+    regions = cells.find(image, 1.0, (0.0, 0.0), PX, settings)
+    assert [ln.text for ln in regions.cells["archive_number"]] == ["3014-001"]
+    assert regions.cells["first_use"] == []
+    x0, y0, x1, y1 = regions.cells["archive_number"][0].bbox  # turned back: tall and narrow, as the column, with the
+    # paper added around it
+    assert (x0 / PX, y0 / PX, x1 / PX, y1 / PX) == pytest.approx((13.5, 297 - 29.5, 19.5, 297 - 5.5), abs=1.5)
+
+
 def test_rows_of_a_table_come_by_column(settings, monkeypatch):
     spec = settings.forms.specification
     edges = sorted({edge for pair in spec.columns.model_dump().values() for edge in pair} - {0.0, 185.0})
@@ -407,6 +458,19 @@ def test_title_block_of_a_page_image_comes_from_its_cells(settings, eskd):
     assert tb.designation.value == "АБВГ.715211.001" and tb.designation.confidence == 0.8
     assert tb.name.value == "Вал" and tb.name.source.method == "ocr"
     assert tb.revision is None  # the change number lies outside the entries of this block
+
+
+def test_columns_of_the_binding_field_come_from_their_cells(settings, eskd):
+    def cell(text: str) -> list[Line]:
+        return [Line(text, (20, 100, 40, 300), 20, words=_words(text), confidence=0.7)]
+
+    block = cells.FoundBlock(1, raster.Placement(50.0, 680.0, 2.8))
+    found = {"archive_number": cell("3014-001"), "first_use": cell("ПМЛС.303411.001")}
+    doc = _page_of_regions(cells.Regions(block, cells=found))
+    page = doc.pages[0]
+    tb = title_block.parse(doc, page, title_block.locate(page, settings.forms), settings.forms, eskd)
+    assert tb.archive_number.value == "3014-001" and tb.archive_number.source.bbox is not None
+    assert tb.first_use.value == "ПМЛС.303411.001" and tb.first_use.confidence == 0.7
 
 
 def test_rows_read_by_column_make_positions_by_the_same_rules(settings, eskd):

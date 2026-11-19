@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from PIL import Image, ImageStat
 
 from kdcheck import limits
-from kdcheck.config import Forms, GroupForm, RegionRules, RuledForm, SpecificationTemplate
+from kdcheck.config import Forms, GroupForm, MarginColumns, RegionRules, RuledForm, SpecificationTemplate
 
 Box = tuple[float, float, float, float]
 Point = tuple[float, float]
@@ -401,6 +401,47 @@ def _ruled(mask: Image.Image, line: Box, s: float, rules: RegionRules) -> bool:
     return any(
         coverage(mask, (x0 + k * dx, y0 + k * dy, x1 + k * dx, y1 + k * dy), band) < rules.line_ink for k in (-1, 1)
     )
+
+
+def find_margin(gray: Image.Image, found: Corner, margin: MarginColumns, rules: RegionRules) -> dict[str, Box]:
+    """The value cells of columns 19 «Инв. № подл.» and 24 «Перв. примен.» of GOST 2.104 in the binding field, on the
+    straightened image, as «archive_number» and «first_use»; none of a column whose lines are not there.
+
+    The field is two narrow columns left of the frame. Along the height of columns 19–23 three vertical lines lie the
+    widths of the columns apart, the right one the left line of the frame. Columns 24–25, on the first sheet of a
+    drawing only, are boxes at the top of the field: the top one is the first of two lines across the field one column
+    24 apart.
+    """
+    block = found.block
+    k = rules.sample / block.s
+    s, widest, reach = rules.sample, rules.max_line_width * rules.sample, margin.reach * rules.sample
+    label, value = margin.columns
+    band: Box = (0.0, block.y1 - margin.bottom * block.s, block.x0 + margin.reach * block.s, block.y1)
+    columns = straight_ink(gray, found.turn, band, found.level, k, rules)
+    xs = runs(profile(columns, vertical=True), rules.line_ink, widest)
+    lines = [
+        (a, b, c)
+        for c in reversed(xs)
+        for b in xs
+        if abs(c - b - value * s) <= reach
+        for a in xs
+        if abs(b - a - label * s) <= reach
+    ]
+    if not lines:
+        return {}
+    left, inner, frame = lines[0]
+    x0, x1 = band[0] + inner / k, band[0] + frame / k
+    low, high = margin.archive_rows
+    cells: dict[str, Box] = {"archive_number": (x0, block.y1 - high * block.s, x1, block.y1 - low * block.s)}
+    field: Box = (band[0] + left / k, 0.0, x1, band[1])
+    above = straight_ink(gray, found.turn, field, found.level, k, rules)
+    ys = runs(profile(above, vertical=False), rules.line_ink, widest)
+    top, bottom = margin.first_use_rows
+    start = next((y for y in ys if any(abs(y + (bottom - top) * s - y2) <= reach for y2 in ys)), None)
+    if start is not None:
+        y0 = start / k
+        cells["first_use"] = (x0, y0 + top * block.s, x1, y0 + bottom * block.s)
+    return cells
 
 
 @dataclass
