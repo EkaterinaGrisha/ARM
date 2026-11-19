@@ -245,7 +245,8 @@ class Parser:
 
         for m in THREAD.finditer(text):
             taken.append(m.span())
-            name = m.group(0).replace(" ", "")
+            pitch = f"×{m['pitch']}" if m["pitch"] else ""
+            name = f"{m['prefix']}{m['nom']}{pitch}-{m['cls']}"
             params.append(
                 Parameter(
                     id=next_id(),
