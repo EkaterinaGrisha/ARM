@@ -964,3 +964,10 @@ def test_an_assembly_counts_its_units_by_their_quantity():
     [found] = [d for d in check(*kit).discrepancies if d.rule_id == "B1.MASS.001"]
     assert found.designation == TOP and found.expected == "не меньше 12,45" and found.actual == "10"
     assert f"{UNIT} — 3 × 4,2 кг" in found.message
+
+
+def test_of_two_drawings_under_one_designation_the_lighter_part_counts():
+    """A duplicate the check reports apart: the sum takes the lighter, so the bound holds whichever is right."""
+    sb, shaft = weighed(drawing("d0", f"{TOP} СБ", "Изделие"), "3,8"), weighed(drawing("d1", PART, "Вал"), "1,8")
+    heavy = weighed(drawing("d2", PART, "Вал"), "2,5")
+    assert "B1.MASS.001" not in fired(([product(drawing_row(), row(1, "Детали", PART, "Вал", 2))], [sb, heavy, shaft]))

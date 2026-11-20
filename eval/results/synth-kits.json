@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-17",
+  "date": "2026-11-20",
   "machine": "Darwin arm64, Python 3.11.15",
   "tesseract": "5.5.2",
   "corpus": {
@@ -10,7 +10,7 @@
     "sheet_documents": 10,
     "sheet_file_count": 22,
     "clean": 4,
-    "planted": 67,
+    "planted": 69,
     "problem_files": 13,
     "documents": 557,
     "captured": {
@@ -36,6 +36,7 @@
       "first_use_elsewhere",
       "foreign_document",
       "format_in_spec",
+      "lighter_assembly",
       "litera_assembly_drawing",
       "litera_component",
       "part_drawing_of_unit",
@@ -55,14 +56,14 @@
       "model": null,
       "prompts": [],
       "total": {
-        "expected": 67,
-        "found": 58,
+        "expected": 69,
+        "found": 59,
         "extra": 79,
-        "precision": 0.423,
-        "recall": 0.866,
+        "precision": 0.428,
+        "recall": 0.855,
         "found_preliminary": 0,
         "extra_preliminary": 0,
-        "precision_sure": 0.423
+        "precision_sure": 0.428
       },
       "rules": [
         {
@@ -136,6 +137,15 @@
           "extra": 0,
           "precision": 1.0,
           "recall": 1.0
+        },
+        {
+          "rule": "B1.MASS.001",
+          "expected": 2,
+          "found": 1,
+          "missed": 1,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 0.5
         },
         {
           "rule": "B1.MISSING.001",
@@ -307,6 +317,10 @@
           "found": 2,
           "expected": 2
         },
+        "lighter_assembly": {
+          "found": 1,
+          "expected": 2
+        },
         "litera_assembly_drawing": {
           "found": 1,
           "expected": 2
@@ -442,7 +456,7 @@
         "лишнее: скан спецификации без OCR: обозначение — из имени файла, остальных полей нет": 47,
         "лишнее: растр без OCR: обозначение — из имени файла, остальных полей нет": 9,
         "лишнее: скан без OCR: обозначение — из имени файла, остальных полей нет": 8,
-        "пропуск: скан спецификации без OCR: обозначение — из имени файла, остальных полей нет": 6,
+        "пропуск: скан спецификации без OCR: обозначение — из имени файла, остальных полей нет": 7,
         "лишнее: исполнение на групповом чертеже (ГОСТ 2.113): «См. табл.» в графе «Масса» не прочитано": 5,
         "лишнее: растр спецификации без OCR: обозначение — из имени файла, остальных полей нет": 5,
         "пропуск: скан без OCR: обозначение — из имени файла, остальных полей нет": 3,
@@ -693,6 +707,13 @@
           "rule": "B1.DUP.001",
           "designation": "МАШН.715211.001",
           "cause": "скан без OCR: обозначение — из имени файла, остальных полей нет"
+        },
+        {
+          "kit": "kit_012",
+          "kind": "пропуск",
+          "rule": "B1.MASS.001",
+          "designation": "ТЕХМ.302231.200",
+          "cause": "скан спецификации без OCR: обозначение — из имени файла, остальных полей нет"
         },
         {
           "kit": "kit_012",
@@ -1287,14 +1308,14 @@
       "model": null,
       "prompts": [],
       "total": {
-        "expected": 67,
-        "found": 65,
+        "expected": 69,
+        "found": 67,
         "extra": 25,
-        "precision": 0.722,
-        "recall": 0.97,
+        "precision": 0.728,
+        "recall": 0.971,
         "found_preliminary": 0,
         "extra_preliminary": 0,
-        "precision_sure": 0.722
+        "precision_sure": 0.728
       },
       "rules": [
         {
@@ -1367,6 +1388,15 @@
           "missed": 0,
           "extra": 2,
           "precision": 0.5,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.MASS.001",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
           "recall": 1.0
         },
         {
@@ -1536,6 +1566,10 @@
           "expected": 2
         },
         "format_in_spec": {
+          "found": 2,
+          "expected": 2
+        },
+        "lighter_assembly": {
           "found": 2,
           "expected": 2
         },
@@ -1977,8 +2011,8 @@
       },
       "regions": {
         "captured:основная надпись": {
-          "values": 583,
-          "right": 583,
+          "values": 656,
+          "right": 656,
           "share": 1.0
         },
         "captured:параметр": {
@@ -2030,14 +2064,14 @@
         "spec_row_cell.v1 sha256:255b3bc469e3"
       ],
       "total": {
-        "expected": 67,
-        "found": 65,
+        "expected": 69,
+        "found": 67,
         "extra": 11,
-        "precision": 0.855,
-        "recall": 0.97,
+        "precision": 0.859,
+        "recall": 0.971,
         "found_preliminary": 0,
         "extra_preliminary": 2,
-        "precision_sure": 0.878
+        "precision_sure": 0.882
       },
       "rules": [
         {
@@ -2105,6 +2139,15 @@
         },
         {
           "rule": "B1.LITERA.002",
+          "expected": 2,
+          "found": 2,
+          "missed": 0,
+          "extra": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        {
+          "rule": "B1.MASS.001",
           "expected": 2,
           "found": 2,
           "missed": 0,
@@ -2279,6 +2322,10 @@
           "expected": 2
         },
         "format_in_spec": {
+          "found": 2,
+          "expected": 2
+        },
+        "lighter_assembly": {
           "found": 2,
           "expected": 2
         },
@@ -2587,8 +2634,8 @@
       },
       "regions": {
         "captured:основная надпись": {
-          "values": 600,
-          "right": 600,
+          "values": 673,
+          "right": 673,
           "share": 1.0
         },
         "captured:параметр": {

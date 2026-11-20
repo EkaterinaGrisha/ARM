@@ -660,25 +660,26 @@ class Checker:
         (GOST 2.104, column 5: the mass in kilograms). Standard and purchased items, a part «БЧ», a group drawing
         with «См. табл.» and a mass not read as ``mass.methods`` reads have no mass here and only add to it, so the
         sum of the masses known is a bound the mass of the assembly must reach; each written mass may be half a unit
-        of its last digit off."""
+        of its last digit off. Of two documents under one designation, a duplicate the check reports apart, a part
+        counts with the lighter and the assembly with the heavier: the bound holds whichever is right."""
         refs = {d.doc.id: d for d in self.tree.drawings}
 
-        def mass_of(ids: list[str]) -> tuple[float, float, DrawingRef, Extracted] | None:
-            return next((m for d in ids if d in refs and (m := self._mass(refs[d])) is not None), None)
+        def masses(ids: list[str]) -> list[tuple[float, float, DrawingRef, Extracted]]:
+            return [m for d in ids if d in refs and (m := self._mass(refs[d])) is not None]
 
         done: set[str] = set()
         for node in self.tree.nodes():
             if node.kind != "assembly" or not node.designation or node.designation in done:
                 continue
-            if (own := mass_of(node.drawing_document_ids)) is None:
+            if not (own := masses(node.drawing_document_ids)):
                 continue
             done.add(node.designation)
-            weight, slack, ref, ex = own
+            weight, slack, ref, ex = max(own, key=lambda m: m[0] + m[1])
             parts = [
-                (child, child.quantity, found)
+                (child, child.quantity, min(found, key=lambda m: m[0] - m[1]))
                 for child in node.children
                 if child.kind in ("assembly", "part") and child.quantity
-                if (found := mass_of(child.drawing_document_ids)) is not None
+                if (found := masses(child.drawing_document_ids))
             ]
             bound = sum(qty * (m - r) for _, qty, (m, r, _, _) in parts)
             if weight + slack >= bound:
