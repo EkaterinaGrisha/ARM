@@ -1,0 +1,39 @@
+{
+ "date": "2026-11-20",
+ "machine": "Darwin arm64, Python 3.11.15",
+ "model": "qwen3.6-35b-a3b-mlx",
+ "runs": [
+  {
+   "kit": "arm-1",
+   "server": "LM Studio, parallel 1",
+   "threads": 1,
+   "requests": 60,
+   "seconds": 58.9,
+   "same": 60
+  },
+  {
+   "kit": "arm-1",
+   "server": "LM Studio, parallel 1",
+   "threads": 4,
+   "requests": 60,
+   "seconds": 50.9,
+   "same": 60
+  },
+  {
+   "kit": "arm-1",
+   "server": "LM Studio, parallel 4",
+   "threads": 1,
+   "requests": 60,
+   "seconds": 53.2,
+   "same": 60
+  },
+  {
+   "kit": "arm-1",
+   "server": "LM Studio, parallel 4",
+   "threads": 4,
+   "requests": 60,
+   "seconds": 48.9,
+   "same": 58
+  }
+ ]
+}

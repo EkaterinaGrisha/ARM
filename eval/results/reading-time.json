@@ -3,7 +3,26 @@
  "machine": "Darwin arm64, Python 3.11.15",
  "cpus": 10,
  "tesseract": "5.5.2",
+ "model": "qwen3.6-35b-a3b-mlx",
  "runs": [
+  {
+   "target": "arm",
+   "reading": "model",
+   "count": 1,
+   "kits": 1,
+   "sheets": 53,
+   "seconds": 561.0,
+   "same_as_snapshot": 1
+  },
+  {
+   "target": "arm",
+   "reading": "model",
+   "count": 4,
+   "kits": 1,
+   "sheets": 53,
+   "seconds": 504.0,
+   "same_as_snapshot": 1
+  },
   {
    "target": "arm",
    "reading": "processes",
