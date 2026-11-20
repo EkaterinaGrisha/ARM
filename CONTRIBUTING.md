@@ -34,6 +34,8 @@ Before starting a task, find its stage in docs/PLAN.md. If the task changes the 
 - **Data safety.** The repo is public: customer data never goes into git (`data/`, `models/`, `out/` are ignored). Customer documents are never sent to external APIs unless the customer allowed it (config flag, off by default).
 - **Licenses.** Prefer Apache-2.0/MIT/BSD. AGPL components (PyMuPDF, Ultralytics YOLO) only behind an adapter and after an explicit decision in docs/ARCHITECTURE.md. CI fails on an AGPL dependency in what ships, `backend/requirements.txt` (pip-licenses, `scripts/check_licenses.sh`).
 
+How to write and change code so that someone who did not write it can take it over, the checklist before a PR and the cleanup list before the handover: [docs/CODE_GUIDE.md](docs/CODE_GUIDE.md).
+
 ## Stack
 
 Python ≥ 3.11, uv, ruff (lint + format), mypy (strict for `kdcheck`), pytest. API: FastAPI; each job runs `kdcheck run` in a separate process with limits, no queue server (ADR-0006). Frontend: React, TypeScript, Vite in `frontend/`; report types are generated from the report JSON Schema (json-schema-to-typescript).
