@@ -692,6 +692,7 @@ class VlmEngine(Section):
     timeout_sec: float = Field(gt=0)
     max_tokens: int = Field(gt=0)
     seed: int
+    requests_at_once: int = Field(ge=1)
 
     @model_validator(mode="after")
     def _stays_on_this_machine(self) -> VlmEngine:
@@ -856,9 +857,11 @@ def settings_sha256(settings: Settings) -> str:
     """SHA-256 of the settings in effect: values and their order count, comments and layout of the files do not.
 
     Order counts because some lists and mappings are ordered rules, such as the first matching heat treatment. The
-    number of reading processes is left out: it changes the time of a run, not its report.
+    number of reading processes and of requests to the model at once are left out: they change the time of a run, not
+    its report (ADR-0032).
     """
     values = settings.model_dump(mode="json")
     del values["ingest"]["processes"]
+    del values["models"]["vlm"]["requests_at_once"]
     data = json.dumps(values, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(data.encode("utf-8")).hexdigest()

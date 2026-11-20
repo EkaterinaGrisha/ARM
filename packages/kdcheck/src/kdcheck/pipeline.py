@@ -14,6 +14,7 @@ import re
 import time
 from collections import Counter
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
@@ -124,17 +125,18 @@ class BaselinePipeline:
         progress("Разбор документов", 0.6, None)
         specs: list[tuple[LoadedDocument, Specification]] = []
         parts: list[PartRecord] = []
-        for i, doc in enumerate(docs):
-            progress("Разбор документов", 0.6 + 0.25 * i / max(1, len(docs)), doc.info.path)
-            if doc.info.status != "ok":
-                continue
-            try:
-                self._classify_and_parse(doc, specs, parts)
-            except Exception as exc:  # a parse error in one file never stops the doc set
-                log.exception("Ошибка разбора %s", doc.info.path)
-                doc.info.status = "warning"
-                doc.info.problem = f"Ошибка разбора: {exc}"
-                report_log.append(LogEntry(level="error", message=f"Ошибка разбора: {exc}", document_id=doc.id))
+        readable = [d for d in docs if d.info.status == "ok"]
+        # documents wait for the model in threads, so the server is never idle between them (ADR-0032)
+        at_once = self.settings.models.vlm.requests_at_once if self.vlm is not None and not self.vlm_problem else 1
+        with ThreadPoolExecutor(at_once) as pool:
+            for i, (doc, (parsed, failed)) in enumerate(zip(readable, pool.map(self._parse, readable), strict=True)):
+                progress("Разбор документов", 0.6 + 0.25 * (i + 1) / len(readable), doc.info.path)
+                if isinstance(parsed, Specification):
+                    specs.append((doc, parsed))
+                elif parsed is not None:
+                    parts.append(parsed)
+                if failed is not None:
+                    report_log.append(failed)
         for doc in docs:
             report_log += _page_problems(doc)
             if doc.info.status in UNREAD:
@@ -288,14 +290,22 @@ class BaselinePipeline:
         return found
 
     # ------------------------------------------------------------------ classification
-    def _classify_and_parse(
-        self, doc: LoadedDocument, specs: list[tuple[LoadedDocument, Specification]], parts: list[PartRecord]
-    ) -> None:
+    def _parse(self, doc: LoadedDocument) -> tuple[Specification | PartRecord | None, LogEntry | None]:
+        """What :meth:`_classify_and_parse` gives, or the log entry of its error: one file never stops the kit."""
+        try:
+            return self._classify_and_parse(doc), None
+        except Exception as exc:
+            log.exception("Ошибка разбора %s", doc.info.path)
+            doc.info.status = "warning"
+            doc.info.problem = f"Ошибка разбора: {exc}"
+            return None, LogEntry(level="error", message=f"Ошибка разбора: {exc}", document_id=doc.id)
+
+    def _classify_and_parse(self, doc: LoadedDocument) -> Specification | PartRecord | None:
+        """The specification or the part record of a document read, None for a text document or a foreign one."""
         info, forms = doc.info, self.settings.forms
         text_pages = [p for p in doc.pages if p.lines]
         if not text_pages:
-            self._scan_without_text(doc, parts)
-            return
+            return self._scan_without_text(doc)
         if any(specification.is_specification(p, forms) for p in text_pages[: forms.specification.header_pages]):
             spec = specification.parse(doc, forms, self.eskd)
             self._read_spec_cells(doc, spec)
@@ -309,11 +319,10 @@ class BaselinePipeline:
             else:
                 self._set_sheet(doc, None, "first" if head is not None and head.form == 2 else None)
             if self._text_document(doc, spec):
-                return
+                return None
             if not spec.rows:
                 info.status, info.problem = "warning", "Спецификация распознана, но строки таблицы не найдены"
-            specs.append((doc, spec))
-            return
+            return spec
         page = text_pages[0]
         geom = title_block.locate(page, forms)
         if geom is not None and geom.form == 2:
@@ -323,13 +332,9 @@ class BaselinePipeline:
             info.designation = self._designation(doc, spec.designation) or self._filename_designation(info.file_name)
             info.name = _str(spec.name)
             self._set_sheet(doc, None, "first")
-            if not self._text_document(doc, spec):
-                specs.append((doc, spec))
-            return
+            return None if self._text_document(doc, spec) else spec
         if geom is None and (later := title_block.later_sheet(doc, page, forms, self.eskd)) is not None:
-            if (record := self._parse_later_sheet(doc, page, later)) is not None:
-                parts.append(record)
-            return
+            return self._parse_later_sheet(doc, page, later)
         if geom is None:
             fallback = title_block.default_geometry(page, forms)
             template = forms.title_block
@@ -346,8 +351,8 @@ class BaselinePipeline:
                 else:
                     info.status = "foreign"
                     info.problem = "Посторонний документ: нет основной надписи чертежа и граф спецификации"
-                return
-        parts.append(self._parse_drawing(doc, page, geom))
+                return None
+        return self._parse_drawing(doc, page, geom)
 
     def _parse_drawing(self, doc: LoadedDocument, page: Page, geom: title_block.Geometry) -> PartRecord:
         info, forms = doc.info, self.settings.forms
@@ -563,16 +568,16 @@ class BaselinePipeline:
             doc.info.notes.append(f"Модель не прочитала основную надпись: {exc}")
         self.vlm_used = self.vlm_used or self.vlm.calls > calls
 
-    def _scan_without_text(self, doc: LoadedDocument, parts: list[PartRecord]) -> None:
+    def _scan_without_text(self, doc: LoadedDocument) -> PartRecord | None:
         info = doc.info
         if doc.unreadable:
             info.status, info.problem = "unreadable", f"Нечитаемый скан: {doc.unreadable}"
-            return
+            return None
         des = self._filename_designation(info.file_name)
         info.status = "warning"
         if not des:
             info.problem = "Скан без текстового слоя: распознавание (OCR) недоступно, обозначение не определено"
-            return
+            return None
         info.problem = "Скан без текстового слоя: распознавание (OCR) недоступно, обозначение взято из имени файла"
         self._set_sheet(doc, None, None)
         info.designation = des
@@ -580,7 +585,7 @@ class BaselinePipeline:
         info.kind = self._filename_kind(info.file_name, des)
         if info.kind not in DRAWINGS:  # a specification or a text document: its document is in the kit, not read
             self.named_unread.add(doc.id)
-            return
+            return None
         confidence = self.settings.ingest.confidence
         src = SourceRef(
             document_id=doc.id, page=1, method="filename", text=info.file_name, confidence=confidence.filename
@@ -590,7 +595,7 @@ class BaselinePipeline:
         )
         if info.name:
             tb.name = Extracted(value=info.name, raw=info.file_name, confidence=confidence.filename_name, source=src)
-        parts.append(PartRecord(document_id=doc.id, designation=des, name=info.name, kind=info.kind, title_block=tb))
+        return PartRecord(document_id=doc.id, designation=des, name=info.name, kind=info.kind, title_block=tb)
 
     def _named_unread(self, doc: LoadedDocument) -> None:
         """A file whose content is not read — damaged, encrypted, an unreadable scan — whose name gives a designation:

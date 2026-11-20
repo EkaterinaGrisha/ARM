@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import tempfile
+import threading
 from collections import Counter
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -31,6 +32,7 @@ T = TypeVar("T")
 
 _folder: Path | None = None
 stats: Counter[str] = Counter()  # «<engine>: hit» and «<engine>: miss» of this process
+_counting = threading.Lock()
 
 
 @contextmanager
@@ -76,10 +78,12 @@ def lookup(engine: str, parts: Callable[[], dict[str, Any]], read: Callable[[], 
     except (OSError, ValueError, KeyError, TypeError):
         pass
     else:
-        stats[f"{engine}: hit"] += 1
+        with _counting:
+            stats[f"{engine}: hit"] += 1
         return answer
     answer = read()
-    stats[f"{engine}: miss"] += 1
+    with _counting:
+        stats[f"{engine}: miss"] += 1
     _write(path, {"engine": engine, "parts": given, "answer": answer})
     return answer
 

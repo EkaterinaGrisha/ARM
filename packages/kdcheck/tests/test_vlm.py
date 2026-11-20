@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
+from kdcheck import pipeline
 from kdcheck.config import Settings
 from kdcheck.extract import title_block
 from kdcheck.ingest.document import load_document, page_raster
@@ -276,6 +277,31 @@ def test_pipeline_records_the_model_and_marks_its_values_for_review(settings, se
     material = report.parts[0].title_block.material
     assert (material.value, material.source.method, material.status) == ("Сталь 45", "vlm", "low_confidence")
     assert any(e.name == MODEL and e.version.startswith(on.models.vlm.prompt) for e in report.kit.engines)
+
+
+def test_documents_waiting_for_the_model_together_give_the_report_of_one_by_one(settings, server, monkeypatch):
+    """ADR-0032: a server that answers one request at a time gives the same answers, whatever the order they come in."""
+    server.say("Материал", "Сталь 45")
+    server.say("Масса", "1,2")
+    pools: list[int] = []
+
+    class Spy(pipeline.ThreadPoolExecutor):
+        def __init__(self, count: int) -> None:
+            pools.append(count)
+            super().__init__(count)
+
+    monkeypatch.setattr(pipeline, "ThreadPoolExecutor", Spy)
+    reports, asked = [], []
+    for at_once in (1, 4):
+        on = _settings(settings, server.url, methods=("text_layer",), requests_at_once=at_once)
+        report = BaselinePipeline(on).run(KIT, kit_id="demo", kit_name="demo")
+        report.kit.processed_at, report.kit.duration_sec = "", 0.0
+        reports.append(report.model_dump(mode="json"))
+        asked.append(len(server.requests))
+    assert pools == [1, 4]
+    assert asked[1] == 2 * asked[0] > 0
+    assert reports[0] == reports[1]
+    assert "Сталь 45" in json.dumps(reports[1], ensure_ascii=False)
 
 
 def test_a_dead_server_leaves_the_run_to_the_rules(settings, tmp_path):

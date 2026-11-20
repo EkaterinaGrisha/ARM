@@ -87,3 +87,6 @@ vlm:                             # a vision-language model reads title block cel
   timeout_sec: 120               # one cell; a model on a laptop may take a while to load and answer
   max_tokens: 512                # the answer is JSON {"text": …}; a reasoning model may spend tokens before it
   seed: 7                        # repeatable answers from the same server and model
+  requests_at_once: 4            # documents parsed at once, each waiting for its answers, so the server is not idle
+                                 # between requests. Answers are those of one by one only while the server runs one
+                                 # request at a time (LM Studio: lms load --parallel 1); batched ones differ (ADR-0032)

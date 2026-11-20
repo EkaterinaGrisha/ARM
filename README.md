@@ -232,7 +232,9 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
 Модель работает на OpenAI-совместимом сервере на этой же машине:
 
 1. [LM Studio](https://lmstudio.ai): скачать модель со зрением — по замеру Qwen3.6-35B-A3B (около 20 ГБ), на машине
-   скромнее Gemma 4 E4B (около 6 ГБ), — и включить сервер: `lms server start`, адрес `http://127.0.0.1:1234/v1`.
+   скромнее Gemma 4 E4B (около 6 ГБ), — загрузить её по одному запросу за раз, `lms load <модель> --parallel 1`, и
+   включить сервер: `lms server start`, адрес `http://127.0.0.1:1234/v1`. Ядро посылает до четырёх запросов сразу
+   (`requests_at_once`), а сервер, который считает их пакетом, меняет часть ответов ([ADR-0032](docs/adr/0032-parallel-reading.md)).
    Так же подходят llama.cpp (`llama-server -m модель.gguf --mmproj mmproj.gguf --port 1234`), Ollama
    (`http://127.0.0.1:11434/v1`) и vLLM на машине с GPU.
 2. В [`configs/models.yaml`](configs/models.yaml) в разделе `vlm` указать `model` — имя модели на сервере.

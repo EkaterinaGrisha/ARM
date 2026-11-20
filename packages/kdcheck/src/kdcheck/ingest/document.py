@@ -13,6 +13,7 @@ import hashlib
 import io
 import logging
 import math
+import threading
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -44,6 +45,8 @@ BLANK = "пустой лист: ни текста, ни линий, только
 # before decoding it: :func:`too_large`. PDFium has no such guard, so the images of a PDF page are checked by the sizes
 # the PDF declares before the page is scanned or rendered: :func:`page_too_large`.
 Image.MAX_IMAGE_PIXELS = None
+
+_pdfium = threading.Lock()
 
 
 class ImageTooLarge(Exception):
@@ -367,7 +370,8 @@ def page_raster(
     """
     data = doc.abs_path.read_bytes()
     if doc.info.media_type == "application/pdf":
-        return _page_image(pdf_backend.open(data).page(page.number - 1), settings)
+        with _pdfium:  # documents may be parsed in threads (ADR-0032), and PDFium is not safe in two at once
+            return _page_image(pdf_backend.open(data).page(page.number - 1), settings)
     image = Image.open(io.BytesIO(data))
     image.seek(page.number - 1)
     return image.convert("L"), (0.0, 0.0), 1.0
