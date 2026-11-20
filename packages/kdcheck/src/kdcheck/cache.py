@@ -45,6 +45,11 @@ def use(folder: Path | str | None) -> Iterator[None]:
         _folder = before
 
 
+def folder() -> Path | None:
+    """The folder answers are kept in now; None when nothing is kept."""
+    return _folder
+
+
 def folder_from_env() -> Path | None:
     value = os.environ.get(ENV, "").strip()
     return Path(value) if value else None

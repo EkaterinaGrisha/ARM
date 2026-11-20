@@ -1,5 +1,8 @@
 # Reading files and pages: limits, rasters, scans and the text lines of a page.
 
+processes: 4                     # processes that read the files of a kit with OCR at once, 1 — the job process alone.
+                                 # Each takes the memory of its sheet, see max_image_pixels; the report does not depend on
+                                 # it. On 10 cores arm-1 reads 2.9 times faster with 4, 3.4 with 6 (ADR-0032)
 max_pages_per_file: 500          # pages read per file, 0 — all; bounds the time one huge file takes. ARM_MAX_PAGES overrides
 page_timeout_sec: 300            # time to read one sheet, 0 — no limit: a slower sheet gets a problem, the others are read
 max_image_pixels: 600_000_000    # pixels of one image of a raster file or a PDF page, 0 — no limit: a larger one is not

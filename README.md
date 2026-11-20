@@ -165,7 +165,7 @@ sh ../scripts/export_schema.sh                                   # JSON Schema �
 | Переменная | Значение | Смысл |
 |---|---|---|
 | `ARM_PIPELINE_TIMEOUT` | `job_timeout_sec`, `api.yaml` | время на комплект, с; по истечении задание завершается ошибкой |
-| `ARM_JOB_MEMORY_MB` | `job_memory_mb`, `api.yaml` | память процесса задания, МБ (0 — без лимита; соблюдается в Linux) |
+| `ARM_JOB_MEMORY_MB` | `job_memory_mb`, `api.yaml` | память процесса задания и каждого его процесса чтения файлов, МБ (0 — без лимита; соблюдается в Linux) |
 | `ARM_MAX_UPLOAD_MB` | `max_upload_mb`, `api.yaml` | размер загрузки, МБ |
 | `ARM_MAX_FILES` | `max_files`, `api.yaml` | файлов в одной загрузке |
 | `ARM_WORKERS` | `workers`, `api.yaml` | комплектов, обрабатываемых параллельно |
