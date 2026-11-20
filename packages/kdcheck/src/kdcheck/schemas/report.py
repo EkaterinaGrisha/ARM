@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "1.10"
+SCHEMA_VERSION = "1.11"
 
 ExtractionMethod = Literal["text_layer", "ocr", "vlm", "llm", "filename", "rule", "manual"]
 DocumentKind = Literal["specification", "assembly_drawing", "part_drawing", "drawing", "other", "unknown"]
@@ -38,6 +38,7 @@ DiscrepancyType = Literal[
     "section_mismatch",
     "position_anomaly",
     "first_use_mismatch",
+    "mass_mismatch",
 ]
 Severity = Literal["high", "medium", "low"]
 ParameterCategory = Literal[

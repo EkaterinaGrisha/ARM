@@ -262,7 +262,8 @@ export interface Discrepancy {
     | "format_mismatch"
     | "section_mismatch"
     | "position_anomaly"
-    | "first_use_mismatch";
+    | "first_use_mismatch"
+    | "mass_mismatch";
   severity: "high" | "medium" | "low";
   designation?: string | null;
   title: string;

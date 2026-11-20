@@ -48,21 +48,21 @@ class DrawingRef:
     def designation(self) -> str | None:
         return self.doc.designation
 
-    def _cell(self, key: str) -> Extracted | None:
+    def cell(self, key: str) -> Extracted | None:
         block = self.part.title_block if self.part is not None else self.doc.title_block
         return getattr(block, key, None) if block is not None else None
 
     def tb_value(self, key: str) -> str | float | int | None:
-        ex = self._cell(key)
+        ex = self.cell(key)
         return ex.value if ex is not None else None
 
     def tb_source(self, key: str) -> SourceRef | None:
-        ex = self._cell(key)
+        ex = self.cell(key)
         return ex.source if ex is not None else None
 
     def tb_conflict(self, key: str) -> bool:
         """Whether the readings of the cell disagree, or the model alone read it (ADR-0019)."""
-        ex = self._cell(key)
+        ex = self.cell(key)
         return ex is not None and ex.status == "conflict"
 
 

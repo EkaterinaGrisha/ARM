@@ -12,6 +12,7 @@ DISCREPANCY_TYPES = {
     "section_mismatch": "Позиция не в своём разделе",
     "position_anomaly": "Нарушение позиций",
     "first_use_mismatch": "Расхождение первичного применения",
+    "mass_mismatch": "Масса сборочной единицы",
 }
 SEVERITY = {"high": "Высокая", "medium": "Средняя", "low": "Низкая"}
 DOCUMENT_STATUS = {

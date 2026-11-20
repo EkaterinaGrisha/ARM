@@ -21,8 +21,8 @@ from kdcheck.checks.rules import ActiveRule
 from kdcheck.config import Checks
 from kdcheck.normalize.designations import Designations, base_designation, doc_code, split_variant
 from kdcheck.report.labels import DOCUMENT_STATUS
-from kdcheck.schemas import Discrepancy, DocumentInfo, SourceRef, Specification, SpecRow, TreeNode
-from kdcheck.tree.product import ProductTree, text
+from kdcheck.schemas import Discrepancy, DocumentInfo, Extracted, SourceRef, Specification, SpecRow, TreeNode
+from kdcheck.tree.product import DrawingRef, ProductTree, text
 
 _FORMAT = re.compile(r"А\d(?:Х\d{1,2})?")  # a format of GOST 2.301 as a specification writes it: «А4», «А4х3»
 _COMPONENTS = ("assembly", "part", "standard", "other_item", "material")  # sections whose rows have a quantity
@@ -46,6 +46,7 @@ class Checker:
         self.sheets = checks.sheets
         self.positions = checks.positions
         self.listed = checks.preliminary.listed
+        self.mass = checks.mass
         self.sb = eskd.words.assembly_drawing_code
         self.sections = eskd.words.spec_sections
         self.discrepancies: list[Discrepancy] = []
@@ -104,6 +105,7 @@ class Checker:
         self._check_formats()
         self._check_positions()
         self._check_first_use()
+        self._check_mass()
         return self.discrepancies
 
     def _unread_note(self, docs: list[DocumentInfo], what: str, also: str | None = None) -> str:
@@ -652,6 +654,67 @@ class Checker:
                     nodes=nodes,
                     sources=[source],
                 )
+
+    def _check_mass(self) -> None:
+        """An assembly weighs no less than its parts and assemblies, each times its quantity in its specification
+        (GOST 2.104, column 5: the mass in kilograms). Standard and purchased items, a part «БЧ», a group drawing
+        with «См. табл.» and a mass not read as ``mass.methods`` reads have no mass here and only add to it, so the
+        sum of the masses known is a bound the mass of the assembly must reach; each written mass may be half a unit
+        of its last digit off. Of two documents under one designation, a duplicate the check reports apart, a part
+        counts with the lighter and the assembly with the heavier: the bound holds whichever is right."""
+        refs = {d.doc.id: d for d in self.tree.drawings}
+
+        def masses(ids: list[str]) -> list[tuple[float, float, DrawingRef, Extracted]]:
+            return [m for d in ids if d in refs and (m := self._mass(refs[d])) is not None]
+
+        done: set[str] = set()
+        for node in self.tree.nodes():
+            if node.kind != "assembly" or not node.designation or node.designation in done:
+                continue
+            if not (own := masses(node.drawing_document_ids)):
+                continue
+            done.add(node.designation)
+            weight, slack, ref, ex = max(own, key=lambda m: m[0] + m[1])
+            parts = [
+                (child, child.quantity, min(found, key=lambda m: m[0] - m[1]))
+                for child in node.children
+                if child.kind in ("assembly", "part") and child.quantity
+                if (found := masses(child.drawing_document_ids))
+            ]
+            bound = sum(qty * (m - r) for _, qty, (m, r, _, _) in parts)
+            if weight + slack >= bound:
+                continue
+            heaviest = sorted(parts, key=lambda p: -p[1] * p[2][0])[: self.listed]
+            listed = "; ".join(f"{c.designation} — {qty:g} × {m[3].value} кг" for c, qty, m in heaviest)
+            more = f" и ещё {len(parts) - len(heaviest)}" if len(parts) > len(heaviest) else ""
+            total = f"{bound:.3f}".rstrip("0").rstrip(".").replace(".", ",")
+            spec = [node.spec_document_id] if node.spec_document_id else []
+            self.add(
+                "B1.MASS.001",
+                node.designation,
+                f"{node.designation}: масса {ex.value} кг ({ref.doc.path}) меньше суммы масс составных частей с "
+                f"количеством по спецификации — не меньше {total} кг: {listed}{more}",
+                expected=f"не меньше {total}",
+                actual=str(ex.value),
+                docs=[ref.doc.id, *spec, *(m[2].doc.id for _, _, m in parts)],
+                nodes=[node],
+                sources=[ex.source, *(m[3].source for _, _, m in heaviest)],
+            )
+
+    def _mass(self, ref: DrawingRef) -> tuple[float, float, DrawingRef, Extracted] | None:
+        """The mass of a drawing in kilograms, half a unit of its last written digit, the drawing and the cell; None
+        for «См. табл.», a mass not read, read otherwise than ``mass.methods`` or whose readings disagree."""
+        ex = ref.cell("mass")
+        if ex is None or ex.status == "conflict" or ex.source is None or ex.source.method not in self.mass.methods:
+            return None
+        written = str(ex.value).strip()
+        if not _MASS.fullmatch(written):
+            return None
+        number = written.replace(",", ".")
+        return float(number), 0.5 * 10.0 ** -len(number.partition(".")[2]), ref, ex
+
+
+_MASS = re.compile(r"\d+(?:[.,]\d+)?")
 
 
 def _same_variants(a: SpecRow, b: SpecRow) -> bool:

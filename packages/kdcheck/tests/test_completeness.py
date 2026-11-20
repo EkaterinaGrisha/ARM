@@ -498,6 +498,19 @@ def first_used(ref: DrawingRef, where: str) -> DrawingRef:
     return ref
 
 
+def weighed(ref: DrawingRef, mass: str, method: str = "text_layer") -> DrawingRef:
+    ref.part.title_block.mass = Extracted(value=mass, source=SourceRef(document_id=ref.doc.id, method=method))
+    return ref
+
+
+def shafts(assembly: str, shaft: str = "1,8", qty: float = 2, method: str = "text_layer") -> Kit:
+    """The product with two shafts on its assembly drawing: it may not weigh less than they do."""
+    return (
+        [product(drawing_row(), row(1, "Детали", PART, "Вал", qty))],
+        [weighed(drawing("d0", f"{TOP} СБ", "Изделие"), assembly), weighed(drawing("d1", PART, "Вал"), shaft, method)],
+    )
+
+
 CASES: dict[str, tuple[Callable[[], Kit], Callable[[], Kit]]] = {
     "B1.MISSING.001": (
         lambda: ([product(part_row())], []),
@@ -605,6 +618,10 @@ CASES: dict[str, tuple[Callable[[], Kit], Callable[[], Kit]]] = {
         ),
         # first used in another product, outside the kit
         lambda: ([product(part_row())], [first_used(drawing("d1", PART, "Вал"), "АБВГ.999999.000")]),
+    ),
+    "B1.MASS.001": (
+        lambda: shafts("3,4"),  # two shafts of 1,8 kg weigh at least 3,5
+        lambda: shafts("3,5"),  # within the rounding of the values written
     ),
 }
 
@@ -922,3 +939,35 @@ def test_every_document_of_several_files_is_assembled():
     result = check([product(part_row(), row(2, "Детали", other, "Ось"))], files)
     assert [f.doc.sheet_of for f in files] == [None, "d1", None, "d3"]
     assert result.discrepancies == []
+
+
+def test_a_mass_read_by_ocr_is_not_compared():
+    """OCR loses the comma of a mass, «1,85» read «185»: a part so read only drops out of the sum."""
+    assert "B1.MASS.001" not in fired(shafts("3,4", shaft="18", method="ocr"))
+
+
+def test_a_group_drawing_and_purchased_items_only_add_to_the_mass():
+    standard = row(2, "Стандартные изделия", "", "Болт М8 ГОСТ 7798-70", 8)
+    kit = (
+        [product(drawing_row(), row(1, "Детали", PART, "Вал", 2), standard)],
+        [weighed(drawing("d0", f"{TOP} СБ", "Изделие"), "1"), weighed(drawing("d1", PART, "Вал"), "См. табл.")],
+    )
+    assert "B1.MASS.001" not in fired(kit)
+
+
+def test_an_assembly_counts_its_units_by_their_quantity():
+    unit = row(2, "Сборочные единицы", UNIT, "Узел", 3)
+    kit = (
+        [product(drawing_row(), unit), spec("s1", UNIT, "Узел", [])],
+        [weighed(drawing("d0", f"{TOP} СБ", "Изделие"), "10"), weighed(drawing("d2", f"{UNIT} СБ", "Узел"), "4,2")],
+    )
+    [found] = [d for d in check(*kit).discrepancies if d.rule_id == "B1.MASS.001"]
+    assert found.designation == TOP and found.expected == "не меньше 12,45" and found.actual == "10"
+    assert f"{UNIT} — 3 × 4,2 кг" in found.message
+
+
+def test_of_two_drawings_under_one_designation_the_lighter_part_counts():
+    """A duplicate the check reports apart: the sum takes the lighter, so the bound holds whichever is right."""
+    sb, shaft = weighed(drawing("d0", f"{TOP} СБ", "Изделие"), "3,8"), weighed(drawing("d1", PART, "Вал"), "1,8")
+    heavy = weighed(drawing("d2", PART, "Вал"), "2,5")
+    assert "B1.MASS.001" not in fired(([product(drawing_row(), row(1, "Детали", PART, "Вал", 2))], [sb, heavy, shaft]))

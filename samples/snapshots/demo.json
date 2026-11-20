@@ -1,5 +1,5 @@
 {
- "schema_version": "1.10",
+ "schema_version": "1.11",
  "kit": {
   "id": "demo",
   "name": "demo",
@@ -32,7 +32,7 @@
     "version": "13.0.0"
    }
   ],
-  "config_sha256": "fab2eb2c8068adbc8d6fd658080e157e6705c3a7957d20ec35a6bb9e46082567"
+  "config_sha256": "01708aa14a8003c4424ddd34b8f4303da4d9013d81f0fb96dca06b4f0f7ad211"
  },
  "summary": {
   "documents_total": 23,
@@ -218,7 +218,7 @@
    "path": "Чертежи/АРМ.303411.000 СБ.pdf",
    "size_bytes": 18481,
    "media_type": "application/pdf",
-   "sha256": "b3bfb6636af629e98a369f88c70ae4927dbcf8d119466be86b12adeaa86d51c7",
+   "sha256": "cbe43c8825c638715fe3bbda67a85e70f5f5eebc2e3f891bf2ce5c8d5c6dd1f9",
    "pages": [
     {
      "number": 1,
@@ -4746,20 +4746,20 @@
     },
     "material": null,
     "mass": {
-     "value": "48",
-     "raw": "48",
+     "value": "56",
+     "raw": "56",
      "confidence": null,
      "status": "ok",
      "source": {
       "document_id": "d30d4d43f1d",
       "page": 1,
       "bbox": [
-       0.9196,
+       0.9199,
        0.8822,
-       0.9304,
+       0.93,
        0.9007
       ],
-      "text": "48",
+      "text": "56",
       "method": "text_layer",
       "confidence": 0.95,
       "engine": "pdfium",

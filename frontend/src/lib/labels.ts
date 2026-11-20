@@ -30,6 +30,10 @@ export const DISCREPANCY_TYPES: Record<DiscrepancyType, { label: string; hint: s
     label: "Первичное применение",
     hint: "«Перв. примен.» называет сборочную единицу комплекта, в спецификации которой документа нет",
   },
+  mass_mismatch: {
+    label: "Масса сборочной единицы",
+    hint: "Сборочная единица легче суммы масс своих частей с количеством по спецификации",
+  },
 };
 export const PRELIMINARY_HINT =
   "В комплекте есть документы, которые не прочитаны: искомый может быть среди них — они перечислены в сообщении";
@@ -46,6 +50,7 @@ export const DISCREPANCY_ORDER: DiscrepancyType[] = [
   "position_anomaly",
   "format_mismatch",
   "first_use_mismatch",
+  "mass_mismatch",
 ];
 
 export const SEVERITY: Record<Severity, string> = { high: "Высокая", medium: "Средняя", low: "Низкая" };
