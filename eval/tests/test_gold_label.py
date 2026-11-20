@@ -78,6 +78,7 @@ def test_the_server_gives_the_kit_and_its_sheets_and_refuses_a_labelling_out_of_
     try:
         state = json.load(urllib.request.urlopen(f"{url}/kit"))
         assert state["kit"] == "arm-9" and "roughness" in state["categories"]
+        assert state["tolerances"]["sizes"][5] == 50 and state["tolerances"]["grades"]["7"][5] == 25  # Ø40H7: 25 µm
         assert urllib.request.urlopen(f"{url}/sheet/0").headers["Content-Type"] == "image/png"
         with pytest.raises(urllib.error.HTTPError) as missing:
             urllib.request.urlopen(f"{url}/sheet/9")

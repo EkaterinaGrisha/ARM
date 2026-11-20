@@ -2,11 +2,13 @@
 
 The page shows the masked copies of data/arm/masked/<kit>, sheet by sheet, next to a form of the document: its kind,
 the title block, the rows of a specification, the items of the technical requirements and the parameters of a drawing,
-each item and parameter with its region drawn on the sheet by the mouse. The labelling is
-data/arm/gold/<kit>.<label>.json; every save checks it as ``eval/gold.py check`` does and keeps the previous version in
-<kit>.<label>.bak. A new labelling starts from the file names alone, and the page reads no other labelling and no
-report of the core, so the labelling stays independent. The server listens on 127.0.0.1 only, and the sheets stay on
-the machine.
+each item and parameter with its region drawn on the sheet by the mouse. With a sample of the kit in
+data/arm/samples.json the list shows the sample alone on demand and counts its documents with contents; a size with
+deviations in numbers is offered the IT grade of GOST 25346 its tolerance equals (configs/tolerances.yaml). The
+labelling is data/arm/gold/<kit>.<label>.json; every save checks it as ``eval/gold.py check`` does and keeps the
+previous version in <kit>.<label>.bak. A new labelling starts from the file names alone, and the page reads no other
+labelling and no report of the core, so the labelling stays independent. The server listens on 127.0.0.1 only, and
+the sheets stay on the machine.
 
     uv run python eval/gold_label.py arm-1 --by a
 """
@@ -23,6 +25,7 @@ from pathlib import Path
 from typing import Any, get_args
 
 import gold
+from kdcheck.config import load_settings
 from kdcheck.schemas import ParameterCategory
 from PIL import Image
 from pydantic import ValidationError
@@ -85,6 +88,8 @@ class Kit:
         self.path = arm / "gold" / f"{kit}.{label}.json"
         samples = arm / gold.SAMPLES
         self.sample = json.loads(samples.read_text(encoding="utf-8")).get(kit, {}) if samples.exists() else {}
+        table = load_settings().tolerances
+        self.tolerances = {"sizes": table.sizes, "grades": table.grades}
 
     def state(self) -> dict[str, Any]:
         truth = KitTruth.read(self.path) if self.path.exists() else template(sorted(self.names))
@@ -98,6 +103,7 @@ class Kit:
             "truth": truth.model_dump(mode="json"),
             "categories": list(get_args(ParameterCategory)),
             "types": list(gold.TYPES),
+            "tolerances": self.tolerances,
             "problems": problems(truth, self.names),
         }
 
