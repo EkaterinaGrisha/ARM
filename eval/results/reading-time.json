@@ -1,0 +1,89 @@
+{
+ "date": "2026-11-20",
+ "machine": "Darwin arm64, Python 3.11.15",
+ "cpus": 10,
+ "tesseract": "5.5.2",
+ "runs": [
+  {
+   "target": "arm",
+   "reading": "processes",
+   "kits": 1,
+   "sheets": 53,
+   "seconds": 92.9,
+   "same_as_snapshot": 1,
+   "count": 1
+  },
+  {
+   "target": "arm",
+   "reading": "processes",
+   "kits": 1,
+   "sheets": 53,
+   "seconds": 50.6,
+   "same_as_snapshot": 1,
+   "count": 2
+  },
+  {
+   "target": "arm",
+   "reading": "processes",
+   "kits": 1,
+   "sheets": 53,
+   "seconds": 32.2,
+   "same_as_snapshot": 1,
+   "count": 4
+  },
+  {
+   "target": "arm",
+   "reading": "processes",
+   "kits": 1,
+   "sheets": 53,
+   "seconds": 27.1,
+   "same_as_snapshot": 1,
+   "count": 6
+  },
+  {
+   "target": "arm",
+   "reading": "processes",
+   "kits": 1,
+   "sheets": 53,
+   "seconds": 26.7,
+   "same_as_snapshot": 1,
+   "count": 8
+  },
+  {
+   "target": "arm",
+   "reading": "threads",
+   "count": 4,
+   "kits": 1,
+   "sheets": 53,
+   "seconds": 65.1,
+   "same_as_snapshot": 1
+  },
+  {
+   "target": "synth",
+   "reading": "processes",
+   "count": 1,
+   "kits": 20,
+   "sheets": 648,
+   "seconds": 121.9,
+   "same_as_snapshot": 20
+  },
+  {
+   "target": "synth",
+   "reading": "processes",
+   "count": 4,
+   "kits": 20,
+   "sheets": 648,
+   "seconds": 62.6,
+   "same_as_snapshot": 20
+  },
+  {
+   "target": "synth",
+   "reading": "processes",
+   "count": 6,
+   "kits": 20,
+   "sheets": 648,
+   "seconds": 64.1,
+   "same_as_snapshot": 20
+  }
+ ]
+}
