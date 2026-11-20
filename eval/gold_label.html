@@ -32,6 +32,17 @@
   #docs .foreign { color: var(--muted); text-decoration: line-through; }
   #docs .star { color: var(--par); font-weight: 700; }
   .banner { margin: 0 0 8px; padding: 6px 8px; background: #fbeee4; border-left: 3px solid var(--par); }
+  #filter { padding: 6px 10px; background: #fbeee4; border-bottom: 1px solid var(--line); }
+  #filter label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+  #filter input { width: auto; margin: 0; }
+  #filter span { display: block; color: var(--muted); }
+  details.rules { margin: 0 0 8px; padding: 4px 8px; background: #f7f7f4; border: 1px solid var(--line); border-radius: 3px; }
+  details.rules summary { cursor: pointer; color: var(--accent); }
+  details.rules ul { margin: 6px 0; padding-left: 18px; }
+  details.rules li { margin-bottom: 3px; }
+  details.rules th, details.rules td { padding: 2px 4px; border-top: 1px solid #e6e6e0; font-size: 12px; }
+  .grade { margin-top: 3px; color: var(--muted); font-size: 11px; }
+  .grade button { font-size: 11px; color: var(--accent); }
   #view { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   #tools { display: flex; gap: 6px; align-items: center; padding: 4px 8px; background: var(--panel); border-bottom: 1px solid var(--line); }
   #tools .tab.on { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -74,7 +85,7 @@
   .item { display: grid; grid-template-columns: 28px 1fr auto; gap: 4px; padding: 4px 2px; border-bottom: 1px solid #eee; }
   .item .n { color: var(--muted); padding-top: 3px; text-align: right; }
   .item .acts { display: flex; gap: 3px; align-items: start; flex-wrap: wrap; justify-content: end; }
-  .param { display: grid; grid-template-columns: 150px 1fr; gap: 3px; }
+  .param { display: grid; grid-template-columns: 200px 1fr; gap: 3px; }
   .numbers { display: grid; grid-template-columns: repeat(3, 1fr) 70px 48px; gap: 3px; margin-top: 3px; }
   .where { color: var(--muted); font-size: 11px; white-space: nowrap; padding-top: 3px; }
   .where.no { color: var(--bad); }
@@ -124,9 +135,39 @@ const NULLABLE = {
 };
 NULLABLE.assembly_drawing = NULLABLE.part_drawing;
 const SECTIONS = ["Документация", "Комплексы", "Сборочные единицы", "Детали", "Стандартные изделия", "Прочие изделия", "Материалы", "Комплекты"];
+const CATEGORIES = {
+  dimension_tolerance: "размер с допуском, резьба", general_tolerance: "общие допуски", roughness: "шероховатость",
+  geometric: "допуск формы и расположения", heat_treatment: "термообработка", hardness: "твёрдость", coating: "покрытие",
+  other: "другое: не размечается",
+};
+const SPEC_RULES = [
+  "Значения — как в графах листа: опечатки не исправляются, закрытое маской и нечитаемое — пусто.",
+  "Наименование на нескольких строках листа — одна строка, части через пробел; перенос с дефисом — слово целиком.",
+  "Раздел — подчёркнутый заголовок над строкой; сам заголовок строкой не размечается.",
+  "У стандартных изделий графа обозначения пуста: всё записанное, со стандартом, — в наименовании.",
+  "Сокращённое обозначение «-01» под полным: в «обозначение» — полностью, в «как записано» — как на листе.",
+  "Регистр, «ё», запятую и точку, виды тире и кавычек сравнение не различает.",
+];
+const DRAWING_RULES = [
+  "Пункт ТТ — текст без номера, строки через пробел; рамка обводит весь пункт.",
+  "Из ТТ параметрами размечаются общие допуски, твёрдость, термообработка, покрытие, шероховатость, допуск формы и расположения; область параметра — рамка его пункта. Зазоры, моменты затяжки, углы и другие требования без категории параметрами не размечаются.",
+  "С поля чертежа: размер с допуском, резьба с полем допуска, шероховатость с числом, рамка допуска формы и расположения, шероховатость остальных поверхностей в углу листа; рамка обводит надпись. Не параметры: справочный размер со «*», сварной шов, фаска, знак шероховатости без числа.",
+  "Имя — как на листе, одной строкой. Пустые числа не заполняются.",
+];
+const PARAM_RULES = [
+  ["размер с допуском", "Ø40H7, Ø40+0,025, 50±0,1", "значение — номинал; от и до — предельные размеры, если отклонения записаны числами", "мм", "из поля допуска: H7 — 7; при отклонениях числами — по подсказке у параметра, иначе пусто"],
+  ["резьба", "M20x1,5-6H", "нет", "", ""],
+  ["общие допуски", "IT14", "нет", "", "из пункта"],
+  ["шероховатость", "Ra 1,6", "значение — число", "мкм", ""],
+  ["допуск формы и расположения", "знак рамки: ⊥, ↗, ⌖", "значение — число рамки", "мм", ""],
+  ["твёрдость", "HRC", "от и до", "HRC", ""],
+  ["термообработка, покрытие", "обозначение, как в пункте", "нет", "", ""],
+];
 
 let K, T;
 let current = "";
+let onlySample = true;
+let rulesOpen = true;
 let page = 1;
 let scale = 0.2;
 let drawing = null;
@@ -208,10 +249,30 @@ function summary(name) {
   return parts.join(" · ");
 }
 
+function remember(key, value) {
+  try { localStorage.setItem(key, value); } catch {}
+}
+
+function started(name) {
+  const doc = T.documents[name];
+  if (doc?.kind === "specification") return doc.rows.length > 0;
+  return isDrawing(doc) && doc.requirements.length + doc.parameters.length > 0;
+}
+
 function renderDocs() {
-  const list = [h("div", {class: current === "" ? "on" : "", onclick: () => open("")}, h("b", {}, "Комплект"),
-    h("small", {}, `корень, расхождения: ${T.discrepancies.length}, заметки`))];
+  const list = [];
+  if (K.sample.length) {
+    const box = h("input", {type: "checkbox"});
+    box.checked = onlySample;
+    box.addEventListener("change", () => { onlySample = box.checked; remember("onlySample", onlySample ? "1" : "0"); renderDocs(); });
+    list.push(h("section", {id: "filter"}, h("label", {}, box, "★ только выборка"),
+      h("span", {title: "документы выборки, у которых есть строки, пункты ТТ или параметры"},
+        `с содержимым ${K.sample.filter(started).length} из ${K.sample.length}`)));
+  }
+  list.push(h("div", {class: current === "" ? "on" : "", onclick: () => open("")}, h("b", {}, "Комплект"),
+    h("small", {}, `корень ${T.root ? "задан" : "пуст"}, расхождения: ${T.discrepancies.length}, заметки`)));
   for (const name of names()) {
+    if (onlySample && K.sample.length && !K.sample.includes(name) && name !== current) continue;
     const doc = T.documents[name];
     const kind = doc ? doc.kind : "foreign";
     list.push(h("div", {class: name === current ? "on" : "", onclick: () => open(name)},
@@ -431,6 +492,25 @@ function where(box, draw, clear) {
     box && h("button", {title: "убрать рамку", onclick: clear}, "×")];
 }
 
+function rules(title, ...body) {
+  const el = h("details", {class: "rules", open: rulesOpen}, h("summary", {}, title), ...body);
+  el.addEventListener("toggle", () => { rulesOpen = el.open; remember("rules", rulesOpen ? "1" : "0"); });
+  return el;
+}
+
+function gradeHint(p, set) {
+  if (p.category !== "dimension_tolerance" || p.value_min == null || p.value_max == null) return "";
+  const size = p.value ?? p.value_min;
+  const band = K.tolerances.sizes.findIndex((s) => size <= s);
+  if (!(size > 0) || band < 0) return "размер вне таблиц ГОСТ 25346: IT пусто";
+  const width = Math.round((p.value_max - p.value_min) * 1e6) / 1e3;
+  const found = Object.entries(K.tolerances.grades).find(([, row]) => Math.abs(row[band] - width) < 1e-6);
+  if (!found) return `допуск ${width} мкм не равен ни одному IT по ГОСТ 25346: IT пусто`;
+  const grade = Number(found[0]);
+  if (p.it_grade === grade) return `допуск ${width} мкм — IT${grade} по ГОСТ 25346`;
+  return h("button", {onclick: () => set(grade)}, `поставить IT${grade}: допуск ${width} мкм`);
+}
+
 function move(list, i, step, ...more) {
   const j = i + step;
   if (j < 0 || j >= list.length) return;
@@ -521,6 +601,13 @@ function documentForm(name) {
   const kind = doc ? doc.kind : "foreign";
   const out = [h("h2", {}, name)];
   if (K.sample.includes(name)) out.push(h("p", {class: "banner"}, "★ Документ выборки: размечаются основная надпись, строки, пункты ТТ и параметры с рамками."));
+  if (kind === "specification") out.push(rules("Как размечать строки", h("ul", {}, SPEC_RULES.map((r) => h("li", {}, r)))));
+  if (isDrawing(doc)) {
+    out.push(rules("Как размечать ТТ и параметры", h("ul", {}, DRAWING_RULES.map((r) => h("li", {}, r))),
+      h("table", {}, h("tr", {}, ["категория", "имя", "числа", "ед.", "IT"].map((c) => h("th", {}, c))),
+        PARAM_RULES.map((row) => h("tr", {}, row.map((c) => h("td", {}, c))))),
+      h("p", {class: "muted"}, "Полностью — eval/gold/README.md, «Как записаны значения».")));
+  }
   const head = [h("label", {}, "Вид"), choice(KINDS, kind, (v) => setKind(name, v))];
   if (doc) head.push(h("label", {}, "Вход"), choice(ORIGINS, doc.origin, (v) => { doc.origin = v; changed(); }));
   out.push(h("div", {class: "grid"}, head));
@@ -628,16 +715,22 @@ function drawingForm(doc) {
       p.box = structuredClone(doc.requirement_boxes[Number(v)]);
       changed(); renderForm(); drawBoxes();
     });
+    const hint = h("div", {class: "grade"});
+    const setGrade = (grade) => { p.it_grade = grade; changed(); renderForm(); };
+    const refresh = () => hint.replaceChildren(gradeHint(p, setGrade));
+    refresh();
+    const numbers = h("div", {class: "numbers"},
+      number(p, "value", {placeholder: "значение"}), number(p, "value_min", {placeholder: "от"}),
+      number(p, "value_max", {placeholder: "до"}), text(p, "unit", {optional: true, placeholder: "ед."}),
+      number(p, "it_grade", {int: true, placeholder: "IT"}));
+    numbers.addEventListener("input", refresh);
     out.push(h("div", {class: "item", id: `par-${i}`, onclick: () => select("par", i)},
       h("span", {class: "n"}, i + 1),
       h("div", {},
         h("div", {class: "param"},
-          choice(K.categories.map((c) => [c, c]), p.category, (v) => { p.category = v; changed(); }),
+          choice(K.categories.map((c) => [c, CATEGORIES[c] ?? c]), p.category, (v) => { p.category = v; refresh(); changed(); }),
           text(p, "name", {placeholder: "имя, как на листе: Ø40+0,025, Ra 1,6, ⊥"})),
-        h("div", {class: "numbers"},
-          number(p, "value", {placeholder: "значение"}), number(p, "value_min", {placeholder: "от"}),
-          number(p, "value_max", {placeholder: "до"}), text(p, "unit", {optional: true, placeholder: "ед."}),
-          number(p, "it_grade", {int: true, placeholder: "IT"})),
+        numbers, hint,
         h("div", {class: "row-actions", style: "margin-top:3px"},
           where(p.box, () => startDrawing((b) => { p.box = b; selected = {kind: "par", i}; }), () => { p.box = null; changed(); renderForm(); drawBoxes(); }),
           items.length ? fromItem : null)),
@@ -670,7 +763,12 @@ function drawingForm(doc) {
 }
 
 (async () => {
-  try { const width = localStorage.getItem("form"); if (width) document.documentElement.style.setProperty("--form", width); } catch {}
+  try {
+    const width = localStorage.getItem("form");
+    if (width) document.documentElement.style.setProperty("--form", width);
+    onlySample = localStorage.getItem("onlySample") !== "0";
+    rulesOpen = localStorage.getItem("rules") !== "0";
+  } catch {}
   K = await (await fetch("/kit")).json();
   T = K.truth;
   document.title = `${K.kit}.${K.label} — разметка`;
