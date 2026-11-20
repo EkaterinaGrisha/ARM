@@ -190,7 +190,8 @@ def load_document(
     pdf_backend: PdfBackend | None = None,
     known: Mapping[str, str] | None = None,
 ) -> LoadedDocument:
-    """Read one file of the kit. ``known`` maps the SHA-256 of the files read before to their paths."""
+    """Read one file of the kit. ``known`` maps the SHA-256 of the files of the kit to the first file with those bytes:
+    a later one is a byte copy of it."""
     rel = path.relative_to(root).as_posix()
     try:
         data = path.read_bytes()
@@ -205,7 +206,7 @@ def load_document(
         info.status, info.problem = "damaged", "Пустой файл (0 байт)"
         return doc
     info.media_type = sniff_media_type(data[:2048])
-    if known and digest in known:
+    if known and known.get(digest, rel) != rel:
         info.status = "duplicate_file"
         info.problem = f"Побайтовая копия файла {known[digest]}: повторно не разбирается"
         return doc

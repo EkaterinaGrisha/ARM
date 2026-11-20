@@ -43,6 +43,9 @@ def run(
     ``use_ocr``, ``max_pages`` and ``use_vlm`` override the settings when given; ``max_pages=0`` reads every page.
     ``cache`` keeps the answers of OCR and of the model in that folder and gives them back on the next run (ADR-0018),
     by default the folder of ``ARM_CACHE_DIR``; without either nothing is kept.
+
+    With OCR, files are read in ``ingest.processes`` processes started anew (ADR-0032): a script that calls this keeps
+    its own code under ``if __name__ == "__main__":``, or every process runs the script again.
     """
     settings = load_settings(config, use_ocr=use_ocr, max_pages=max_pages, use_vlm=use_vlm)
     folder = cache or read_cache.folder_from_env()

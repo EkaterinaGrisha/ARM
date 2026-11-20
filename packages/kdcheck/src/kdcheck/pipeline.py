@@ -23,7 +23,8 @@ from kdcheck.checks import rules
 from kdcheck.checks.completeness import check
 from kdcheck.config import Settings, settings_sha256
 from kdcheck.extract import review, specification, tech_requirements, title_block
-from kdcheck.ingest.document import LoadedDocument, Page, kit_files, load_document, page_raster
+from kdcheck.ingest.document import LoadedDocument, Page, kit_files, page_raster
+from kdcheck.ingest.kit import load_kit
 from kdcheck.ingest.pdf import get_backend
 from kdcheck.ingest.text import Line
 from kdcheck.normalize import file_designation
@@ -112,14 +113,13 @@ class BaselinePipeline:
         self.eskd = self.designations.for_kit([p.stem for p in files])
         report_log += self._designation_systems(files)
         progress("Чтение файлов", 0.0, f"Файлов в комплекте: {len(files)}")
-        docs: list[LoadedDocument] = []
-        known: dict[str, str] = {}  # SHA-256 → the first file with these bytes
-        for i, path in enumerate(files):
-            progress("Чтение файлов", 0.6 * i / max(1, len(files)), path.relative_to(input_dir).as_posix())
-            doc = load_document(path, input_dir, self.settings, pdf_backend=self.pdf, known=known)
-            if doc.info.sha256:
-                known.setdefault(doc.info.sha256, doc.info.path)
-            docs.append(doc)
+
+        def file_read(count: int, path: Path) -> None:
+            progress("Чтение файлов", 0.6 * count / max(1, len(files)), path.relative_to(input_dir).as_posix())
+
+        docs, crashed = load_kit(files, input_dir, self.settings, self.pdf, file_read)
+        if crashed:
+            report_log.append(LogEntry(level="warning", message=crashed))
 
         progress("Разбор документов", 0.6, None)
         specs: list[tuple[LoadedDocument, Specification]] = []

@@ -356,6 +356,7 @@ class FileNames(Section):
 
 
 class Ingest(Section):
+    processes: int = Field(ge=1)
     max_pages_per_file: int = Field(ge=0)
     page_timeout_sec: float = Field(ge=0)
     max_image_pixels: int = Field(ge=0)  # 0: no limit
@@ -854,7 +855,10 @@ def _describe(exc: ValidationError, directory: Path) -> str:
 def settings_sha256(settings: Settings) -> str:
     """SHA-256 of the settings in effect: values and their order count, comments and layout of the files do not.
 
-    Order counts because some lists and mappings are ordered rules, such as the first matching heat treatment.
+    Order counts because some lists and mappings are ordered rules, such as the first matching heat treatment. The
+    number of reading processes is left out: it changes the time of a run, not its report.
     """
-    data = json.dumps(settings.model_dump(mode="json"), ensure_ascii=False, separators=(",", ":"))
+    values = settings.model_dump(mode="json")
+    del values["ingest"]["processes"]
+    data = json.dumps(values, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
