@@ -216,6 +216,22 @@ def test_the_model_fills_a_cell_the_rules_left_empty(settings, eskd, server):
     assert source.bbox == cell  # the evidence is the template cell the model was shown
 
 
+def test_a_cell_with_less_ink_than_a_digit_is_not_given_to_the_model(settings, eskd, server):
+    """OCR found the litera cell empty on the sheet: a letter the model reads there would be made up."""
+    from kdcheck.layout.raster import Placement
+    from kdcheck.ocr.cells import FoundBlock, Regions
+
+    server.say("Литера", "А")
+    on = _settings(settings, server.url, verify=False, fields={"litera": "Литера"})
+    doc, page, geom, tb = _drawing(on, eskd)
+    tb.litera = None
+    page.regions = Regions(FoundBlock(1, Placement(0.0, 0.0, 1.0, 0.0)), blank={"litera"})
+    client = VlmClient(on.models.vlm, Prompt("cell.v1", "«{label}»"))
+    raster = page_raster(doc, page, on, get_backend(on.models.pdf.backend))
+    notes = vlm_title_block.read_cells(doc, page, geom, tb, client=client, raster=raster, settings=on, eskd=eskd)
+    assert (notes, client.calls, tb.litera) == ([], 0, None)
+
+
 def test_a_see_table_the_model_alone_read_is_a_conflict(settings, eskd, server):
     """«См. табл.» makes a drawing a group one and closes the finding of a variant; read by the model alone in a cell
     the rules read empty, it does not close it."""
@@ -242,6 +258,7 @@ def _verified(settings, eskd, server, conflict: str):
     raster = page_raster(doc, page, on, get_backend(on.models.pdf.backend))
     notes = vlm_title_block.read_cells(doc, page, geom, tb, client=client, raster=raster, settings=on, eskd=eskd)
     assert (tb.mass.value, tb.mass.status, tb.mass.source.method) == ("4,2", None, "text_layer")  # they agree
+    assert tb.mass.confidence == on.ingest.confidence.agreed
     return on, page, geom, tb, client, notes
 
 
@@ -253,11 +270,14 @@ def test_a_conflict_keeps_the_reading_of_the_model_with_its_evidence(settings, e
     assert (source.method, source.engine, source.engine_version) == ("vlm", MODEL, client.version)
     assert source.bbox == page.norm_bbox(geom.rect(on.forms.title_block.forms[1].cells.scale))
     assert notes == ["Основная надпись, «Масштаб»: прочитано «1:1», модель прочла «1:2»; в отчёте — прочтение модели"]
+    assert tb.scale.other_reading == "1:1"  # for the checks of the run, not in the report
+    assert "other_reading" not in tb.scale.model_dump()
 
 
 def test_a_conflict_may_keep_the_reading_before_the_model(settings, eskd, server):
     _, _, _, tb, _, notes = _verified(settings, eskd, server, "ocr")
     assert (tb.scale.value, tb.scale.status, tb.scale.source.method) == ("1:1", "conflict", "text_layer")
+    assert tb.scale.other_reading == "1:2"
     assert notes == ["Основная надпись, «Масштаб»: прочитано «1:1», модель прочла «1:2»"]
 
 
@@ -407,6 +427,7 @@ def test_the_model_reads_each_line_of_a_name_carried_to_the_next_line(settings, 
     server.say_in_turn("Наименование", "Тяга рулевая с", "наконечниками")
     row, notes, client, page = _rows_on_a_table(settings, eskd, monkeypatch, server, name_lines=2)
     assert (row.name.value, row.name.source.method, notes) == ("Тяга рулевая с наконечниками", "ocr", [])
+    assert row.name.confidence == row.designation.confidence == settings.ingest.confidence.agreed  # the two agree
     assert client.calls == 3  # the designation, then the name in the row and in the band below it, not the third
 
 

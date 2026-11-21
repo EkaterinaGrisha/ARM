@@ -971,3 +971,18 @@ def test_of_two_drawings_under_one_designation_the_lighter_part_counts():
     sb, shaft = weighed(drawing("d0", f"{TOP} СБ", "Изделие"), "3,8"), weighed(drawing("d1", PART, "Вал"), "1,8")
     heavy = weighed(drawing("d2", PART, "Вал"), "2,5")
     assert "B1.MASS.001" not in fired(([product(drawing_row(), row(1, "Детали", PART, "Вал", 2))], [sb, heavy, shaft]))
+
+
+def test_a_mismatch_of_a_name_whose_other_reading_agrees_is_preliminary():
+    """The model read «Шайба плоская» where OCR read «Шайба специальная», as the specification: the finding stays, but
+    it may come from the misreading. A conflict whose other reading differs too, «правый» against «левый», is sure."""
+
+    def name_finding(other: str):
+        rows, refs = _kit_with_name("Шайба плоская", "vlm")
+        name = refs[0].part.title_block.name
+        name.status, name.other_reading = "conflict", other
+        return next(d for d in check(rows, refs).discrepancies if d.rule_id == "B1.NAME.001")
+
+    doubtful, sure = name_finding("Шайба специальная"), name_finding("Шайба разрезная")
+    assert doubtful.preliminary and doubtful.message.endswith("по другому прочтению оно совпадает")
+    assert not sure.preliminary

@@ -3,7 +3,9 @@
 The GOST template of ``forms.yaml`` gives the rectangle of each cell. The model reads the text of that rectangle
 only, and :func:`kdcheck.extract.title_block.cell_value` turns the text into the value by the same rules as OCR text,
 so the cell is the evidence of the value. The model reads the cells the rules left empty, and with ``verify`` every
-one. When its value differs from the one read before, the cell gets the ``conflict`` status and keeps the reading
+one, but not a cell that holds less ink than a digit: OCR found it empty, and a value the model gives there is made
+up. A value the model reads the same as OCR gets the confidence ``ingest.confidence.agreed``: two readers agree.
+When its value differs from the one read before, the cell gets the ``conflict`` status and keeps the reading
 ``vlm.conflict`` names (ADR-0019): the model's, with the evidence of the model, or the one read before; the other
 reading goes to the notes of the document. A value that closes a finding by itself, «См. табл.» for the mass, read by
 the model alone in a cell the rules read empty, is a conflict too: it does not close the finding.
@@ -50,6 +52,8 @@ def read_cells(
         current: Extracted | None = getattr(tb, field)
         if cell is None or (current is not None and not vlm.verify):
             continue
+        if current is None and page.regions is not None and field in page.regions.blank:
+            continue
         rect = geom.rect(cell)
         try:
             text = client.read(_crop(raster, geom, cell), label)
@@ -62,6 +66,7 @@ def read_cells(
         if value is None:
             continue
         if current is not None and _same(field, current.value, value, eskd):
+            current.confidence = max(current.confidence or 0, settings.ingest.confidence.agreed)
             continue
         confidence = settings.ingest.confidence.vlm
         source = SourceRef(
@@ -86,11 +91,11 @@ def read_cells(
             continue
         note = f"Основная надпись, «{label}»: прочитано «{current.value}», модель прочла «{value}»"
         if vlm.conflict == "model":
-            read.status = "conflict"
+            read.status, read.other_reading = "conflict", str(current.value)
             setattr(tb, field, read)
             notes.append(f"{note}; в отчёте — прочтение модели")
         else:
-            current.status = "conflict"
+            current.status, current.other_reading = "conflict", str(value)
             notes.append(note)
     return notes
 

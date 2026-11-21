@@ -8,7 +8,9 @@ A finding that a document is missing, or that one is in no specification, is pre
 the core did not read and the one wanted may be among them (ADR-0027): files it could not read or tell, for a missing
 drawing, document or specification; specifications without rows read, for one in no specification. The finding names
 them and stays in the report. A file not read whose name gives the designation of the position is its document, which
-cannot be used: the finding names it and is no less sure for it (ADR-0029).
+cannot be used: the finding names it and is no less sure for it (ADR-0029). A finding that two names differ is
+preliminary when the readers of one of them disagree and its other reading is the same as the other name: the finding
+may come from the misreading (ADR-0033).
 """
 
 from __future__ import annotations
@@ -136,6 +138,11 @@ class Checker:
         if len(words) == len(others):
             return all(self._close(w, o) for w, o in zip(words, others, strict=True))
         return self._close(first, second)
+
+    def _misread(self, name: Extracted | None, other: str) -> bool:
+        """Whether the readers of ``name`` disagree and its other reading is the same name as ``other``."""
+        alternative = name.other_reading if name is not None else None
+        return alternative is not None and self._same_name(alternative, other, name.source if name else None)
 
     def _close(self, a: str, b: str) -> bool:
         return a == b or difflib.SequenceMatcher(None, a, b).ratio() >= self.names.min_similarity
@@ -376,34 +383,40 @@ class Checker:
                 candidates = list(tree.drawings_by_des.get(des, []))
                 if node.kind == "assembly":
                     candidates = list(tree.drawings_by_des.get(f"{des} {self.sb}", []))
+                listed_name = row.name if row is not None else None
                 for ref in candidates:
                     actual = ref.tb_value("name") or ref.doc.name
                     if not actual or self._same_name(str(actual), expected, listed, ref.tb_source("name")):
                         continue
+                    doubtful = self._misread(listed_name, str(actual)) or self._misread(ref.cell("name"), expected)
                     self.add(
                         "B1.NAME.001",
                         des,
-                        f"{des}: в спецификации «{expected}», на чертеже «{actual}»",
+                        f"{des}: в спецификации «{expected}», на чертеже «{actual}»" + (MISREAD if doubtful else ""),
                         expected=expected,
                         actual=str(actual),
                         docs=[ref.doc.id],
                         nodes=[node],
                         sources=[ref.tb_source("name")],
+                        preliminary=doubtful,
                     )
                 if node.kind == "assembly" and node.spec_document_id:
                     for _, spec in tree.spec_by_des.get(des, [])[:1]:
                         own = text(spec.name)
                         source = spec.name.source if spec.name else None
                         if own and not self._same_name(own, expected, listed, source):
+                            doubtful = self._misread(listed_name, own) or self._misread(spec.name, expected)
                             self.add(
                                 "B1.NAME.002",
                                 des,
-                                f"{des}: в вышестоящей спецификации «{expected}», в собственной спецификации «{own}»",
+                                f"{des}: в вышестоящей спецификации «{expected}», в собственной спецификации «{own}»"
+                                + (MISREAD if doubtful else ""),
                                 expected=expected,
                                 actual=own,
                                 docs=[node.spec_document_id],
                                 nodes=[node],
                                 sources=[source],
+                                preliminary=doubtful,
                             )
 
     def _check_litera(self) -> None:
@@ -727,6 +740,11 @@ def _same_variants(a: SpecRow, b: SpecRow) -> bool:
 def _named_files(files: list[DocumentInfo]) -> str:
     """The files of a document that the core could not read, with what is wrong with each: «А.pdf — повреждён»."""
     return ", ".join(f"{d.path} — {DOCUMENT_STATUS.get(d.status, d.status).lower()}" for d in files)
+
+
+MISREAD = (
+    ". Находка предварительная: наименование прочитано двумя способами по-разному, и по другому прочтению оно совпадает"
+)
 
 
 def _name_source(row: SpecRow) -> SourceRef | None:

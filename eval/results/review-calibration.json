@@ -1,0 +1,316 @@
+{
+  "target": 0.02,
+  "configs": {
+    "ocr": {
+      "threshold": 1.01,
+      "tune": {
+        "values": 1312,
+        "marked": 1312,
+        "unmarked": 0,
+        "unmarked_wrong": 0,
+        "wrong": 251,
+        "wrong_marked": 251
+      },
+      "check": {
+        "values": 1398,
+        "marked": 1398,
+        "unmarked": 0,
+        "unmarked_wrong": 0,
+        "wrong": 279,
+        "wrong_marked": 279
+      },
+      "check_interval": null,
+      "check_by_part": {
+        "основные надписи": {
+          "values": 716,
+          "marked": 716,
+          "unmarked": 0,
+          "unmarked_wrong": 0,
+          "wrong": 72,
+          "wrong_marked": 72
+        },
+        "пункты ТТ": {
+          "values": 193,
+          "marked": 193,
+          "unmarked": 0,
+          "unmarked_wrong": 0,
+          "wrong": 126,
+          "wrong_marked": 126
+        },
+        "строки спецификаций": {
+          "values": 489,
+          "marked": 489,
+          "unmarked": 0,
+          "unmarked_wrong": 0,
+          "wrong": 81,
+          "wrong_marked": 81
+        }
+      },
+      "check_by_source": {
+        "arm": {
+          "values": 334,
+          "marked": 334,
+          "unmarked": 0,
+          "unmarked_wrong": 0,
+          "wrong": 89,
+          "wrong_marked": 89
+        },
+        "synthetic": {
+          "values": 1064,
+          "marked": 1064,
+          "unmarked": 0,
+          "unmarked_wrong": 0,
+          "wrong": 190,
+          "wrong_marked": 190
+        }
+      },
+      "grid": {
+        "0.50": {
+          "values": 2710,
+          "marked": 231,
+          "unmarked": 2479,
+          "unmarked_wrong": 503,
+          "wrong": 530,
+          "wrong_marked": 27
+        },
+        "0.60": {
+          "values": 2710,
+          "marked": 266,
+          "unmarked": 2444,
+          "unmarked_wrong": 489,
+          "wrong": 530,
+          "wrong_marked": 41
+        },
+        "0.70": {
+          "values": 2710,
+          "marked": 304,
+          "unmarked": 2406,
+          "unmarked_wrong": 473,
+          "wrong": 530,
+          "wrong_marked": 57
+        },
+        "0.75": {
+          "values": 2710,
+          "marked": 1142,
+          "unmarked": 1568,
+          "unmarked_wrong": 324,
+          "wrong": 530,
+          "wrong_marked": 206
+        },
+        "0.80": {
+          "values": 2710,
+          "marked": 1182,
+          "unmarked": 1528,
+          "unmarked_wrong": 299,
+          "wrong": 530,
+          "wrong_marked": 231
+        },
+        "0.85": {
+          "values": 2710,
+          "marked": 1256,
+          "unmarked": 1454,
+          "unmarked_wrong": 254,
+          "wrong": 530,
+          "wrong_marked": 276
+        },
+        "0.90": {
+          "values": 2710,
+          "marked": 1400,
+          "unmarked": 1310,
+          "unmarked_wrong": 175,
+          "wrong": 530,
+          "wrong_marked": 355
+        },
+        "0.93": {
+          "values": 2710,
+          "marked": 1570,
+          "unmarked": 1140,
+          "unmarked_wrong": 108,
+          "wrong": 530,
+          "wrong_marked": 422
+        },
+        "0.95": {
+          "values": 2710,
+          "marked": 1741,
+          "unmarked": 969,
+          "unmarked_wrong": 60,
+          "wrong": 530,
+          "wrong_marked": 470
+        },
+        "0.96": {
+          "values": 2710,
+          "marked": 1838,
+          "unmarked": 872,
+          "unmarked_wrong": 37,
+          "wrong": 530,
+          "wrong_marked": 493
+        },
+        "1.01": {
+          "values": 2710,
+          "marked": 2710,
+          "unmarked": 0,
+          "unmarked_wrong": 0,
+          "wrong": 530,
+          "wrong_marked": 530
+        }
+      }
+    },
+    "vlm": {
+      "threshold": 0.75,
+      "tune": {
+        "values": 1339,
+        "marked": 577,
+        "unmarked": 762,
+        "unmarked_wrong": 13,
+        "wrong": 76,
+        "wrong_marked": 63
+      },
+      "check": {
+        "values": 1409,
+        "marked": 619,
+        "unmarked": 790,
+        "unmarked_wrong": 15,
+        "wrong": 77,
+        "wrong_marked": 62
+      },
+      "check_interval": [
+        0.008373205741626795,
+        0.032
+      ],
+      "check_by_part": {
+        "основные надписи": {
+          "values": 726,
+          "marked": 166,
+          "unmarked": 560,
+          "unmarked_wrong": 6,
+          "wrong": 25,
+          "wrong_marked": 19
+        },
+        "пункты ТТ": {
+          "values": 186,
+          "marked": 186,
+          "unmarked": 0,
+          "unmarked_wrong": 0,
+          "wrong": 19,
+          "wrong_marked": 19
+        },
+        "строки спецификаций": {
+          "values": 497,
+          "marked": 267,
+          "unmarked": 230,
+          "unmarked_wrong": 9,
+          "wrong": 33,
+          "wrong_marked": 24
+        }
+      },
+      "check_by_source": {
+        "arm": {
+          "values": 326,
+          "marked": 134,
+          "unmarked": 192,
+          "unmarked_wrong": 3,
+          "wrong": 31,
+          "wrong_marked": 28
+        },
+        "synthetic": {
+          "values": 1083,
+          "marked": 485,
+          "unmarked": 598,
+          "unmarked_wrong": 12,
+          "wrong": 46,
+          "wrong_marked": 34
+        }
+      },
+      "grid": {
+        "0.50": {
+          "values": 2748,
+          "marked": 476,
+          "unmarked": 2272,
+          "unmarked_wrong": 92,
+          "wrong": 153,
+          "wrong_marked": 61
+        },
+        "0.60": {
+          "values": 2748,
+          "marked": 490,
+          "unmarked": 2258,
+          "unmarked_wrong": 92,
+          "wrong": 153,
+          "wrong_marked": 61
+        },
+        "0.70": {
+          "values": 2748,
+          "marked": 504,
+          "unmarked": 2244,
+          "unmarked_wrong": 89,
+          "wrong": 153,
+          "wrong_marked": 64
+        },
+        "0.75": {
+          "values": 2748,
+          "marked": 1196,
+          "unmarked": 1552,
+          "unmarked_wrong": 28,
+          "wrong": 153,
+          "wrong_marked": 125
+        },
+        "0.80": {
+          "values": 2748,
+          "marked": 1199,
+          "unmarked": 1549,
+          "unmarked_wrong": 28,
+          "wrong": 153,
+          "wrong_marked": 125
+        },
+        "0.85": {
+          "values": 2748,
+          "marked": 1205,
+          "unmarked": 1543,
+          "unmarked_wrong": 26,
+          "wrong": 153,
+          "wrong_marked": 127
+        },
+        "0.90": {
+          "values": 2748,
+          "marked": 1216,
+          "unmarked": 1532,
+          "unmarked_wrong": 24,
+          "wrong": 153,
+          "wrong_marked": 129
+        },
+        "0.93": {
+          "values": 2748,
+          "marked": 1235,
+          "unmarked": 1513,
+          "unmarked_wrong": 22,
+          "wrong": 153,
+          "wrong_marked": 131
+        },
+        "0.95": {
+          "values": 2748,
+          "marked": 1267,
+          "unmarked": 1481,
+          "unmarked_wrong": 20,
+          "wrong": 153,
+          "wrong_marked": 133
+        },
+        "0.96": {
+          "values": 2748,
+          "marked": 1986,
+          "unmarked": 762,
+          "unmarked_wrong": 2,
+          "wrong": 153,
+          "wrong_marked": 151
+        },
+        "1.01": {
+          "values": 2748,
+          "marked": 2748,
+          "unmarked": 0,
+          "unmarked_wrong": 0,
+          "wrong": 153,
+          "wrong_marked": 153
+        }
+      }
+    }
+  }
+}

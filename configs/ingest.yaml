@@ -81,10 +81,13 @@ confidence:                      # of a value, by how it was read
   filename: 0.5                  # a designation taken from the file name
   filename_name: 0.4             # a name taken from the file name
   vlm: 0.7                       # a title block cell read by a vision-language model (ADR-0014), until calibrated
+  agreed: 0.95                   # a cell OCR and the model read the same: two readers agree
 
 review:                          # values the report marks for a check against the document: status low_confidence
-  methods: [ocr, vlm, filename]  # every value read this way, while OCR and VLM confidence are not calibrated (plan, stage 6)
-  min_confidence: 0.6            # and any value with a lower confidence
+  methods: [filename]            # every value read this way
+  min_confidence: 0.75           # and any value with a lower confidence: calibrated on arm-1 and the synthetic corpus so
+                                 # that at most 2 % of the values left unmarked are wrong (eval/results/review-calibration.md)
+  without_model: [ocr]           # a run the model did not read: every OCR value too, no threshold keeps OCR alone at 2 %
 
 file_names:                      # what a file name tells besides the designation (ADR-0016)
   sheet_suffix: '\s*\((\d+)\)$'  # «Рама в сборе(2)»: sheet 2 of a document kept one sheet per file; not part of the name

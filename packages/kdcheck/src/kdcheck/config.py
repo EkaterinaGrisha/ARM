@@ -326,11 +326,13 @@ class MethodConfidence(Section):
     filename: Share
     filename_name: Share
     vlm: Share
+    agreed: Share
 
 
 class Review(Section):
     methods: tuple[ExtractionMethod, ...]
     min_confidence: Share
+    without_model: tuple[ExtractionMethod, ...]
 
 
 class FileNames(Section):
