@@ -1,7 +1,7 @@
 {
-  "date": "2026-11-19",
+  "date": "2026-11-21",
   "reader": "OCR, строки чертежа — PP-OCRv5 с Tesseract",
-  "cache": false,
+  "cache": true,
   "machine": "Darwin arm64, Python 3.11.15",
   "engines": {
     "pdfium": "156.0.8076.0",
@@ -10,28 +10,29 @@
     "eslav_PP-OCRv5_mobile_rec": "onnx sha256:984c0413f06b, onnxruntime 1.31.0",
     "pillow": "13.0.0"
   },
-  "config_sha256": "fab2eb2c8068adbc8d6fd658080e157e6705c3a7957d20ec35a6bb9e46082567",
-  "seconds": 711.8,
+  "config_sha256": "8774fdc51da8d5392f5c2fc6fd5d3e4022380e6fb9c5dd5c883c33a88e435b8a",
+  "seconds": 114.0,
+  "cache_note": "tesseract: из кэша 332, прочитано заново 0",
   "corpus": {
     "manifest": "eval/reading_corpus.json",
     "sha256": "363f0e385280e5315fb2547cda191136b34b9bb5fa120685c60fb8069feba6a3"
   },
   "sheet_seconds": {
-    "stress/all": 4.216,
-    "stress/augraphy": 4.216,
-    "stress/augraphy:fair": 3.211,
-    "stress/augraphy:good": 7.087,
-    "stress/augraphy:poor": 1.325,
-    "synthetic/all": 0.938,
-    "synthetic/raster": 1.086,
-    "synthetic/raster:fair": 0.995,
-    "synthetic/raster:good": 1.392,
-    "synthetic/raster:poor": 0.823,
-    "synthetic/scan": 1.408,
-    "synthetic/scan:fair": 1.238,
-    "synthetic/scan:good": 1.951,
-    "synthetic/scan:poor": 0.843,
-    "synthetic/vector": 0.004
+    "stress/all": 0.329,
+    "stress/augraphy": 0.329,
+    "stress/augraphy:fair": 0.209,
+    "stress/augraphy:good": 0.463,
+    "stress/augraphy:poor": 0.263,
+    "synthetic/all": 0.169,
+    "synthetic/raster": 0.191,
+    "synthetic/raster:fair": 0.147,
+    "synthetic/raster:good": 0.206,
+    "synthetic/raster:poor": 0.209,
+    "synthetic/scan": 0.14,
+    "synthetic/scan:fair": 0.176,
+    "synthetic/scan:good": 0.08,
+    "synthetic/scan:poor": 0.185,
+    "synthetic/vector": 0.192
   },
   "csv": "reading-errors.csv",
   "summary": {

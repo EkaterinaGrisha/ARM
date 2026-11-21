@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 SCHEMA_VERSION = "1.11"
 
@@ -86,6 +86,16 @@ class Extracted(Model):
         ),
     )
     source: SourceRef | None = None
+    # the reading a conflict did not keep, for the checks of this run: the report keeps it in the notes of the document
+    _other_reading: str | None = PrivateAttr(None)
+
+    @property
+    def other_reading(self) -> str | None:
+        return self._other_reading if self.status == "conflict" else None
+
+    @other_reading.setter
+    def other_reading(self, text: str | None) -> None:
+        self._other_reading = text
 
 
 class PageInfo(Model):

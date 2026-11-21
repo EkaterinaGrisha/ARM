@@ -217,9 +217,11 @@ class BaselinePipeline:
 
         progress("Формирование отчёта", 0.97, None)
 
+        read_by_model = self.vlm is not None and self.vlm_problem is None
+
         def mark() -> None:
             for model in [*parts, *(s for _, s in specs)]:
-                review.mark(model, self.settings.ingest.review)
+                review.mark(model, self.settings.ingest.review, read_by_model=read_by_model)
 
         _stage("отметка значений для проверки", report_log, mark, None)
         for d in infos:

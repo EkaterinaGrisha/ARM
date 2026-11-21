@@ -19,8 +19,6 @@ status, method and confidence: the data the review mark is calibrated on.
 from __future__ import annotations
 
 import argparse
-import csv
-import dataclasses
 import hashlib
 import json
 import platform
@@ -37,7 +35,7 @@ from kdcheck.pipeline import BaselinePipeline
 from kdcheck.report.labels import DISCREPANCY_TYPES, PARAMETER_CATEGORY
 from kdcheck.run import load_settings, ocr_available
 from kdcheck.schemas import Report, SpecRow
-from reading_errors import DRAWING_FIELDS, SPEC_FIELDS, Record, Scorer
+from reading_errors import DRAWING_FIELDS, SPEC_FIELDS, Record, Scorer, write_csv
 from synth.truth import DrawingTruth, KitTruth, RowTruth, SpecTruth
 from synth_kits import regions
 
@@ -102,11 +100,14 @@ def block1(report: Report, truth: KitTruth, eskd: Designations) -> tuple[dict[st
     labelled = bool(truth.discrepancies)
     left = Counter(want)
     lines = []
+    sure = Counter[str]()
     for d in sorted(report.discrepancies, key=lambda d: (d.type, d.designation or "")):
         mark = "разобрать"
         if labelled:
             mark = "верно" if left[key(d.type, d.designation)] > 0 else "лишнее"
             left[key(d.type, d.designation)] -= 1
+            if not d.preliminary:
+                sure[mark] += 1
         lines.append(
             f"| {mark} | {d.rule_id or ''} | {d.type} | {d.designation or ''} | "
             f"{'да' if d.preliminary else ''} | {d.message.replace('|', '/')} |"
@@ -116,6 +117,7 @@ def block1(report: Report, truth: KitTruth, eskd: Designations) -> tuple[dict[st
         "labelled": labelled,
         "findings": len(report.discrepancies),
         "preliminary": sum(d.preliminary for d in report.discrepancies),
+        "sure_right": sure["верно"],
         "by_type": {k: dict(v) for k, v in sorted(by_type.items())},
     }
     return result, lines
@@ -299,7 +301,8 @@ def markdown(kit: str, result: dict[str, Any]) -> str:
             f"| всего | {total['expected']} | {total['found']} | {total['extra']} |",
             "",
             f"Находок в отчёте {b1['findings']}, предварительных {b1['preliminary']}. Полнота "
-            f"{_share(total['found'], total['expected'])}, точность {_share(total['found'], b1['findings'])}.",
+            f"{_share(total['found'], total['expected'])}, точность {_share(total['found'], b1['findings'])}; "
+            f"без предварительных верны {b1['sure_right']} из {b1['findings'] - b1['preliminary']}.",
             "",
         ]
     else:
@@ -400,10 +403,7 @@ def main(argv: list[str] | None = None) -> int:
     (PRIVATE / f"{name}.findings.md").write_text(
         "\n".join([f"# {args.kit}: находки", "", *head, *findings]) + "\n", encoding="utf-8"
     )
-    with (PRIVATE / f"{name}.records.csv").open("w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=[f.name for f in dataclasses.fields(Record)])
-        writer.writeheader()
-        writer.writerows(dataclasses.asdict(r) for r in records)
+    write_csv(PRIVATE / f"{name}.records.csv", records)
     print(f"{OUT / name}.md; находки и значения — {PRIVATE}")
     return 0
 

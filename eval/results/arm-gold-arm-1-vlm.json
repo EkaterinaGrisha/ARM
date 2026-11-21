@@ -3,11 +3,11 @@
   "vlm": true,
   "run": {
     "date": "2026-11-21",
-    "seconds": 317.3,
+    "seconds": 41.7,
     "machine": "Darwin arm64, Python 3.11.15",
     "reader": "OCR и модель qwen3.6-35b-a3b-mlx",
     "cache": true,
-    "config_sha256": "07e52d126878becb1d995a299a46ef66cd088010797e6f85f1be338796b11043",
+    "config_sha256": "27f572cf3902e95cdf58b56c4b44c9120b0e7e6e89283a1d1ce107b035c8a762",
     "engines": {
       "pdfium": "156.0.8076.0",
       "pypdfium2": "5.14.0",
@@ -23,7 +23,8 @@
   "block1": {
     "labelled": true,
     "findings": 12,
-    "preliminary": 1,
+    "preliminary": 2,
+    "sure_right": 7,
     "by_type": {
       "duplicate_designation": {
         "expected": 1,
@@ -51,7 +52,7 @@
       "values": 286,
       "right": 261,
       "missed": 0,
-      "extra": 49
+      "extra": 3
     },
     "requirement": {
       "values": 93,
@@ -116,8 +117,12 @@
           "wrong": 14
         },
         "low_confidence": {
-          "right": 234,
-          "wrong": 60
+          "wrong": 11,
+          "right": 15
+        },
+        "ok": {
+          "right": 219,
+          "wrong": 3
         }
       },
       "method": {
@@ -127,35 +132,26 @@
         },
         "vlm": {
           "right": 30,
-          "wrong": 60
+          "wrong": 14
         }
       },
       "confidence": {
         "0.00": {
-          "wrong": 13
-        },
-        "0.30": {
-          "right": 1
-        },
-        "0.50": {
-          "right": 3
-        },
-        "0.60": {
-          "right": 1
+          "wrong": 11
         },
         "0.70": {
-          "right": 45,
-          "wrong": 60
+          "right": 42,
+          "wrong": 14
         },
         "0.80": {
-          "right": 32,
-          "wrong": 1
+          "right": 3
         },
         "0.90": {
-          "right": 63
+          "right": 22
         },
         "0.95": {
-          "right": 116
+          "right": 194,
+          "wrong": 3
         }
       }
     },
@@ -186,7 +182,10 @@
           "wrong": 4
         },
         "low_confidence": {
-          "right": 191,
+          "right": 72
+        },
+        "ok": {
+          "right": 119,
           "wrong": 2
         }
       },
@@ -202,8 +201,12 @@
       },
       "confidence": {
         "0.70": {
-          "right": 238,
-          "wrong": 6
+          "right": 119,
+          "wrong": 4
+        },
+        "0.95": {
+          "right": 119,
+          "wrong": 2
         }
       }
     }

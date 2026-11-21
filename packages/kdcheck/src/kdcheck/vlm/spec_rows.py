@@ -4,7 +4,8 @@ The table of a raster is placed by its ruled lines (:mod:`kdcheck.layout.raster`
 column of GOST 2.106 a known width. The image the page was read from is placed again the same way, and the cells of
 ``vlm.rows.fields`` of every band OCR read a row in are cut and given to the model, as the cells of a title block are
 (:mod:`kdcheck.vlm.title_block`). The reading of the model is normalized by the rules that normalize OCR text and
-compared with the row: an empty cell gets it, a different one is a conflict decided by ``vlm.conflict``.
+compared with the row: an empty cell gets it, the same one gets the confidence ``ingest.confidence.agreed``, a
+different one is a conflict decided by ``vlm.conflict``.
 """
 
 from __future__ import annotations
@@ -87,6 +88,7 @@ def read_rows(
                 value = specification.full_designation(text, rows[: rows.index(row)], eskd) or value
             current: Extracted | None = getattr(row, field)
             if current is not None and _same(field, current.value, value, eskd):
+                current.confidence = max(current.confidence or 0, settings.ingest.confidence.agreed)
                 continue
             confidence = settings.ingest.confidence.vlm
             source = SourceRef(
@@ -106,11 +108,11 @@ def read_rows(
             note = f"Спецификация, строка {_position(row)}, «{label}»: прочитано «{current.value}», "
             note += f"модель прочла «{value}»"
             if vlm.conflict == "model":
-                read.status = "conflict"
+                read.status, read.other_reading = "conflict", str(current.value)
                 setattr(row, field, read)
                 notes.append(f"{note}; в отчёте — прочтение модели")
             else:
-                current.status = "conflict"
+                current.status, current.other_reading = "conflict", str(value)
                 notes.append(note)
     return notes
 

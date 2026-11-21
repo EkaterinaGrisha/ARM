@@ -55,6 +55,7 @@ class FoundTable:
 class Regions:
     block: FoundBlock
     cells: dict[str, list[Line]] = field(default_factory=dict)  # title block cells read one by one, by field
+    blank: set[str] = field(default_factory=set)  # title block cells with less ink than a digit
     table: FoundTable | None = None
 
 
@@ -82,6 +83,8 @@ def find(
     for name, (u0, v0, u1, v1) in shape.cells.model_dump(exclude_none=True).items():
         box = (block.x0 + u0 * block.s, block.y0 + v0 * block.s, block.x0 + u1 * block.s, block.y0 + v1 * block.s)
         found.cells[name] = read_cell(gray, corner, box, settings, place, name)
+        if not found.cells[name] and _cut(gray, corner, box, settings) is None:
+            found.blank.add(name)
     for name, box in raster.find_margin(gray, corner, template.margin, settings.ingest.regions).items():
         found.cells[name] = read_cell(gray, corner, box, settings, place, name, upward=True)
     table = raster.find_table(gray, corner, forms, settings.ingest.regions)
@@ -124,6 +127,26 @@ def _read_row(
     return words
 
 
+def _cut(
+    gray: Image.Image, corner: raster.Corner, box: raster.Box, settings: Settings, *, upward: bool = False
+) -> tuple[Image.Image, Image.Image] | None:
+    """The cell at ``box`` cut inside its ruled lines, with the lines across it wiped, and its ink; none when it
+    holds less ink than a digit. An ``upward`` cell is turned a quarter clockwise."""
+    cells, s, level = settings.models.ocr.cells, corner.block.s, corner.level
+    m = cells.margin * s
+    image = wipe_lines(
+        corner.turn.crop(gray, (box[0] + m, box[1] + m, box[2] - m, box[3] - m)), level, s, settings.ingest.regions
+    )
+    if upward:
+        image = image.transpose(Image.Transpose.ROTATE_270)
+    ink = raster.ink_mask(image, level)
+    edge = settings.ingest.regions.line_band * s  # the edge of a ruled line may still lie along the cell: not text
+    middle = raster.crop(ink, (edge, edge, ink.width - edge, ink.height - edge), fill=0)
+    if raster.ink_share(middle) * middle.width * middle.height / s**2 < cells.min_ink:
+        return None
+    return image, ink
+
+
 def read_cell(
     gray: Image.Image,
     corner: raster.Corner,
@@ -140,18 +163,14 @@ def read_cell(
     the height the recognizer reads best, in black on white. The text of an ``upward`` cell, a column of the binding
     field, runs up the sheet: the cell is turned a quarter clockwise to be read.
     """
-    cells, s, level = settings.models.ocr.cells, corner.block.s, corner.level
-    m = cells.margin * s
-    x0, y0, x1, y1 = box[0] + m, box[1] + m, box[2] - m, box[3] - m
-    image = wipe_lines(corner.turn.crop(gray, (x0, y0, x1, y1)), level, s, settings.ingest.regions)
-    height = image.height
-    if upward:
-        image = image.transpose(Image.Transpose.ROTATE_270)
-    ink = raster.ink_mask(image, level)
-    edge = settings.ingest.regions.line_band * s  # the edge of a ruled line may still lie along the cell: not text
-    middle = raster.crop(ink, (edge, edge, ink.width - edge, ink.height - edge), fill=0)
-    if raster.ink_share(middle) * middle.width * middle.height / s**2 < cells.min_ink:
+    cut = _cut(gray, corner, box, settings, upward=upward)
+    if cut is None:
         return []
+    image, ink = cut
+    cells, s = settings.models.ocr.cells, corner.block.s
+    m = cells.margin * s
+    x0, y0 = box[0] + m, box[1] + m
+    height = image.width if upward else image.height
     low, high = cells.text_range
     heights = [h for h in _bands(raster.profile(ink, vertical=False)) if low * s <= h <= high * s]
     f = cells.text_height / max(heights) if heights else cells.pixels_per_mm / s

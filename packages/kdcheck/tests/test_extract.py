@@ -71,11 +71,13 @@ def test_value_status_follows_the_review_settings(settings):
     rules = settings.ingest.review
     assert review.status(_read("text_layer", 0.95), rules) == "ok"
     assert review.status(_read("text_layer", 0.5), rules) == "low_confidence"  # below min_confidence
-    assert review.status(_read("ocr", 0.9), rules) == "low_confidence"  # OCR is not calibrated yet
     assert review.status(_read("filename", None), rules) == "low_confidence"
     assert review.status(_read("text_layer", 0.95, value=None), rules) == "missing"
-    calibrated = Review(methods=(), min_confidence=rules.min_confidence)
-    assert review.status(_read("ocr", 0.9), calibrated) == "ok"
+    assert review.status(_read("ocr", 0.95), rules) == "low_confidence"  # OCR alone is not calibrated to be trusted
+    assert review.status(_read("ocr", 0.95), rules, model=True) == "ok"  # a cell the model read the same
+    assert review.status(_read("vlm", 0.7), rules, model=True) == "low_confidence"  # the model alone: below the bar
+    loose = Review(methods=(), min_confidence=rules.min_confidence, without_model=())
+    assert review.status(_read("ocr", 0.9), loose) == "ok"
 
 
 def test_marking_reaches_nested_values_and_keeps_a_status_set_before(settings):
