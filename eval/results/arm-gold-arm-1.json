@@ -1,0 +1,224 @@
+{
+  "kit": "arm-1",
+  "vlm": false,
+  "run": {
+    "date": "2026-11-21",
+    "seconds": 17.9,
+    "machine": "Darwin arm64, Python 3.11.15",
+    "reader": "OCR",
+    "cache": true,
+    "config_sha256": "01708aa14a8003c4424ddd34b8f4303da4d9013d81f0fb96dca06b4f0f7ad211",
+    "engines": {
+      "pdfium": "156.0.8076.0",
+      "pypdfium2": "5.14.0",
+      "tesseract": "5.5.2",
+      "eslav_PP-OCRv5_mobile_rec": "onnx sha256:984c0413f06b, onnxruntime 1.31.0",
+      "pillow": "13.0.0"
+    }
+  },
+  "gold_sha256": "844759f6faa26e23b856f235dce46313dcd70bc50fd5dcaef7b988afb524b7b5",
+  "documents": 48,
+  "root": true,
+  "block1": {
+    "labelled": true,
+    "findings": 12,
+    "preliminary": 0,
+    "by_type": {
+      "duplicate_designation": {
+        "expected": 1,
+        "found": 1
+      },
+      "format_mismatch": {
+        "expected": 2,
+        "found": 2,
+        "extra": 1
+      },
+      "missing_drawing": {
+        "expected": 1,
+        "found": 1,
+        "extra": 2
+      },
+      "name_mismatch": {
+        "expected": 4,
+        "found": 3,
+        "extra": 2
+      }
+    }
+  },
+  "shares": {
+    "title_block": {
+      "values": 286,
+      "right": 232,
+      "missed": 4,
+      "extra": 3
+    },
+    "requirement": {
+      "values": 93,
+      "right": 14,
+      "missed": 6,
+      "extra": 11
+    },
+    "row": {
+      "values": 249,
+      "right": 190,
+      "missed": 24,
+      "extra": 1
+    }
+  },
+  "parameters": {
+    "ТТ:coating": {
+      "expected": 9,
+      "extra": 4,
+      "found": 3
+    },
+    "ТТ:general_tolerance": {
+      "expected": 26,
+      "found": 9,
+      "valued": 9,
+      "value_right": 9,
+      "extra": 2
+    },
+    "ТТ:hardness": {
+      "expected": 4,
+      "found": 4,
+      "valued": 4,
+      "value_right": 4
+    },
+    "поле:dimension_tolerance": {
+      "expected": 67,
+      "found": 5,
+      "valued": 4,
+      "value_right": 1,
+      "extra": 3
+    },
+    "поле:geometric": {
+      "expected": 17
+    },
+    "поле:roughness": {
+      "expected": 46,
+      "found": 29,
+      "valued": 29,
+      "value_right": 28,
+      "extra": 3
+    }
+  },
+  "regions": {
+    "параметр": {
+      "values": 50,
+      "right": 40
+    }
+  },
+  "calibration": {
+    "title_block": {
+      "status": {
+        "low_confidence": {
+          "right": 232,
+          "wrong": 53
+        }
+      },
+      "method": {
+        "ocr": {
+          "right": 232,
+          "wrong": 53
+        }
+      },
+      "confidence": {
+        "0.00": {
+          "wrong": 14
+        },
+        "0.30": {
+          "right": 1
+        },
+        "0.50": {
+          "wrong": 4,
+          "right": 3
+        },
+        "0.60": {
+          "right": 1,
+          "wrong": 3
+        },
+        "0.70": {
+          "right": 15,
+          "wrong": 6
+        },
+        "0.80": {
+          "right": 32,
+          "wrong": 16
+        },
+        "0.90": {
+          "right": 64,
+          "wrong": 5
+        },
+        "0.95": {
+          "right": 116,
+          "wrong": 5
+        }
+      }
+    },
+    "requirement": {
+      "status": {
+        "low_confidence": {
+          "right": 14,
+          "wrong": 84
+        }
+      },
+      "method": {
+        "ocr": {
+          "right": 14,
+          "wrong": 84
+        }
+      },
+      "confidence": {
+        "0.00": {
+          "wrong": 1
+        },
+        "0.30": {
+          "wrong": 4
+        },
+        "0.50": {
+          "wrong": 1
+        },
+        "0.60": {
+          "wrong": 3
+        },
+        "0.70": {
+          "wrong": 15
+        },
+        "0.80": {
+          "wrong": 33
+        },
+        "0.90": {
+          "right": 9,
+          "wrong": 24
+        },
+        "0.95": {
+          "wrong": 3,
+          "right": 5
+        }
+      }
+    },
+    "row": {
+      "status": {
+        "conflict": {
+          "right": 1
+        },
+        "low_confidence": {
+          "right": 189,
+          "wrong": 36
+        }
+      },
+      "method": {
+        "ocr": {
+          "right": 190,
+          "wrong": 36
+        }
+      },
+      "confidence": {
+        "0.70": {
+          "right": 190,
+          "wrong": 36
+        }
+      }
+    }
+  }
+}
