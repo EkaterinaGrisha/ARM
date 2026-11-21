@@ -1,0 +1,211 @@
+{
+  "kit": "arm-1",
+  "vlm": true,
+  "run": {
+    "date": "2026-11-21",
+    "seconds": 317.3,
+    "machine": "Darwin arm64, Python 3.11.15",
+    "reader": "OCR и модель qwen3.6-35b-a3b-mlx",
+    "cache": true,
+    "config_sha256": "07e52d126878becb1d995a299a46ef66cd088010797e6f85f1be338796b11043",
+    "engines": {
+      "pdfium": "156.0.8076.0",
+      "pypdfium2": "5.14.0",
+      "tesseract": "5.5.2",
+      "eslav_PP-OCRv5_mobile_rec": "onnx sha256:984c0413f06b, onnxruntime 1.31.0",
+      "qwen3.6-35b-a3b-mlx": "tech_requirements.v1 sha256:95a734131986",
+      "pillow": "13.0.0"
+    }
+  },
+  "gold_sha256": "844759f6faa26e23b856f235dce46313dcd70bc50fd5dcaef7b988afb524b7b5",
+  "documents": 48,
+  "root": true,
+  "block1": {
+    "labelled": true,
+    "findings": 12,
+    "preliminary": 1,
+    "by_type": {
+      "duplicate_designation": {
+        "expected": 1,
+        "found": 1
+      },
+      "format_mismatch": {
+        "expected": 2,
+        "found": 2,
+        "extra": 1
+      },
+      "missing_drawing": {
+        "expected": 1,
+        "found": 1,
+        "extra": 2
+      },
+      "name_mismatch": {
+        "expected": 4,
+        "found": 3,
+        "extra": 2
+      }
+    }
+  },
+  "shares": {
+    "title_block": {
+      "values": 286,
+      "right": 261,
+      "missed": 0,
+      "extra": 49
+    },
+    "requirement": {
+      "values": 93,
+      "right": 48,
+      "missed": 22,
+      "extra": 0
+    },
+    "row": {
+      "values": 249,
+      "right": 238,
+      "missed": 5,
+      "extra": 0
+    }
+  },
+  "parameters": {
+    "ТТ:coating": {
+      "expected": 9,
+      "found": 3,
+      "extra": 6
+    },
+    "ТТ:general_tolerance": {
+      "expected": 26,
+      "found": 25,
+      "valued": 25,
+      "value_right": 25
+    },
+    "ТТ:hardness": {
+      "expected": 4,
+      "found": 3,
+      "valued": 3,
+      "value_right": 3
+    },
+    "поле:dimension_tolerance": {
+      "expected": 67,
+      "found": 8,
+      "valued": 5,
+      "value_right": 1,
+      "extra": 3
+    },
+    "поле:geometric": {
+      "expected": 17
+    },
+    "поле:roughness": {
+      "expected": 46,
+      "found": 29,
+      "valued": 29,
+      "value_right": 29,
+      "extra": 3
+    }
+  },
+  "regions": {
+    "параметр": {
+      "values": 68,
+      "right": 65
+    }
+  },
+  "calibration": {
+    "title_block": {
+      "status": {
+        "conflict": {
+          "right": 27,
+          "wrong": 14
+        },
+        "low_confidence": {
+          "right": 234,
+          "wrong": 60
+        }
+      },
+      "method": {
+        "ocr": {
+          "right": 231,
+          "wrong": 14
+        },
+        "vlm": {
+          "right": 30,
+          "wrong": 60
+        }
+      },
+      "confidence": {
+        "0.00": {
+          "wrong": 13
+        },
+        "0.30": {
+          "right": 1
+        },
+        "0.50": {
+          "right": 3
+        },
+        "0.60": {
+          "right": 1
+        },
+        "0.70": {
+          "right": 45,
+          "wrong": 60
+        },
+        "0.80": {
+          "right": 32,
+          "wrong": 1
+        },
+        "0.90": {
+          "right": 63
+        },
+        "0.95": {
+          "right": 116
+        }
+      }
+    },
+    "requirement": {
+      "status": {
+        "low_confidence": {
+          "right": 48,
+          "wrong": 23
+        }
+      },
+      "method": {
+        "vlm": {
+          "right": 48,
+          "wrong": 23
+        }
+      },
+      "confidence": {
+        "0.70": {
+          "right": 48,
+          "wrong": 23
+        }
+      }
+    },
+    "row": {
+      "status": {
+        "conflict": {
+          "right": 47,
+          "wrong": 4
+        },
+        "low_confidence": {
+          "right": 191,
+          "wrong": 2
+        }
+      },
+      "method": {
+        "ocr": {
+          "right": 191,
+          "wrong": 2
+        },
+        "vlm": {
+          "right": 47,
+          "wrong": 4
+        }
+      },
+      "confidence": {
+        "0.70": {
+          "right": 238,
+          "wrong": 6
+        }
+      }
+    }
+  }
+}
