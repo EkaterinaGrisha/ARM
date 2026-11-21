@@ -483,10 +483,16 @@ def agree() -> int:
                     lines.append(f"| {part} | {sum(of)} | {len(of)} | {share(sum(of), len(of))} |")
             lines.append("")
             if sample:
+                covered, drawn = len(sample["documents"]), len(sample.get("drawn", sample["documents"]))
+                where = (
+                    f"у выборки из {drawn} документов, по видам, случайно"
+                    if covered == drawn
+                    else f"у {covered} из {drawn} документов выборки, взятой по видам, случайно: у остальных "
+                    f"содержимого нет в одной из разметок"
+                )
                 lines += [
-                    f"Основные надписи — у всех документов; строки, пункты ТТ, параметры и исполнения — у выборки из "
-                    f"{len(sample['documents'])} документов, по видам, случайно; расхождения "
-                    f"{'размечены дважды' if sample['discrepancies'] else 'дважды не размечены'}.",
+                    f"Основные надписи — у всех документов; строки, пункты ТТ, параметры и исполнения — {where}; "
+                    f"расхождения {'размечены дважды' if sample['discrepancies'] else 'дважды не размечены'}.",
                     "",
                 ]
             differ = [f"| {where} | {x} | {y} |" for _, where, x, y, same in compared if not same]
